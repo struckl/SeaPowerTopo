@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--Offline preview of the Topographic Map overlay: renders PNGs from the game's own terrain files with the
+      plugin's Palette and Raster code, so colours, contours and shading can be tuned without starting the game.-->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <RootNamespace>SeaPowerTopo.Preview</RootNamespace>
+    <GameDir Condition="'$(GameDir)' == ''">E:\Games\steamapps\common\Sea Power</GameDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\src\SeaPowerTopo\Render\Palette.cs" Link="Shared\Palette.cs" />
+    <Compile Include="..\..\src\SeaPowerTopo\Render\Raster.cs" Link="Shared\Raster.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="K4os.Compression.LZ4" Version="1.3.8" />
+  </ItemGroup>
+
+</Project>

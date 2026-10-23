@@ -1,0 +1,94 @@
+using System.IO;
+using BepInEx;
+using BepInEx.Configuration;
+using UnityEngine;
+
+namespace SeaPowerTopo;
+
+internal enum ReadoutMode { WithOverlay, Always, Off }
+
+internal enum HeightUnits { Both, Metres, Feet }
+
+internal enum Corner { BottomLeft, TopLeft, TopRight, BottomRight }
+
+/// <summary>
+/// BepInEx config at <c>BepInEx/config/dev.sewerlabs.seapowertopo.cfg</c>. Sections are numbered so they sort in
+/// the order a player would look for them. Changes made while the game runs apply on the next redraw.
+/// </summary>
+internal static class Settings
+{
+    public static ConfigEntry<bool> Enabled;
+    public static ConfigEntry<bool> VerboseLog;
+
+    public static ConfigEntry<bool> Visible;
+    public static ConfigEntry<KeyboardShortcut> ToggleKey;
+    public static ConfigEntry<float> Opacity;
+    public static ConfigEntry<float> Hillshade;
+    public static ConfigEntry<bool> Contours;
+    public static ConfigEntry<int> ContourInterval;
+    public static ConfigEntry<string> Bands;
+    public static ConfigEntry<bool> AircraftClearance;
+    public static ConfigEntry<float> Resolution;
+
+    public static ConfigEntry<ReadoutMode> Readout;
+    public static ConfigEntry<bool> Legend;
+    public static ConfigEntry<Corner> LegendCorner;
+    public static ConfigEntry<HeightUnits> Units;
+
+    /// <summary>Bumped on every config change, so the overlay and the legend know to redraw.</summary>
+    public static int Version { get; private set; }
+
+    public static void Init()
+    {
+        var file = new ConfigFile(Path.Combine(Paths.ConfigPath, Plugin.Guid + ".cfg"), saveOnInit: true);
+
+        Enabled = file.Bind("1. General", "Enable mod", true,
+            "Master switch. Needs a restart.");
+        VerboseLog = file.Bind("1. General", "Verbose log", false,
+            "Write debug detail (every redraw of the overlay with its timing) to BepInEx/LogOutput.log.");
+
+        Visible = file.Bind("2. Overlay", "Visible", true,
+            "Whether the Topography map layer is on. Written by the mod when you toggle it in the map's " +
+            "Layers menu or with the toggle key.");
+        ToggleKey = file.Bind("2. Overlay", "Toggle key", new KeyboardShortcut(KeyCode.F6),
+            "Turns the Topography map layer on and off (same as its entry in the map's Layers menu).");
+        Opacity = file.Bind("2. Overlay", "Opacity", 0.7f,
+            new ConfigDescription("How strongly the height colours cover the stock map (0 = invisible, 1 = opaque).",
+                                  new AcceptableValueRange<float>(0.1f, 1f)));
+        Hillshade = file.Bind("2. Overlay", "Hill shading", 0.6f,
+            new ConfigDescription("Strength of the relief shading (light from the north-west). 0 turns it off.",
+                                  new AcceptableValueRange<float>(0f, 1f)));
+        Contours = file.Bind("2. Overlay", "Contour lines", true,
+            "Draw contour lines; every fifth one is drawn bolder.");
+        ContourInterval = file.Bind("2. Overlay", "Contour interval", 0,
+            new ConfigDescription("Height step between contour lines in metres. 0 = automatic: the step grows as " +
+                                  "you zoom out so the lines stay readable (20 m up to 1000 m).",
+                                  new AcceptableValueRange<int>(0, 5000)));
+        Bands = file.Bind("2. Overlay", "Height bands", "0,50,100,200,300,500,750,1000,1500,2000,2500,3000,4000",
+            "Lower edges of the colour bands in metres, ascending, starting at 0. Each band gets its own colour " +
+            "from green (low) over yellow and brown to white (high).");
+        AircraftClearance = file.Bind("2. Overlay", "Terrain above selected aircraft", true,
+            "While an aircraft or helicopter is selected, terrain as high as or higher than its current altitude " +
+            "is hatched red, and the cursor readout shows the clearance.");
+        Resolution = file.Bind("2. Overlay", "Resolution", 1f,
+            new ConfigDescription("Overlay resolution relative to the map's own. Lower is faster, higher is sharper.",
+                                  new AcceptableValueRange<float>(0.25f, 2f)));
+
+        Readout = file.Bind("3. Readout and legend", "Height under cursor", ReadoutMode.WithOverlay,
+            "Show the terrain height under the mouse pointer on the map: WithOverlay (while the Topography layer " +
+            "is on), Always, or Off.");
+        Legend = file.Bind("3. Readout and legend", "Legend", true,
+            "Show the colour key and the contour interval in a corner of the map while the layer is on.");
+        LegendCorner = file.Bind("3. Readout and legend", "Legend corner", Corner.BottomLeft,
+            "Map corner for the legend. The map scale sits bottom right.");
+        Units = file.Bind("3. Readout and legend", "Units", HeightUnits.Both,
+            "Height units in the readout and the legend: Both (metres and feet), Metres or Feet.");
+
+        // Turning the layer on and off is not a reason to redraw it.
+        file.SettingChanged += (_, e) =>
+        {
+            if (e.ChangedSetting != Visible)
+                Version++;
+        };
+    }
+}

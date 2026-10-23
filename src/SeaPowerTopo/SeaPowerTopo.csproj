@@ -1,0 +1,61 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <AssemblyName>SeaPowerTopo</AssemblyName>
+    <RootNamespace>SeaPowerTopo</RootNamespace>
+    <Product>Terrain heights on Sea Power's tactical map.</Product>
+    <Version>0.1.0</Version>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <!--Terrain heights are read straight from the game's DEM buffers.-->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <RestoreAdditionalProjectSources>
+      https://api.nuget.org/v3/index.json;
+      https://nuget.bepinex.dev/v3/index.json
+    </RestoreAdditionalProjectSources>
+
+    <!--Override with your own install: dotnet build -p:GameDir="D:\Steam\steamapps\common\Sea Power"-->
+    <GameDir Condition="'$(GameDir)' == ''">E:\Games\steamapps\common\Sea Power</GameDir>
+    <!--Anchor Chain lives in the Steam Workshop folder of the library that holds the game.-->
+    <AnchorChainDir Condition="'$(AnchorChainDir)' == ''">$(GameDir)\..\..\workshop\content\1286220\3380210757</AnchorChainDir>
+    <ManagedDir>$(GameDir)\Sea Power_Data\Managed</ManagedDir>
+    <!--Local mod folder: Anchor Chain scans every StreamingAssets sub folder for plugin DLLs.-->
+    <ModDeployDir>$(GameDir)\Sea Power_Data\StreamingAssets\SeaPowerTopo</ModDeployDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BepInEx.Core" Version="5.4.21" IncludeAssets="compile" PrivateAssets="all" />
+    <PackageReference Include="HarmonyX" Version="2.9.0" IncludeAssets="compile" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Seapower-Scripts"><HintPath>$(ManagedDir)\Seapower-Scripts.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Noesis.NoesisGUI"><HintPath>$(ManagedDir)\Noesis.NoesisGUI.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine"><HintPath>$(ManagedDir)\UnityEngine.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.CoreModule"><HintPath>$(ManagedDir)\UnityEngine.CoreModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.InputLegacyModule"><HintPath>$(ManagedDir)\UnityEngine.InputLegacyModule.dll</HintPath><Private>false</Private></Reference>
+    <!--Pulled in by game types we touch (Singleton, view models, terrain loader), compile-only.-->
+    <Reference Include="Libraries"><HintPath>$(ManagedDir)\Libraries.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UniRx"><HintPath>$(ManagedDir)\UniRx.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="CommunityToolkit.Mvvm"><HintPath>$(ManagedDir)\CommunityToolkit.Mvvm.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Unity.Mathematics"><HintPath>$(ManagedDir)\Unity.Mathematics.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Unity.Collections"><HintPath>$(ManagedDir)\Unity.Collections.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="AnchorChain"><HintPath>$(AnchorChainDir)\AnchorChain.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ModFiles Include="mod\**\*.*" />
+  </ItemGroup>
+
+  <!--Copy plugin + mod files into the local mod folder after every build (only if the game is installed).-->
+  <Target Name="DeployMod" AfterTargets="Build" Condition="Exists('$(GameDir)') And '$(Deploy)' != 'false'">
+    <MakeDir Directories="$(ModDeployDir)" />
+    <Copy SourceFiles="$(OutputPath)$(AssemblyName).dll" DestinationFolder="$(ModDeployDir)" />
+    <Copy SourceFiles="$(OutputPath)$(AssemblyName).pdb" DestinationFolder="$(ModDeployDir)" Condition="Exists('$(OutputPath)$(AssemblyName).pdb')" />
+    <Copy SourceFiles="@(ModFiles)" DestinationFolder="$(ModDeployDir)\%(RecursiveDir)" SkipUnchangedFiles="true" />
+    <Message Importance="high" Text="SeaPowerTopo deployed to $(ModDeployDir)" />
+  </Target>
+
+</Project>
