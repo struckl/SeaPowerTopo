@@ -8,7 +8,7 @@ internal sealed class SourceGrid
     /// <summary>Centre of cell (0, 0) and the cell size in degrees; rows run south, columns east.</summary>
     public double Lon0, Lat0, Cell;
     public int Nx, Ny;
-    /// <summary>Heights in metres as the simulation uses them; negative = water.</summary>
+    /// <summary>Heights in metres as the simulation uses them (<see cref="Raster.SimHeight"/>); negative = water.</summary>
     public float[] V;
 
     public void Allocate(int nx, int ny)
@@ -28,13 +28,18 @@ internal sealed class RasterJob
     public double West, North, Dpp;
 
     public Palette Palette;
+    /// <summary>Depth bands of the sea; null leaves the water to the stock map.</summary>
+    public Palette Sea;
     public float Opacity, Hillshade;
     /// <summary>Metres between contour lines; 0 = none.</summary>
     public float Interval;
     /// <summary>Terrain at or above this height (metres) is hatched red; NaN = off.</summary>
     public float Danger = float.NaN;
 
-    /// <summary>(Width + 2) × (Height + 2) land heights in metres with a one-pixel border; -1 = water.</summary>
+    /// <summary>
+    /// (Width + 2) × (Height + 2) heights in metres with a one-pixel border: land 0 or more, water below 0 (minus
+    /// its depth, never quite 0, so the sign alone tells water from land).
+    /// </summary>
     public float[] Heights;
     /// <summary>Width × Height RGBA, straight alpha, row 0 = north.</summary>
     public byte[] Rgba;
@@ -45,13 +50,35 @@ internal sealed class RasterJob
 
 /// <summary>
 /// Turns DEM heights into the overlay image: hypsometric tint, hill shading, contour lines and the red hatching
-/// for terrain above the selected aircraft. Runs on a worker thread; plain C# so the offline preview shares it.
+/// for terrain above the selected aircraft; the sea tinted by depth with depth lines at the band edges. Runs on a
+/// worker thread; plain C# so the offline preview shares it.
 /// </summary>
 internal static class Raster
 {
     public const double MetresPerDegree = 111320.0;
 
+    /// <summary>Raw DEM water shallower than this is made twice as deep again by the simulation.</summary>
+    private const float ShallowDoubling = -48f;
+    /// <summary>Smallest depth a water pixel carries, so it stays negative.</summary>
+    private const float MinDepth = 0.01f;
+    /// <summary>The seabed is shaded this much weaker than the land, but with more exaggeration (it is flatter).</summary>
+    private const float SeabedShading = 0.5f, SeabedExaggeration = 2f;
+
     private static readonly float[] NiceIntervals = { 20, 50, 100, 200, 500, 1000 };
+
+    /// <summary>
+    /// A raw DEM value in metres as the simulation uses it: land times the height multiplier, water depth times the
+    /// under-water depth factor (Options → World) – and doubled once more where the DEM is shallower than 48 m, as
+    /// every terrain lookup of the game does (TerrainUtils.GetHeightAt, the 3D terrain). So a thin ring of water
+    /// just past the DEM's 48 m line is shallower than the water inshore of it.
+    /// </summary>
+    public static float SimHeight(float raw, float heightMultiplier, float depthFactor)
+    {
+        if (raw >= 0f)
+            return raw * heightMultiplier;
+        float depth = raw * depthFactor;
+        return raw > ShallowDoubling ? depth * 2f : depth;
+    }
 
     /// <summary>Contour step that keeps lines a few pixels apart on moderate slopes at this map scale.</summary>
     public static float AutoInterval(double metresPerPixel)
@@ -72,7 +99,8 @@ internal static class Raster
     /// <summary>
     /// Resamples the source grid onto the image pixels (plus a one-pixel border). Smooth Catmull-Rom when the map
     /// is zoomed in past the DEM resolution, bilinear otherwise. Land/water is decided like the stock map shader
-    /// does it, half-way between a land and a water sample, so the tint ends where the stock coastline is.
+    /// does it, half-way between a land and a water sample, so the tint ends where the stock coastline is. Land
+    /// heights and water depths are interpolated apart, each with the other side counting as sea level.
     /// </summary>
     public static bool Resample(SourceGrid src, RasterJob job, Func<bool> cancelled)
     {
@@ -85,6 +113,7 @@ internal static class Raster
         bool cubic = src.Cell > job.Dpp * 1.5;
 
         var colHeight = new float[nx];
+        var colDepth = new float[nx];
         var colLand = new float[nx];
         var ci = new int[gw];
         var cf = new float[gw];
@@ -108,12 +137,19 @@ internal static class Raster
             {
                 int rm = Clamp(j - 1, ny) * nx, r2 = Clamp(j + 2, ny) * nx;
                 for (int i = 0; i < nx; i++)
-                    colHeight[i] = CatmullRom(Land(v[rm + i]), Land(v[r0 + i]), Land(v[r1 + i]), Land(v[r2 + i]), ty);
+                {
+                    float a = v[rm + i], b = v[r0 + i], c = v[r1 + i], d = v[r2 + i];
+                    colHeight[i] = CatmullRom(Land(a), Land(b), Land(c), Land(d), ty);
+                    colDepth[i] = CatmullRom(Water(a), Water(b), Water(c), Water(d), ty);
+                }
             }
             else
             {
                 for (int i = 0; i < nx; i++)
+                {
                     colHeight[i] = Lerp(Land(v[r0 + i]), Land(v[r1 + i]), ty);
+                    colDepth[i] = Lerp(Water(v[r0 + i]), Water(v[r1 + i]), ty);
+                }
             }
             for (int i = 0; i < nx; i++)
                 colLand[i] = Lerp(v[r0 + i] >= 0f ? 1f : 0f, v[r1 + i] >= 0f ? 1f : 0f, ty);
@@ -124,21 +160,24 @@ internal static class Raster
                 int i = ci[x];
                 float tx = cf[x];
                 int c0 = Clamp(i, nx), c1 = Clamp(i + 1, nx);
-                if (Lerp(colLand[c0], colLand[c1], tx) < 0.5f)
-                {
-                    h[o + x] = -1f;
-                    continue;
-                }
+                bool land = Lerp(colLand[c0], colLand[c1], tx) >= 0.5f;
+                float[] col = land ? colHeight : colDepth;
                 float value = cubic
-                    ? CatmullRom(colHeight[Clamp(i - 1, nx)], colHeight[c0], colHeight[c1], colHeight[Clamp(i + 2, nx)], tx)
-                    : Lerp(colHeight[c0], colHeight[c1], tx);
-                h[o + x] = value > 0f ? value : 0f;
+                    ? CatmullRom(col[Clamp(i - 1, nx)], col[c0], col[c1], col[Clamp(i + 2, nx)], tx)
+                    : Lerp(col[c0], col[c1], tx);
+                if (land)
+                    h[o + x] = value > 0f ? value : 0f;
+                else
+                    h[o + x] = value < -MinDepth ? value : -MinDepth;
             }
         }
         return true;
     }
 
-    /// <summary>Colours the resampled heights into <see cref="RasterJob.Rgba"/>. Water stays transparent.</summary>
+    /// <summary>
+    /// Colours the resampled heights into <see cref="RasterJob.Rgba"/>. Water is tinted by depth, or stays
+    /// transparent without a sea palette.
+    /// </summary>
     public static bool Shade(RasterJob job, Func<bool> cancelled)
     {
         int w = job.Width, ht = job.Height, gw = w + 2;
@@ -175,7 +214,10 @@ internal static class Raster
                 float h0 = h[i];
                 if (h0 < 0f)
                 {
-                    px[o] = px[o + 1] = px[o + 2] = px[o + 3] = 0;
+                    if (job.Sea == null)
+                        px[o] = px[o + 1] = px[o + 2] = px[o + 3] = 0;
+                    else
+                        ShadeWater(job, i, sx, sy, contours, px, o);
                     continue;
                 }
                 float hl = h[i - 1], hr = h[i + 1], hu = h[i - gw], hd = h[i + gw];
@@ -256,12 +298,77 @@ internal static class Raster
         return true;
     }
 
+    // One water pixel: the colour of its depth band, the seabed's relief (fainter than on land, with more
+    // exaggeration) and, like on a chart, a thin depth line at every band edge but the coast, which the stock map
+    // draws. Lines are light on dark bands and dark on light ones.
+    private static void ShadeWater(RasterJob job, int i, float sx, float sy, bool lines, byte[] px, int o)
+    {
+        float[] h = job.Heights;
+        Palette sea = job.Sea;
+        int gw = job.Width + 2;
+        float d0 = -h[i];
+        // Land next to the water counts as sea level.
+        float hl = Math.Min(h[i - 1], 0f), hr = Math.Min(h[i + 1], 0f), hu = Math.Min(h[i - gw], 0f), hd = Math.Min(h[i + gw], 0f);
+
+        int bandIndex = sea.BandOf(d0);
+        int band = bandIndex * 3;
+        float r = sea.Rgb[band], g = sea.Rgb[band + 1], b = sea.Rgb[band + 2];
+        float a = job.Opacity;
+        bool darkBand = 0.3f * r + 0.59f * g + 0.11f * b < 110f;
+
+        float shading = job.Hillshade * SeabedShading;
+        if (shading > 0f)
+        {
+            float dx = (hr - hl) * sx * SeabedExaggeration, dy = (hu - hd) * sy * SeabedExaggeration;
+            float lit = (dx - dy + 1.41421356f) / (1.41421356f * (float)Math.Sqrt(dx * dx + dy * dy + 1f));
+            if (lit < 0f) lit = 0f;
+            float s = 1f + (lit - 1f) * shading;
+            r *= s;
+            g *= s;
+            b *= s;
+        }
+
+        float gxp = (hr - hl) * 0.5f, gyp = (hd - hu) * 0.5f;
+        float grad = (float)Math.Sqrt(gxp * gxp + gyp * gyp);
+        if (lines && grad > 1e-3f)
+        {
+            float[] limits = sea.Limits;
+            int n = limits.Length;
+            float shallower = bandIndex > 0 ? d0 - limits[bandIndex] : float.PositiveInfinity;
+            float deeper = bandIndex + 1 < n ? limits[bandIndex + 1] - d0 : float.PositiveInfinity;
+            int edge = shallower <= deeper ? bandIndex : bandIndex + 1;
+            float dist = Math.Min(shallower, deeper);
+            if (!float.IsInfinity(dist))
+            {
+                float spacing = limits[edge] - limits[edge - 1];
+                if (edge + 1 < n)
+                    spacing = Math.Min(spacing, limits[edge + 1] - limits[edge]);
+                float la = Clamp01(1.1f - dist / grad) * (sea.Dark ? 0.35f : 0.45f) * Fade(grad / spacing);
+                if (la > 0f)
+                {
+                    float lr = darkBand ? 176f : 28f, lg = darkBand ? 196f : 48f, lb = darkBand ? 216f : 82f;
+                    r += (lr - r) * la;
+                    g += (lg - g) * la;
+                    b += (lb - b) * la;
+                    a += la * (1f - a);
+                }
+            }
+        }
+
+        px[o] = ToByte(r);
+        px[o + 1] = ToByte(g);
+        px[o + 2] = ToByte(b);
+        px[o + 3] = ToByte(a * 255f);
+    }
+
     private static float Clamp01(float v) => v < 0f ? 0f : (v > 1f ? 1f : v);
 
     /// <summary>Line strength from how many lines meet per pixel: full up to 0.4, gone at 1.</summary>
     private static float Fade(float perPixel) => Math.Max(0f, Math.Min(1f, (1f - perPixel) / 0.6f));
 
     private static float Land(float v) => v > 0f ? v : 0f;
+
+    private static float Water(float v) => v < 0f ? v : 0f;
 
     private static int Clamp(int i, int n) => i < 0 ? 0 : (i >= n ? n - 1 : i);
 

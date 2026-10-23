@@ -15,17 +15,21 @@ namespace SeaPowerTopo.Render;
 /// The overlay itself. The stock map is a Unity scene of lon/lat quads on layer 19 that the map camera renders
 /// into the texture the map window shows; one more quad in that scene, above the stock tiles, carries our image
 /// and so pans, zooms and wraps with the map for free.
-/// <para>The image covers the view plus a margin and is redrawn when the view leaves it or the zoom changes a lot:
-/// heights are copied out of the DEM on the main thread in slices of a few milliseconds per frame, then resampled
-/// and coloured on a worker thread, then uploaded. Until then the previous image stays in place.</para>
+/// <para>The image covers the view plus a margin and is redrawn when the view leaves it, a pan has used up most of
+/// the margin on one side, or the zoom changes a lot: heights are copied out of the DEM on the main thread in
+/// slices of a few milliseconds per frame, then resampled and coloured on a worker thread, then uploaded. Until
+/// then the previous image stays in place.</para>
 /// </summary>
 internal sealed class OverlayRenderer
 {
     private const int MapLayer = 19;                 // the stock map tiles' layer, the only one the map camera sees
     private const float ZOffset = -0.05f;            // in front of the stock tiles (z 0) and background (z 0.1)
     private const double FrameBudgetMs = 3.0;
-    private const double Margin = 0.15;              // extra map drawn on every side of the view
-    private const int MaxPixels = 6_000_000, MaxSide = 4096;
+    // Extra map drawn on every side of the view, as a share of the view: as much as the pixel budget allows at
+    // full resolution, within these limits.
+    private const double MinMargin = 0.15, MaxMargin = 0.4;
+    private const double PrefetchAt = 0.4;           // redraw ahead of a pan once this share of a margin is left
+    private const int MaxPixels = 8_000_000, MaxSide = 8192;
     private const double DemLimitDpp = 0.04;         // beyond ~5 DEM samples per pixel the world grid is enough
     private const float SettleSeconds = 0.12f;
 
@@ -34,6 +38,8 @@ internal sealed class OverlayRenderer
     private sealed class Plan
     {
         public double West, North, Dpp, ViewDpp;
+        /// <summary>Margin around the view the image was planned with: share of the view, and in degrees.</summary>
+        public double Margin, MarginLon, MarginLat;
         public int Width, Height;
         public bool Dem;
         public float Interval, Danger;
@@ -63,7 +69,7 @@ internal sealed class OverlayRenderer
     private volatile bool cancel;
     private readonly Stopwatch timer = new Stopwatch();
 
-    private Palette palette;
+    private Palette palette, seaPalette;
     private int paletteVersion = -1;
     private bool paletteDark;
 
@@ -71,8 +77,10 @@ internal sealed class OverlayRenderer
     private float lastViewChange;
     private float nextMissingCheck;
 
-    /// <summary>Palette, contour interval and highlight altitude of the image on screen, for the legend.</summary>
+    /// <summary>Palettes, contour interval and highlight altitude of the image on screen, for the legend.</summary>
     public Palette Palette => palette;
+    /// <summary>Depth bands of the sea; null while the sea is left to the stock map.</summary>
+    public Palette SeaPalette => seaPalette;
     public float ShownInterval => shownPlan?.Interval ?? 0f;
     public float ShownDanger => shownPlan?.Danger ?? float.NaN;
     public bool HasImage => shown != null && quad != null;
@@ -242,6 +250,17 @@ internal sealed class OverlayRenderer
             limits = Palette.DefaultLimits;
         }
         palette = new Palette(limits, dark);
+        seaPalette = null;
+        if (Settings.SeaDepth.Value)
+        {
+            float[] depths = Palette.ParseLimits(Settings.DepthBands.Value);
+            if (depths == null)
+            {
+                ModLog.Warn($"Depth bands '{Settings.DepthBands.Value}' unusable (ascending metres from 0) - using the default.");
+                depths = Palette.DefaultDepthLimits;
+            }
+            seaPalette = new Palette(depths, dark, sea: true);
+        }
         paletteVersion = Settings.Version;
         paletteDark = dark;
     }
@@ -250,12 +269,16 @@ internal sealed class OverlayRenderer
     {
         double viewDpp = view.Height / viewPixels;
         bool covered = shownPlan != null && Covers(shownPlan, view);
+        double zoom = shownPlan != null ? shownPlan.ViewDpp / viewDpp : 1.0;
+        bool nearEdge = covered && NearEdge(shownPlan, view);
         bool geometryStale = shown == null || !covered || shownPlan.SettingsVersion != Settings.Version ||
-                             shownPlan.ViewDpp / viewDpp > 1.45 || shownPlan.ViewDpp / viewDpp < 0.7 || DemArrived();
+                             zoom > 1.45 || zoom < 0.7 || nearEdge || DemArrived();
         if (geometryStale)
         {
-            // Let a pan or zoom settle first, unless the view has run off the image.
-            if (covered && Time.unscaledTime - lastViewChange < SettleSeconds)
+            // Let a zoom settle first, unless the view has run off the image. A pan that has used up most of the
+            // margin redraws at once, so the new image is there before the view reaches the edge.
+            bool panning = nearEdge && zoom < 1.15 && zoom > 0.87;
+            if (covered && !panning && Time.unscaledTime - lastViewChange < SettleSeconds)
                 return;
             StartFull(view, viewDpp, dark, danger);
             return;
@@ -270,6 +293,18 @@ internal sealed class OverlayRenderer
         return view.West >= p.West - eps && view.East <= p.East + eps &&
                (view.North <= p.North + eps || p.North >= 90.0 - eps) &&
                (view.South >= p.South - eps || p.South <= -90.0 + eps);
+    }
+
+    // Less than PrefetchAt of the planned margin left on some side (an edge at a pole doesn't count).
+    private static bool NearEdge(Plan p, BoundingBox view)
+    {
+        const double eps = 1e-9;
+        double lon = p.MarginLon * PrefetchAt, lat = p.MarginLat * PrefetchAt;
+        if (view.West - p.West < lon || p.East - view.East < lon)
+            return true;
+        if (p.North < 90.0 - eps && p.North - view.North < lat)
+            return true;
+        return p.South > -90.0 + eps && view.South - p.South < lat;
     }
 
     private static bool DangerMoved(float shownDanger, float danger)
@@ -298,8 +333,11 @@ internal sealed class OverlayRenderer
     {
         double dpp = viewDpp / Settings.Resolution.Value;
         double spanLon = view.East - view.West, spanLat = view.North - view.South;
-        double west = view.West - spanLon * Margin, east = view.East + spanLon * Margin;
-        double north = Math.Min(90.0, view.North + spanLat * Margin), south = Math.Max(-90.0, view.South - spanLat * Margin);
+        double margin = (Math.Sqrt(MaxPixels / (spanLon / dpp * (spanLat / dpp))) - 1.0) / 2.0;
+        margin = Math.Min(margin, (MaxSide * dpp / Math.Max(spanLon, spanLat) - 1.0) / 2.0);
+        margin = Math.Max(MinMargin, Math.Min(MaxMargin, margin));
+        double west = view.West - spanLon * margin, east = view.East + spanLon * margin;
+        double north = Math.Min(90.0, view.North + spanLat * margin), south = Math.Max(-90.0, view.South - spanLat * margin);
         int width = (int)Math.Ceiling((east - west) / dpp), height = (int)Math.Ceiling((north - south) / dpp);
         double shrink = Math.Max(Math.Sqrt((double)width * height / MaxPixels), Math.Max(width / (double)MaxSide, height / (double)MaxSide));
         if (shrink > 1.0)
@@ -315,6 +353,9 @@ internal sealed class OverlayRenderer
             North = north,
             Dpp = dpp,
             ViewDpp = viewDpp,
+            Margin = margin,
+            MarginLon = spanLon * margin,
+            MarginLat = spanLat * margin,
             Width = Math.Max(2, width),
             Height = Math.Max(2, height),
             Dem = dpp < DemLimitDpp,
@@ -392,6 +433,7 @@ internal sealed class OverlayRenderer
         job.North = plan.North;
         job.Dpp = plan.Dpp;
         job.Palette = palette;
+        job.Sea = seaPalette;
         job.Opacity = Settings.Opacity.Value;
         job.Hillshade = Settings.Hillshade.Value;
         job.Interval = plan.Interval;
@@ -493,7 +535,7 @@ internal sealed class OverlayRenderer
         shown = job;
         shownPlan = buildingPlan;
         shownMissing = buildingMissing;
-        ModLog.Debug($"Overlay {job.Width}x{job.Height}, {(shownPlan.Dem ? "DEM" : "world grid")}, " +
+        ModLog.Debug($"Overlay {job.Width}x{job.Height} (margin {shownPlan.Margin:0.00}), {(shownPlan.Dem ? "DEM" : "world grid")}, " +
                      $"{shownPlan.Dpp * HeightReader.DemPerDegree:0.00} DEM cells/px, contours {shownPlan.Interval:0} m, " +
                      $"{shownMissing.Count} chunk(s) missing, {timer.ElapsedMilliseconds} ms");
     }

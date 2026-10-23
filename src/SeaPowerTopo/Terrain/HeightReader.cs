@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using SeaPower;
+using SeaPowerTopo.Render;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using UnityEngine;
@@ -45,6 +46,8 @@ internal sealed unsafe class HeightReader : IDisposable
 
     /// <summary>The game's terrain height multiplier (Options → World), applied to land.</summary>
     public readonly float Multiplier;
+    /// <summary>The game's under-water depth factor (Options → World), applied to water.</summary>
+    public readonly float DepthFactor;
 
     public bool HasLowres => low != null;
 
@@ -54,6 +57,7 @@ internal sealed unsafe class HeightReader : IDisposable
     {
         this.missing = missing;
         Multiplier = Globals._heightMultiplier > 0f ? Globals._heightMultiplier : 1f;
+        DepthFactor = Globals._underWaterDepthFactor > 0f ? Globals._underWaterDepthFactor : 1f;
         if (lowres != null && lowres.isReadable && lowres.format == TextureFormat.R16 &&
             lowres.width == LowCols && lowres.height == LowRows)
         {
@@ -63,8 +67,8 @@ internal sealed unsafe class HeightReader : IDisposable
         }
     }
 
-    /// <summary>Land heights scaled by the height multiplier; water depths stay raw (negative).</summary>
-    public float Sim(float raw) => raw >= 0f ? raw * Multiplier : raw;
+    /// <summary>A raw DEM value as the simulation uses it (land scaled by the multiplier, water by the depth factor).</summary>
+    public float Sim(float raw) => Raster.SimHeight(raw, Multiplier, DepthFactor);
 
     /// <summary>Raw DEM metres at a DEM grid point; false if its chunk isn't loaded.</summary>
     public bool TryDem(int gx, int gy, out short raw)
@@ -133,7 +137,8 @@ internal sealed unsafe class HeightReader : IDisposable
     }
 
     // Land or water like the stock map shader decides it (half-way between a land and a water sample), then the
-    // height of the land part, or the depth of the water part with the game's under-water depth factor.
+    // height of the land part or the depth of the water part, from the corners as the simulation sees them – the
+    // same values the overlay is drawn from, so the readout and the colour under the pointer agree.
     private HeightSample Classify(float a, float b, float c, float d, float tx, float ty, bool coarse)
     {
         float land = Bilerp(a >= 0 ? 1 : 0, b >= 0 ? 1 : 0, c >= 0 ? 1 : 0, d >= 0 ? 1 : 0, tx, ty);
@@ -143,13 +148,8 @@ internal sealed unsafe class HeightReader : IDisposable
             s.Metres = Sim(Bilerp(Math.Max(a, 0), Math.Max(b, 0), Math.Max(c, 0), Math.Max(d, 0), tx, ty));
             return s;
         }
-        float raw = Bilerp(Math.Min(a, 0), Math.Min(b, 0), Math.Min(c, 0), Math.Min(d, 0), tx, ty);
-        float factor = Globals._underWaterDepthFactor > 0f ? Globals._underWaterDepthFactor : 1f;
-        // TerrainUtils.GetHeightAt doubles depths shallower than 48 m on top of the factor.
-        if (raw > -48f)
-            factor *= 2f;
         s.Water = true;
-        s.Metres = -raw * factor;
+        s.Metres = -Bilerp(Sim(Math.Min(a, 0)), Sim(Math.Min(b, 0)), Sim(Math.Min(c, 0)), Sim(Math.Min(d, 0)), tx, ty);
         return s;
     }
 

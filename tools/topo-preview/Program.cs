@@ -14,9 +14,10 @@ namespace SeaPowerTopo.Preview;
 /// flat stand-in for the stock map.
 /// <code>
 /// dotnet run --project tools/topo-preview -- --at 61.5,8 --span 2 --size 1600x900 [--danger 1200] [--dark]
-///     [--interval 100] [--out preview.png] [--game "E:\Games\steamapps\common\Sea Power"]
+///     [--interval 100] [--nodepth] [--depth-factor 2] [--out preview.png] [--game "E:\Games\steamapps\common\Sea Power"]
 /// </code>
-/// --at is the centre (lat,lon), --span the view height in degrees, --size the map's pixel size.
+/// --at is the centre (lat,lon), --span the view height in degrees, --size the map's pixel size; --nodepth leaves
+/// the sea to the stock map, --depth-factor is the game's under-water depth factor (Options → World, default 2).
 /// </summary>
 internal static class Program
 {
@@ -31,8 +32,8 @@ internal static class Program
     {
         double lat = 61.5, lon = 8, span = 2;
         int width = 1600, height = 900;
-        float danger = float.NaN, interval = -1;
-        bool dark = false;
+        float danger = float.NaN, interval = -1, depthFactor = 2;
+        bool dark = false, depth = true;
         string output = "preview.png", game = @"E:\Games\steamapps\common\Sea Power";
         for (int i = 0; i < args.Length; i++)
         {
@@ -56,6 +57,8 @@ internal static class Program
                 case "--danger": danger = (float)D(next); i++; break;
                 case "--interval": interval = (float)D(next); i++; break;
                 case "--dark": dark = true; break;
+                case "--nodepth": depth = false; break;
+                case "--depth-factor": depthFactor = (float)D(next); i++; break;
                 case "--out": output = next; i++; break;
                 case "--game": game = next; i++; break;
                 default:
@@ -76,6 +79,7 @@ internal static class Program
             West = lon - dpp * width / 2,
             North = lat + span / 2,
             Palette = new Palette(Palette.DefaultLimits, dark),
+            Sea = depth ? new Palette(Palette.DefaultDepthLimits, dark, sea: true) : null,
             Opacity = 0.7f,
             Hillshade = 0.6f,
             Interval = interval >= 0 ? interval : Raster.AutoInterval(dpp * Raster.MetresPerDegree),
@@ -83,7 +87,7 @@ internal static class Program
         };
 
         var watch = System.Diagnostics.Stopwatch.StartNew();
-        SourceGrid src = Fill(job, out bool dem);
+        SourceGrid src = Fill(job, depthFactor, out bool dem);
         long fillMs = watch.ElapsedMilliseconds;
         Raster.Resample(src, job, () => false);
         long resampleMs = watch.ElapsedMilliseconds - fillMs;
@@ -97,7 +101,7 @@ internal static class Program
     }
 
     // Same source grid as OverlayRenderer.StartFull / FillRow.
-    private static SourceGrid Fill(RasterJob job, out bool dem)
+    private static SourceGrid Fill(RasterJob job, float depthFactor, out bool dem)
     {
         var src = new SourceGrid();
         double dpp = job.Dpp;
@@ -129,7 +133,7 @@ internal static class Program
                 float raw = dem
                     ? Dem(x0 + i * step, y0 + j * step)
                     : Low(x0 + i * step, y0 + j * step);
-                src.V[j * src.Nx + i] = raw;
+                src.V[j * src.Nx + i] = Raster.SimHeight(raw, 1f, depthFactor);
             }
         }
         return src;

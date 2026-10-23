@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using MapControl;
 using Noesis;
 using SeaPower;
@@ -7,8 +8,11 @@ using SeaPowerTopo.Render;
 namespace SeaPowerTopo.Ui;
 
 /// <summary>
-/// Legend and cursor readout on one map control. Both sit in a click-through grid laid over the map inside the
-/// map template's root grid, so they go wherever the map window goes (maximised, resized, popped out).
+/// Legend and cursor readout on one map control. Both sit in a grid laid over the map inside the map template's
+/// root grid, so they go wherever the map window goes (maximised, resized, popped out). The grid lets clicks
+/// through; only the legend button and the open legend take them.
+/// <para>The legend button sits bottom right, right-aligned with the map scale just above it, and opens the colour
+/// key above itself; a click on the key closes it again.</para>
 /// <para>The readout listens on that root grid: preview events tunnel through it before they reach the map, so it
 /// sees every mouse move even when the game's map input handling marks the move as handled.</para>
 /// </summary>
@@ -17,14 +21,20 @@ internal sealed class MapDecoration
     /// <summary>Readout text for a map position, or null for none; <c>warning</c> colours it red.</summary>
     public delegate string Describe(GeoPosition position, out bool warning);
 
+    private const float Inset = 10f, Gap = 6f;
+    private const float NoScaleBottom = 40f;          // above the map's bottom edge when there is no scale to go by
+    private const float ScaleSearchSeconds = 2f;
+
     public readonly MapBase Map;
 
     private readonly Panel host;
     private readonly Grid root;
     private readonly Border readout;
     private readonly TextBlock readoutText;
+    private readonly StackPanel dock;
+    private readonly Button button;
     private readonly Border legend;
-    private readonly StackPanel legendRows;
+    private readonly StackPanel legendBody;
     private readonly Describe describe;
     private readonly MouseEventHandler moveHandler, leaveHandler;
     private readonly SolidColorBrush panelBrush, textBrush, warningBrush, dangerBrush;
@@ -32,12 +42,16 @@ internal sealed class MapDecoration
     private bool readoutAllowed;
     private bool loggedFailure;
 
+    private MapScale scale;
+    private float nextScaleSearch;
+    private Thickness dockMargin;
+    private bool? shownOpen;
+
     private bool legendBuilt;
-    private Palette legendPalette;
+    private Palette legendPalette, legendSea;
     private float legendInterval, legendDanger;
     private string legendAircraft;
     private HeightUnits legendUnits;
-    private Corner legendCorner;
 
     /// <summary>Decorates the map, or returns null if its template isn't laid out as expected.</summary>
     public static MapDecoration TryAttach(MapBase map, Describe describe) =>
@@ -66,20 +80,51 @@ internal sealed class MapDecoration
         var cursorLayer = new Canvas { IsHitTestVisible = false };
         cursorLayer.Children.Add(readout);
 
-        legendRows = new StackPanel { Orientation = Orientation.Vertical };
+        legendBody = new StackPanel { Orientation = Orientation.Vertical };
         legend = new Border
         {
             Background = panelBrush,
             CornerRadius = new CornerRadius(3),
             Padding = new Thickness(8, 6, 8, 6),
-            Margin = new Thickness(10),
-            Child = legendRows,
+            Margin = new Thickness(0, 0, 0, Gap),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Child = legendBody,
             Visibility = Visibility.Collapsed,
-            IsHitTestVisible = false,
+        };
+        legend.MouseLeftButtonDown += (sender, args) =>
+        {
+            args.Handled = true;
+            Settings.LegendOpen.Value = false;
         };
 
-        root = new Grid { IsHitTestVisible = false };
-        root.Children.Add(legend);
+        button = new Button
+        {
+            Focusable = false,
+            Padding = new Thickness(6, 2, 7, 2),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Content = ButtonContent(),
+        };
+        button.Click += (sender, args) =>
+        {
+            args.Handled = true;
+            Settings.LegendOpen.Value = !Settings.LegendOpen.Value;
+        };
+
+        dockMargin = new Thickness(0, 0, Inset, NoScaleBottom);
+        dock = new StackPanel
+        {
+            Orientation = Orientation.Vertical,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Margin = dockMargin,
+            Visibility = Visibility.Collapsed,
+        };
+        dock.Children.Add(legend);
+        dock.Children.Add(button);
+
+        // No background: hit tests fall through it to the map everywhere but on the dock.
+        root = new Grid();
+        root.Children.Add(dock);
         root.Children.Add(cursorLayer);
         host.Children.Add(root);
 
@@ -106,7 +151,7 @@ internal sealed class MapDecoration
         }
     }
 
-    /// <param name="overlayOn">The Topography layer is on (the legend shows only then).</param>
+    /// <param name="overlayOn">The Topography layer is on (the legend button shows only then).</param>
     /// <param name="readoutOn">The cursor readout may show.</param>
     /// <param name="aircraft">Name of the selected aircraft whose altitude is highlighted, or null.</param>
     public void Update(bool overlayOn, bool readoutOn, OverlayRenderer overlay, string aircraft)
@@ -115,9 +160,20 @@ internal sealed class MapDecoration
         if (!readoutOn && readout.Visibility == Visibility.Visible)
             readout.Visibility = Visibility.Collapsed;
 
-        bool showLegend = overlayOn && Settings.Legend.Value && overlay.Palette != null && overlay.HasImage;
-        legend.Visibility = showLegend ? Visibility.Visible : Visibility.Collapsed;
-        if (showLegend)
+        bool showButton = overlayOn && Settings.Legend.Value && overlay.Palette != null && overlay.HasImage;
+        dock.Visibility = showButton ? Visibility.Visible : Visibility.Collapsed;
+        if (!showButton)
+            return;
+        PlaceDock();
+
+        bool open = Settings.LegendOpen.Value;
+        if (shownOpen != open)
+        {
+            shownOpen = open;
+            legend.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
+            button.ToolTip = open ? "Hide the legend" : "Show the legend: height and depth colours, contour step";
+        }
+        if (open)
             RefreshLegend(overlay, aircraft);
     }
 
@@ -127,6 +183,11 @@ internal sealed class MapDecoration
             return;
         try
         {
+            if (dock.IsMouseOver)
+            {
+                Hide();
+                return;
+            }
             Point p = e.GetPosition(Map);
             if (p.X < 0 || p.Y < 0 || p.X > Map.ActualWidth || p.Y > Map.ActualHeight)
             {
@@ -172,62 +233,131 @@ internal sealed class MapDecoration
             readout.Visibility = Visibility.Collapsed;
     }
 
+    // Bottom right: right edge in line with the map scale's, just above it. Without a scale (not found, hidden,
+    // not in the bottom right), a fixed distance above the map's bottom edge.
+    private void PlaceDock()
+    {
+        if (scale != null && VisualTreeHelper.GetParent(scale) == null)
+            scale = null;
+        if (scale == null && UnityEngine.Time.unscaledTime >= nextScaleSearch)
+        {
+            nextScaleSearch = UnityEngine.Time.unscaledTime + ScaleSearchSeconds;
+            scale = FindScale();
+        }
+
+        float right = Inset, bottom = NoScaleBottom;
+        float width = root.ActualWidth, height = root.ActualHeight;
+        if (scale != null && scale.Visibility == Visibility.Visible && scale.ActualHeight > 0f && height > 0f)
+        {
+            Point top = root.PointFromScreen(scale.PointToScreen(new Point(0f, 0f)));
+            float scaleRight = width - (top.X + scale.ActualWidth);
+            if (top.Y > height / 2f && scaleRight >= 0f && scaleRight < width / 2f)
+            {
+                right = scaleRight;
+                bottom = height - top.Y + Gap;
+            }
+        }
+        if (Math.Abs(right - dockMargin.Right) > 0.5f || Math.Abs(bottom - dockMargin.Bottom) > 0.5f)
+        {
+            dockMargin = new Thickness(0f, 0f, right, bottom);
+            dock.Margin = dockMargin;
+        }
+    }
+
+    // The stock map scale in the map's template, breadth first (it sits near the top of the tree).
+    private MapScale FindScale()
+    {
+        var queue = new Queue<Visual>();
+        queue.Enqueue(host);
+        for (int visited = 0; queue.Count > 0 && visited < 4000; visited++)
+        {
+            Visual v = queue.Dequeue();
+            if (v is MapScale found)
+                return found;
+            if (ReferenceEquals(v, root))
+                continue;
+            int n = VisualTreeHelper.GetChildrenCount(v);
+            for (int i = 0; i < n; i++)
+            {
+                if (VisualTreeHelper.GetChild(v, i) is Visual child)
+                    queue.Enqueue(child);
+            }
+        }
+        return null;
+    }
+
     private void RefreshLegend(OverlayRenderer overlay, string aircraft)
     {
-        Palette palette = overlay.Palette;
+        Palette palette = overlay.Palette, sea = overlay.SeaPalette;
         float interval = overlay.ShownInterval, danger = overlay.ShownDanger;
         HeightUnits units = Settings.Units.Value;
-        Corner corner = Settings.LegendCorner.Value;
         bool sameDanger = float.IsNaN(danger) ? float.IsNaN(legendDanger) : danger == legendDanger;
-        if (legendBuilt && palette == legendPalette && interval == legendInterval && sameDanger &&
-            aircraft == legendAircraft && units == legendUnits && corner == legendCorner)
+        if (legendBuilt && palette == legendPalette && sea == legendSea && interval == legendInterval && sameDanger &&
+            aircraft == legendAircraft && units == legendUnits)
         {
             return;
         }
         legendBuilt = true;
         legendPalette = palette;
+        legendSea = sea;
         legendInterval = interval;
         legendDanger = danger;
         legendAircraft = aircraft;
         legendUnits = units;
-        legendCorner = corner;
 
-        legend.HorizontalAlignment = corner == Corner.TopLeft || corner == Corner.BottomLeft
-            ? HorizontalAlignment.Left : HorizontalAlignment.Right;
-        legend.VerticalAlignment = corner == Corner.TopLeft || corner == Corner.TopRight
-            ? VerticalAlignment.Top : VerticalAlignment.Bottom;
-
-        legendRows.Children.Clear();
-        legendRows.Children.Add(new TextBlock
+        legendBody.Children.Clear();
+        var columns = new StackPanel { Orientation = Orientation.Horizontal };
+        columns.Children.Add(Column("Terrain height", palette, units, highestFirst: true));
+        if (sea != null)
         {
-            Text = "Terrain height",
-            Foreground = textBrush,
-            FontSize = 12,
-            FontWeight = FontWeight.Bold,
-            Margin = new Thickness(0, 0, 0, 4),
-        });
-        // Highest band on top; each swatch is labelled with the height its band starts at.
-        for (int i = palette.Count - 1; i >= 0; i--)
-        {
-            string label = HeightText.Format(palette.Limits[i], units, 10) + (i == palette.Count - 1 ? " +" : "");
-            var swatch = new SolidColorBrush(Color.FromArgb(255, palette.Rgb[i * 3], palette.Rgb[i * 3 + 1], palette.Rgb[i * 3 + 2]));
-            legendRows.Children.Add(Row(swatch, label));
+            StackPanel seaColumn = Column("Sea depth", sea, units, highestFirst: false);
+            seaColumn.Margin = new Thickness(14, 0, 0, 0);
+            columns.Children.Add(seaColumn);
         }
+        legendBody.Children.Add(columns);
+
         if (!float.IsNaN(danger))
         {
             string who = string.IsNullOrEmpty(aircraft) ? "selected aircraft" : aircraft;
-            legendRows.Children.Add(Row(dangerBrush, $"As high as {who} ({HeightText.Format(danger, units, 10)}) or higher", 6f));
+            legendBody.Children.Add(Row(dangerBrush, $"As high as {who} ({HeightText.Format(danger, units, 10)}) or higher", 6f));
         }
         if (interval > 0f)
         {
-            legendRows.Children.Add(new TextBlock
+            string text = $"Contours every {HeightText.Format(interval, units)}\nBold every {HeightText.Format(interval * 5f, units)}";
+            if (sea != null)
+                text += "\nDepth lines at the band edges";
+            legendBody.Children.Add(new TextBlock
             {
-                Text = $"Contours every {HeightText.Format(interval, units)}\nBold every {HeightText.Format(interval * 5f, units)}",
+                Text = text,
                 Foreground = textBrush,
                 FontSize = 11,
                 Margin = new Thickness(0, 6, 0, 0),
             });
         }
+    }
+
+    // One band per row, each labelled with the height (depth) it starts at: land highest on top, sea shallowest
+    // on top, so the two columns read like a profile from the peaks down to the deep.
+    private StackPanel Column(string title, Palette palette, HeightUnits units, bool highestFirst)
+    {
+        var column = new StackPanel { Orientation = Orientation.Vertical };
+        column.Children.Add(new TextBlock
+        {
+            Text = title,
+            Foreground = textBrush,
+            FontSize = 12,
+            FontWeight = FontWeight.Bold,
+            Margin = new Thickness(0, 0, 0, 4),
+        });
+        int n = palette.Count;
+        for (int k = 0; k < n; k++)
+        {
+            int i = highestFirst ? n - 1 - k : k;
+            string label = HeightText.Format(palette.Limits[i], units, 10) + (i == n - 1 ? " +" : "");
+            var swatch = new SolidColorBrush(Color.FromArgb(255, palette.Rgb[i * 3], palette.Rgb[i * 3 + 1], palette.Rgb[i * 3 + 2]));
+            column.Children.Add(Row(swatch, label));
+        }
+        return column;
     }
 
     private StackPanel Row(Brush swatch, string label, float topMargin = 1f)
@@ -249,5 +379,22 @@ internal sealed class MapDecoration
             VerticalAlignment = VerticalAlignment.Center,
         });
         return row;
+    }
+
+    // Three little swatches (lowland, hills, sea) and the word; text colour comes from the game's button style.
+    private static UIElement ButtonContent()
+    {
+        var swatches = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 5, 0),
+        };
+        foreach (Color c in new[] { Color.FromArgb(255, 118, 170, 84), Color.FromArgb(255, 206, 120, 64), Color.FromArgb(255, 66, 92, 130) })
+            swatches.Children.Add(new Rectangle { Width = 4, Height = 10, Fill = new SolidColorBrush(c) });
+        var content = new StackPanel { Orientation = Orientation.Horizontal };
+        content.Children.Add(swatches);
+        content.Children.Add(new TextBlock { Text = "Legend", FontSize = 12, VerticalAlignment = VerticalAlignment.Center });
+        return content;
     }
 }

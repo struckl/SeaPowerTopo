@@ -9,8 +9,6 @@ internal enum ReadoutMode { WithOverlay, Always, Off }
 
 internal enum HeightUnits { Both, Metres, Feet }
 
-internal enum Corner { BottomLeft, TopLeft, TopRight, BottomRight }
-
 /// <summary>
 /// BepInEx config at <c>BepInEx/config/dev.sewerlabs.seapowertopo.cfg</c>. Sections are numbered so they sort in
 /// the order a player would look for them. Changes made while the game runs apply on the next redraw.
@@ -27,12 +25,14 @@ internal static class Settings
     public static ConfigEntry<bool> Contours;
     public static ConfigEntry<int> ContourInterval;
     public static ConfigEntry<string> Bands;
+    public static ConfigEntry<bool> SeaDepth;
+    public static ConfigEntry<string> DepthBands;
     public static ConfigEntry<bool> AircraftClearance;
     public static ConfigEntry<float> Resolution;
 
     public static ConfigEntry<ReadoutMode> Readout;
     public static ConfigEntry<bool> Legend;
-    public static ConfigEntry<Corner> LegendCorner;
+    public static ConfigEntry<bool> LegendOpen;
     public static ConfigEntry<HeightUnits> Units;
 
     /// <summary>Bumped on every config change, so the overlay and the legend know to redraw.</summary>
@@ -67,6 +67,13 @@ internal static class Settings
         Bands = file.Bind("2. Overlay", "Height bands", "0,50,100,200,300,500,750,1000,1500,2000,2500,3000,4000",
             "Lower edges of the colour bands in metres, ascending, starting at 0. Each band gets its own colour " +
             "from green (low) over yellow and brown to white (high).");
+        SeaDepth = file.Bind("2. Overlay", "Sea depth", true,
+            "Shade the sea by depth – the stock map's water colour, lighter near the coast, darker the deeper – " +
+            "with a thin depth line at every band edge (drawn with the contour lines) and faint seabed relief.");
+        DepthBands = file.Bind("2. Overlay", "Depth bands", "0,50,100,200,300,500,1000,1500,2000,3000,4000,6000",
+            "The depth each of the sea's colour bands starts at, in metres, ascending, starting at 0. Depths as the simulation " +
+            "has them: the DEM's depth times the game's under-water depth factor (Options → World), and doubled " +
+            "again where the DEM is shallower than 48 m.");
         AircraftClearance = file.Bind("2. Overlay", "Terrain above selected aircraft", true,
             "While an aircraft or helicopter is selected, terrain as high as or higher than its current altitude " +
             "is hatched red, and the cursor readout shows the clearance.");
@@ -78,16 +85,17 @@ internal static class Settings
             "Show the terrain height under the mouse pointer on the map: WithOverlay (while the Topography layer " +
             "is on), Always, or Off.");
         Legend = file.Bind("3. Readout and legend", "Legend", true,
-            "Show the colour key and the contour interval in a corner of the map while the layer is on.");
-        LegendCorner = file.Bind("3. Readout and legend", "Legend corner", Corner.BottomLeft,
-            "Map corner for the legend. The map scale sits bottom right.");
+            "Show the legend button bottom right of the map (above the scale) while the layer is on; it opens " +
+            "the colour key with the contour interval.");
+        LegendOpen = file.Bind("3. Readout and legend", "Legend open", false,
+            "Whether the legend is open. Written by the mod when you click the legend button.");
         Units = file.Bind("3. Readout and legend", "Units", HeightUnits.Both,
             "Height units in the readout and the legend: Both (metres and feet), Metres or Feet.");
 
-        // Turning the layer on and off is not a reason to redraw it.
+        // Turning the layer or the legend on and off is not a reason to redraw the overlay.
         file.SettingChanged += (_, e) =>
         {
-            if (e.ChangedSetting != Visible)
+            if (e.ChangedSetting != Visible && e.ChangedSetting != LegendOpen)
                 Version++;
         };
     }
