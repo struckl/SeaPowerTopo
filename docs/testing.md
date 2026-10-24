@@ -143,3 +143,16 @@ Version 1.1.0. Turn on `Verbose log` in `dev.sewerlabs.seapowertopo.cfg` for thi
 Worth reporting: a look that is too dark or too bright to use, the picker or the notice overlapping the legend or the
 map scale, the look button text cut off, a look change that doesn't redraw the pre-drawn layers, the picker staying
 open.
+
+## Black look (1.2.0, 2026-10-25)
+
+Version 1.2.0. Everything of the 1.1.0 checklist above still applies; this adds the new look.
+
+1. Night map, look button → the list now has 11 looks, **Black** after **Quiet**. Pick it (or Shift+F6 to it).
+2. Land: dark-grey relief on black. Contour lines are dim blue-grey near the sea and get brighter and warmer
+   (warm white) the higher they are – at the summits of a mountainous coast they are clearly the brightest thing on
+   the map; every fifth line is bold. A thin light coastline. The sea is blue-teal in the shallows, fading to black in
+   the deep, with light blue depth lines and a brighter line at the shelf edge.
+3. With an aircraft selected (red hatching above its altitude) and with a submarine selected (thermal layer, keel
+   line): both stay clearly visible on the black.
+4. Unit symbols and labels stay readable on it.

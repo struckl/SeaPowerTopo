@@ -1,6 +1,12 @@
 # Changelog
 
-## 1.1.0 – unreleased
+## 1.2.0 – unreleased
+
+- New night look **Black**: dark-grey relief on black, contour lines that glow brighter and warmer with height (dim
+  blue-grey near the sea, warm white on the peaks), a thin coastline, and a sea in colour that fades to black in the
+  deep. Themes can now grade their land contour lines by height.
+
+## 1.1.0 – 2026-10-24 (Workshop)
 
 - **17 looks** for the layer, light and dark. The look button at the bottom right of the map (left of **Legend**)
   names the look and opens a list of the looks of the map's current theme; **Shift+F6** goes to the next one. By

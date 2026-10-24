@@ -37,6 +37,13 @@ internal sealed class Theme
     public float ShadowAmt, HighlightAmt;
     public int[] LandLine;
     public float LandMinor, LandMajor, LandHalo, LandIntervalScale = 1f;
+    /// <summary>
+    /// Contour lines graded by height: from <see cref="LandLine"/> at sea level to this colour at <see cref="LandLineSpan"/>
+    /// metres and above, and from <see cref="LandLineLowAmt"/> of their strength to the full strength. Null = every
+    /// line the same.
+    /// </summary>
+    public int[] LandLineHigh;
+    public float LandLineSpan = 1500f, LandLineLowAmt = 1f;
     public int[] Coast;
     public float CoastAmt;
 
@@ -109,6 +116,15 @@ internal static class Themes
             }
             o[i] = new[] { Clamp((int)(r * bright)), Clamp((int)(g * bright)), Clamp((int)(b * bright)) };
         }
+        return o;
+    }
+
+    // The mean of two palettes with the same number of keys.
+    private static int[][] Mean(int[][] a, int[][] b)
+    {
+        var o = new int[a.Length][];
+        for (int i = 0; i < a.Length; i++)
+            o[i] = new[] { (a[i][0] + b[i][0]) / 2, (a[i][1] + b[i][1]) / 2, (a[i][2] + b[i][2]) / 2 };
         return o;
     }
 
@@ -232,6 +248,25 @@ internal static class Themes
             SeaKeys = K(C(50, 104, 138), C(42, 92, 128), C(36, 82, 120), C(32, 76, 116), C(25, 62, 102), C(18, 48, 88),
                         C(14, 38, 74), C(10, 28, 60), C(8, 22, 50), C(6, 16, 40), C(5, 12, 32), C(4, 9, 26)),
             SeaShade = 0.85f, SeaLine = C(90, 215, 238), SeaLineAmt = 0.5f, SeaLineHalo = 0.12f, ShelfLine = C(150, 245, 255), ShelfBoost = 1.7f,
+        });
+
+        // Black: dark-grey relief on black, contour lines that glow brighter and warmer with height (dim blue-grey near
+        // the sea, warm white on the peaks), a coastline, a sea in colour between Midnight's blue and a teal, fading to
+        // black in the deep.
+        Dark.Add(new Theme
+        {
+            Id = "black", Name = "Black", Note = "black, grey relief, lines that glow brighter with height", Dark = true,
+            LandKeys = K(C(6, 6, 6), C(9, 9, 9), C(12, 12, 12), C(16, 16, 16), C(21, 21, 21), C(28, 28, 28),
+                         C(36, 36, 36), C(46, 46, 46), C(58, 58, 58), C(72, 72, 72), C(88, 88, 88), C(108, 108, 108), C(130, 130, 130)),
+            Shade = 0.9f, ShadowTint = C(0, 0, 0), ShadowAmt = 0.8f, HighlightTint = C(200, 200, 210), HighlightAmt = 0.25f,
+            LandLine = C(70, 120, 175), LandLineHigh = C(255, 244, 222), LandLineLowAmt = 0.45f, LandLineSpan = 1400f,
+            LandMinor = 0.4f, LandMajor = 1f, LandHalo = 0.14f,
+            Coast = C(235, 235, 240), CoastAmt = 0.9f,
+            SeaKeys = Mean(Grade(Dark.Find(t => t.Id == "midnight").SeaKeys, 0.8f, 1f, null, 0f),
+                           K(C(30, 96, 104), C(26, 86, 96), C(22, 76, 88), C(19, 68, 82), C(16, 58, 74), C(13, 48, 66),
+                             C(10, 38, 56), C(8, 30, 46), C(6, 22, 36), C(4, 16, 28), C(3, 11, 22), C(2, 8, 16))),
+            SeaShade = 0.5f, SeaLine = C(85, 210, 225), SeaLineAmt = 0.5f, SeaLineHalo = 0.14f,
+            ShelfLine = C(165, 250, 248), ShelfBoost = 1.6f,
         });
 
         // The atlas at twilight: the same pastel hues at half the light, warm highlights, indigo shadows.

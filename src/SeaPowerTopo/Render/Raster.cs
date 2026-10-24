@@ -488,9 +488,19 @@ internal static class Raster
                         la = Math.Max(la, Clamp01(1f - Math.Abs(h0 - level) / (grad * 3.5f)) * haloAlpha * Fade(perPixel));
                     if (la > 0f)
                     {
-                        r += (lr - r) * la;
-                        g += (lg - g) * la;
-                        b += (lb - b) * la;
+                        float lineR = lr, lineG = lg, lineB = lb;
+                        if (theme.LandLineHigh != null)
+                        {
+                            // Lines graded by height: dim and in the low colour near the sea, full and in the high colour up high.
+                            float tg = Clamp01(h0 / theme.LandLineSpan);
+                            la *= theme.LandLineLowAmt + (1f - theme.LandLineLowAmt) * tg;
+                            lineR = lr + (theme.LandLineHigh[0] - lr) * tg;
+                            lineG = lg + (theme.LandLineHigh[1] - lg) * tg;
+                            lineB = lb + (theme.LandLineHigh[2] - lb) * tg;
+                        }
+                        r += (lineR - r) * la;
+                        g += (lineG - g) * la;
+                        b += (lineB - b) * la;
                         a += la * (1f - a);
                     }
                 }

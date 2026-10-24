@@ -16,9 +16,9 @@ flat colour: high ground is hard to judge and the seabed can't be seen at all. T
   north-west, and contour lines whose step follows the zoom (20 m close in … 1000 m zoomed out, every fifth bold).
 - **Sea tinted by depth** in 12 bands (0 – 6000 m), the deeper the darker, with faint seabed relief and a thin depth
   line at every band edge – banks, shelf edges and basins stand out like on a chart.
-- **17 looks**, light and dark, in a picker next to the legend (or Shift+F6): the map theme you are in decides which
+- **18 looks**, light and dark, in a picker next to the legend (or Shift+F6): the map theme you are in decides which
   list it shows. Day: **Standard** (the original), **Atlas**, **Army tactical map**, **Paper sea chart**,
-  **ECDIS day**, **Parchment**, **Glacier**. Night: **Midnight** (the default), **Standard**, **Quiet**, **Atlas dusk**,
+  **ECDIS day**, **Parchment**, **Glacier**. Night: **Midnight** (the default), **Standard**, **Quiet**, **Black**, **Atlas dusk**,
   **ECDIS dusk**, **Combat display**, **Phosphor green**, **Red light**, **Thermal imager**, **Neon**. The chart
   looks draw land flat with its contours and coastline and the sea in the four depth shades of a chart with a bold
   safety contour (the ECDIS ones in the real IHO S-52 colours).
