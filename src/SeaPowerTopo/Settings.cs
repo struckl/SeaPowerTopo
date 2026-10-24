@@ -29,6 +29,7 @@ internal static class Settings
     public static ConfigEntry<string> DepthBands;
     public static ConfigEntry<bool> AircraftClearance;
     public static ConfigEntry<float> Resolution;
+    public static ConfigEntry<bool> Predraw;
 
     public static ConfigEntry<ReadoutMode> Readout;
     public static ConfigEntry<bool> Legend;
@@ -80,6 +81,10 @@ internal static class Settings
         Resolution = file.Bind("2. Overlay", "Resolution", 1f,
             new ConfigDescription("Overlay resolution relative to the map's own. Lower is faster, higher is sharper.",
                                   new AcceptableValueRange<float>(0.25f, 2f)));
+        Predraw = file.Bind("2. Overlay", "Pre-draw mission area", true,
+            "At mission start, draw the area of all units (and three times larger areas around it, and the whole " +
+            "world) once. Zoomed out the map then needs no drawing while you play, and closer in the pre-drawn " +
+            "colours fill the edges until the sharp view has caught up with a pan.");
 
         Readout = file.Bind("3. Readout and legend", "Height under cursor", ReadoutMode.WithOverlay,
             "Show the terrain height under the mouse pointer on the map: WithOverlay (while the Topography layer " +

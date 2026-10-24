@@ -11,19 +11,104 @@ using Object = UnityEngine.Object;
 
 namespace SeaPowerTopo.Render;
 
+/// <summary>A lon/lat rectangle on the map, in degrees.</summary>
+internal readonly struct GeoRect : IEquatable<GeoRect>
+{
+    public readonly double West, South, East, North;
+
+    public GeoRect(double west, double south, double east, double north)
+    {
+        West = west;
+        South = south;
+        East = east;
+        North = north;
+    }
+
+    public double Width => East - West;
+    public double Height => North - South;
+
+    public bool Contains(GeoRect r) => r.West >= West && r.East <= East && r.South >= South && r.North <= North;
+
+    public bool Equals(GeoRect r) => r.West == West && r.South == South && r.East == East && r.North == North;
+
+    public override string ToString() => $"{South:0.0}..{North:0.0}°N {West:0.0}..{East:0.0}°E";
+}
+
+/// <summary>The live map's scene of the current mission, shared by every overlay layer.</summary>
+internal sealed class MapSceneRef
+{
+    private float nextLookup;
+
+    public MapScene Scene { get; private set; }
+    /// <summary>The 3 arc-minute world grid behind the zoomed-out map (null if not found).</summary>
+    public Texture2D Lowres { get; private set; }
+    /// <summary>Counts the scenes found: a layer that sees a new one drops its quad, which went with the old scene.</summary>
+    public int Generation { get; private set; }
+
+    public bool Find()
+    {
+        if (Scene != null)
+            return true;
+        if (Time.unscaledTime < nextLookup)
+            return false;
+        nextLookup = Time.unscaledTime + 1f;
+        Scene = Object.FindFirstObjectByType<MapScene>();
+        if (Scene == null)
+            return false;
+
+        // The background quads covering the whole world carry the 3 arc-minute grid as their heightmap.
+        Lowres = null;
+        foreach (MapRect rect in Scene.GetComponentsInChildren<MapRect>(true))
+        {
+            if (rect.Width >= 359f && rect.heightmap != null && rect.heightmap.width == HeightReader.LowCols)
+            {
+                Lowres = rect.heightmap;
+                break;
+            }
+        }
+        if (Lowres == null)
+            ModLog.Warn("World height grid of the map not found; zoomed-out areas without loaded DEM stay uncoloured.");
+        Generation++;
+        return true;
+    }
+
+    /// <summary>What the map shows, and its scale in degrees per pixel of the map texture.</summary>
+    public bool TryView(out GeoRect view, out double viewDpp)
+    {
+        view = default;
+        viewDpp = 0;
+        if (!Find())
+            return false;
+        BoundingBox box = Scene.Viewport;
+        RenderTexture target = Scene.Camera != null ? Scene.Camera.MapTexture : null;
+        if (box == null || target == null || target.height < 2 || box.Height <= 0)
+            return false;
+        view = new GeoRect(box.West, box.South, box.East, box.North);
+        viewDpp = box.Height / target.height;
+        return true;
+    }
+
+    public void Forget()
+    {
+        Scene = null;
+        Lowres = null;
+    }
+}
+
 /// <summary>
-/// The overlay itself. The stock map is a Unity scene of lon/lat quads on layer 19 that the map camera renders
+/// One overlay layer. The stock map is a Unity scene of lon/lat quads on layer 19 that the map camera renders
 /// into the texture the map window shows; one more quad in that scene, above the stock tiles, carries our image
 /// and so pans, zooms and wraps with the map for free.
-/// <para>The image covers the view plus a margin and is redrawn when the view leaves it, a pan has used up most of
-/// the margin on one side, or the zoom changes a lot: heights are copied out of the DEM on the main thread in
-/// slices of a few milliseconds per frame, then resampled and coloured on a worker thread, then uploaded. Until
-/// then the previous image stays in place.</para>
+/// <para>A live layer's image covers the view plus a margin and is redrawn when the view leaves it, a pan has used
+/// up most of the margin on one side, or the zoom changes a lot. A pre-drawn layer covers a fixed area at a fixed
+/// scale (the mission area, the world) and is drawn once. Either way heights are copied out of the DEM on the main
+/// thread in slices of a few milliseconds per frame, then resampled and coloured on worker threads, then uploaded;
+/// until then the previous image stays in place. Layers in front cut holes into the ones behind, so translucent
+/// images never stack.</para>
 /// </summary>
 internal sealed class OverlayRenderer
 {
     private const int MapLayer = 19;                 // the stock map tiles' layer, the only one the map camera sees
-    private const float ZOffset = -0.05f;            // in front of the stock tiles (z 0) and background (z 0.1)
     private const double FrameBudgetMs = 3.0;
     // Extra map drawn on every side of the view, as a share of the view: as much as the pixel budget allows at
     // full resolution, within these limits.
@@ -47,17 +132,28 @@ internal sealed class OverlayRenderer
         public int SettingsVersion;
         public double South => North - Height * Dpp;
         public double East => West + Width * Dpp;
+        public GeoRect Rect => new GeoRect(West, South, East, North);
         public Plan Clone() => (Plan)MemberwiseClone();
     }
 
-    private MapScene scene;
-    private Texture2D lowres;
-    private float nextSceneLookup;
+    private readonly MapSceneRef map;
+    private readonly string name;
+    private readonly float zOffset;
+    private int generation = -1;
+
+    // A pre-drawn layer: its area, scale, and whether its scale is fine enough to read the DEM.
+    private GeoRect? area;
+    private double areaDpp;
+    private bool areaDem;
+
     private GameObject quad;
     private MeshRenderer quadRenderer;
+    private Mesh mesh;
     private Material material;
     private Texture2D texture;
     private bool shaderMissing;
+    private readonly List<GeoRect> holes = new List<GeoRect>();
+    private bool meshDirty = true, meshEmpty;
 
     private Phase phase;
     private readonly SourceGrid source = new SourceGrid();
@@ -70,12 +166,24 @@ internal sealed class OverlayRenderer
     private readonly Stopwatch timer = new Stopwatch();
 
     private Palette palette, seaPalette;
-    private int paletteVersion = -1;
-    private bool paletteDark;
 
     private double lastWest, lastSouth, lastEast, lastNorth;
     private float lastViewChange;
     private float nextMissingCheck;
+
+    // One set of palettes for all layers, rebuilt when the settings or the theme change.
+    private static Palette sharedLand, sharedSea;
+    private static int sharedVersion = -1;
+    private static bool sharedDark;
+
+    /// <param name="name">For the log.</param>
+    /// <param name="zOffset">Depth in the map scene: the stock tiles are at 0, the background at 0.1, nearer is in front.</param>
+    public OverlayRenderer(MapSceneRef map, string name, float zOffset)
+    {
+        this.map = map;
+        this.name = name;
+        this.zOffset = zOffset;
+    }
 
     /// <summary>Palettes, contour interval and highlight altitude of the image on screen, for the legend.</summary>
     public Palette Palette => palette;
@@ -85,15 +193,63 @@ internal sealed class OverlayRenderer
     public float ShownDanger => shownPlan?.Danger ?? float.NaN;
     public bool HasImage => shown != null && quad != null;
 
-    /// <summary>Lowres world grid of the current map scene, for the cursor readout.</summary>
-    public Texture2D Lowres => FindScene() ? lowres : null;
+    /// <summary>Copying heights out of the DEM right now (the main-thread part of a redraw).</summary>
+    public bool Filling => phase == Phase.Filling;
+    /// <summary>On the map this frame.</summary>
+    public bool Showing => quadRenderer != null && quadRenderer.enabled;
+    /// <summary>Where the image on the map lies.</summary>
+    public GeoRect ShownRect => shownPlan?.Rect ?? default;
 
-    /// <param name="visible">The Topography layer is on.</param>
-    /// <param name="dark">The map shows its night theme.</param>
-    /// <param name="danger">Highlight terrain at or above this many metres; NaN = off.</param>
-    public void Tick(bool visible, bool dark, float danger)
+    /// <summary>The fixed area of a pre-drawn layer (null for the live layer).</summary>
+    public GeoRect? Area => area;
+    /// <summary>Degrees per pixel of a pre-drawn layer.</summary>
+    public double AreaDpp => areaDpp;
+
+    /// <summary>Makes this a pre-drawn layer of a fixed area at a fixed scale (degrees per pixel).</summary>
+    public void SetArea(GeoRect rect, double dpp, bool dem)
     {
-        if (!visible)
+        area = rect;
+        areaDpp = dpp;
+        areaDem = dem;
+    }
+
+    /// <summary>
+    /// Image areas of the layers in front: this layer leaves them out, so their translucent colours don't stack
+    /// with its own.
+    /// </summary>
+    public void SetHoles(List<GeoRect> front)
+    {
+        if (holes.Count == front.Count)
+        {
+            bool same = true;
+            for (int i = 0; i < holes.Count && same; i++)
+                same = holes[i].Equals(front[i]);
+            if (same)
+                return;
+        }
+        holes.Clear();
+        holes.AddRange(front);
+        meshDirty = true;
+    }
+
+    /// <param name="on">Keep an image (draw one if needed); off drops a redraw under way and hides the layer.</param>
+    /// <param name="show">Show it on the map this frame.</param>
+    /// <param name="dark">The map shows its night theme.</param>
+    /// <param name="danger">Highlight terrain at or above this many metres; NaN = off (always off for pre-drawn layers).</param>
+    /// <param name="mayStart">May use this frame's main-thread budget (another layer isn't using it).</param>
+    public void Tick(bool on, bool show, bool dark, float danger, bool mayStart)
+    {
+        if (map.Generation != generation)
+        {
+            // A new scene means a new mission: anything from the old one is gone.
+            generation = map.Generation;
+            shown = spare = null;
+            shownPlan = null;
+            quad = null;
+            quadRenderer = null;
+            mesh = null;
+        }
+        if (!on)
         {
             if (quadRenderer != null)
                 quadRenderer.enabled = false;
@@ -101,36 +257,39 @@ internal sealed class OverlayRenderer
                 Abort();
             return;
         }
-        if (shaderMissing || !FindScene() || !EnsureQuad())
+        if (shaderMissing || !map.Find() || !EnsureQuad())
             return;
-
-        BoundingBox view = scene.Viewport;
-        RenderTexture target = scene.Camera != null ? scene.Camera.MapTexture : null;
-        if (view == null || target == null || target.height < 2 || view.Height <= 0)
-            return;
-        TrackView(view);
         EnsurePalette(dark);
 
+        bool haveView = map.TryView(out GeoRect view, out double viewDpp);
+        if (haveView)
+            TrackView(view);
         switch (phase)
         {
             case Phase.Filling:
-                ContinueFill();
+                if (mayStart || area == null)
+                    ContinueFill();
                 break;
             case Phase.Shading:
                 if (work.IsCompleted)
                     Finish();
                 break;
             default:
-                StartIfStale(view, target.height, dark, danger);
+                if (area != null)
+                    StartFixedIfStale(dark, mayStart);
+                else if (haveView)
+                    StartIfStale(view, viewDpp, dark, danger);
                 break;
         }
-        quadRenderer.enabled = shown != null;
+        if (meshDirty)
+            BuildMesh();
+        quadRenderer.enabled = show && shown != null && !meshEmpty;
     }
 
     /// <summary>Mission unloading: drop everything; the map scene goes with the mission.</summary>
     public void Shutdown()
     {
-        // The worker only touches managed buffers, so there is nothing to wait for.
+        // The workers only touch managed buffers, so there is nothing to wait for.
         cancel = true;
         work = null;
         phase = Phase.Idle;
@@ -138,46 +297,16 @@ internal sealed class OverlayRenderer
         shownPlan = buildingPlan = null;
         source.V = null;
         shownMissing.Clear();
+        holes.Clear();
+        area = null;
         if (quad != null)
             Object.Destroy(quad);
         if (texture != null)
             Object.Destroy(texture);
         quad = null;
         quadRenderer = null;
+        mesh = null;
         texture = null;
-        scene = null;
-        lowres = null;
-    }
-
-    private bool FindScene()
-    {
-        if (scene != null)
-            return true;
-        if (Time.unscaledTime < nextSceneLookup)
-            return false;
-        nextSceneLookup = Time.unscaledTime + 1f;
-        scene = Object.FindFirstObjectByType<MapScene>();
-        if (scene == null)
-            return false;
-
-        // The background quads covering the whole world carry the 3 arc-minute grid as their heightmap.
-        lowres = null;
-        foreach (MapRect rect in scene.GetComponentsInChildren<MapRect>(true))
-        {
-            if (rect.Width >= 359f && rect.heightmap != null && rect.heightmap.width == HeightReader.LowCols)
-            {
-                lowres = rect.heightmap;
-                break;
-            }
-        }
-        if (lowres == null)
-            ModLog.Warn("World height grid of the map not found; zoomed-out areas without loaded DEM stay uncoloured.");
-        // A new scene means a new mission: anything from the old one is gone.
-        shown = spare = null;
-        shownPlan = null;
-        quad = null;
-        quadRenderer = null;
-        return true;
     }
 
     private bool EnsureQuad()
@@ -187,9 +316,9 @@ internal sealed class OverlayRenderer
         if (material == null)
         {
             Shader shader = null;
-            foreach (string name in new[] { "Sprites/Default", "UI/Default", "Unlit/Transparent" })
+            foreach (string candidate in new[] { "Sprites/Default", "UI/Default", "Unlit/Transparent" })
             {
-                shader = Shader.Find(name);
+                shader = Shader.Find(candidate);
                 if (shader != null)
                     break;
             }
@@ -199,22 +328,15 @@ internal sealed class OverlayRenderer
                 ModLog.Error("No transparent shader found (Sprites/Default) - overlay off.");
                 return false;
             }
-            material = new Material(shader) { name = "SeaPowerTopo overlay" };
-            ModLog.Info($"Overlay shader: {shader.name}");
+            material = new Material(shader) { name = $"SeaPowerTopo {name}" };
+            if (texture != null)
+                material.mainTexture = texture;
         }
 
-        quad = new GameObject("SeaPowerTopo overlay") { layer = MapLayer };
-        quad.transform.SetParent(scene.transform, false);
-        var mesh = new Mesh
-        {
-            name = "SeaPowerTopo quad",
-            vertices = new[] { new Vector3(0, 0, 0), new Vector3(1, 0, 0), new Vector3(0, 1, 0), new Vector3(1, 1, 0) },
-            // Image row 0 is the north edge, and a texture's first row is v = 0, so v runs north to south.
-            uv = new[] { new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, 0), new Vector2(1, 0) },
-            colors32 = new[] { new Color32(255, 255, 255, 255), new Color32(255, 255, 255, 255), new Color32(255, 255, 255, 255), new Color32(255, 255, 255, 255) },
-            triangles = new[] { 0, 2, 1, 2, 3, 1 },
-        };
-        mesh.RecalculateBounds();
+        quad = new GameObject($"SeaPowerTopo {name}") { layer = MapLayer };
+        quad.transform.SetParent(map.Scene.transform, false);
+        mesh = new Mesh { name = $"SeaPowerTopo {name}" };
+        meshDirty = true;
         quad.AddComponent<MeshFilter>().sharedMesh = mesh;
         quadRenderer = quad.AddComponent<MeshRenderer>();
         quadRenderer.sharedMaterial = material;
@@ -227,7 +349,59 @@ internal sealed class OverlayRenderer
         return true;
     }
 
-    private void TrackView(BoundingBox view)
+    /// <summary>The image minus the holes (see <see cref="Cutout"/>), in the unit square the quad's transform scales.</summary>
+    private void BuildMesh()
+    {
+        meshDirty = false;
+        if (mesh == null || shownPlan == null)
+            return;
+        GeoRect r = shownPlan.Rect;
+        var cut = new List<UnitRect>(holes.Count);
+        foreach (GeoRect h in holes)
+            cut.Add(new UnitRect(Unit(h.West, r.West, r.Width), Unit(h.South, r.South, r.Height),
+                                 Unit(h.East, r.West, r.Width), Unit(h.North, r.South, r.Height)));
+        var vertices = new List<Vector3>();
+        var uvs = new List<Vector2>();
+        var triangles = new List<int>();
+        foreach (UnitRect part in Cutout.Rects(cut))
+            AddRect(vertices, uvs, triangles, part.X0, part.Y0, part.X1, part.Y1);
+
+        mesh.Clear();
+        mesh.SetVertices(vertices);
+        mesh.SetUVs(0, uvs);
+        var colors = new Color32[vertices.Count];
+        for (int i = 0; i < colors.Length; i++)
+            colors[i] = new Color32(255, 255, 255, 255);
+        mesh.colors32 = colors;
+        mesh.SetTriangles(triangles, 0);
+        mesh.RecalculateBounds();
+        meshEmpty = triangles.Count == 0;
+    }
+
+    private static float Unit(double v, double origin, double size) =>
+        (float)Math.Max(0.0, Math.Min(1.0, (v - origin) / size));
+
+    private static void AddRect(List<Vector3> vertices, List<Vector2> uvs, List<int> triangles, float x0, float y0, float x1, float y1)
+    {
+        int b = vertices.Count;
+        vertices.Add(new Vector3(x0, y0, 0));
+        vertices.Add(new Vector3(x1, y0, 0));
+        vertices.Add(new Vector3(x0, y1, 0));
+        vertices.Add(new Vector3(x1, y1, 0));
+        // Image row 0 is the north edge, and a texture's first row is v = 0, so v runs north to south.
+        uvs.Add(new Vector2(x0, 1f - y0));
+        uvs.Add(new Vector2(x1, 1f - y0));
+        uvs.Add(new Vector2(x0, 1f - y1));
+        uvs.Add(new Vector2(x1, 1f - y1));
+        triangles.Add(b);
+        triangles.Add(b + 2);
+        triangles.Add(b + 1);
+        triangles.Add(b + 2);
+        triangles.Add(b + 3);
+        triangles.Add(b + 1);
+    }
+
+    private void TrackView(GeoRect view)
     {
         if (view.West != lastWest || view.East != lastEast || view.North != lastNorth || view.South != lastSouth)
         {
@@ -241,33 +415,35 @@ internal sealed class OverlayRenderer
 
     private void EnsurePalette(bool dark)
     {
-        if (palette != null && paletteVersion == Settings.Version && paletteDark == dark)
-            return;
-        float[] limits = Palette.ParseLimits(Settings.Bands.Value);
-        if (limits == null)
+        if (sharedLand == null || sharedVersion != Settings.Version || sharedDark != dark)
         {
-            ModLog.Warn($"Height bands '{Settings.Bands.Value}' unusable (ascending metres from 0) - using the default.");
-            limits = Palette.DefaultLimits;
-        }
-        palette = new Palette(limits, dark);
-        seaPalette = null;
-        if (Settings.SeaDepth.Value)
-        {
-            float[] depths = Palette.ParseLimits(Settings.DepthBands.Value);
-            if (depths == null)
+            float[] limits = Palette.ParseLimits(Settings.Bands.Value);
+            if (limits == null)
             {
-                ModLog.Warn($"Depth bands '{Settings.DepthBands.Value}' unusable (ascending metres from 0) - using the default.");
-                depths = Palette.DefaultDepthLimits;
+                ModLog.Warn($"Height bands '{Settings.Bands.Value}' unusable (ascending metres from 0) - using the default.");
+                limits = Palette.DefaultLimits;
             }
-            seaPalette = new Palette(depths, dark, sea: true);
+            sharedLand = new Palette(limits, dark);
+            sharedSea = null;
+            if (Settings.SeaDepth.Value)
+            {
+                float[] depths = Palette.ParseLimits(Settings.DepthBands.Value);
+                if (depths == null)
+                {
+                    ModLog.Warn($"Depth bands '{Settings.DepthBands.Value}' unusable (ascending metres from 0) - using the default.");
+                    depths = Palette.DefaultDepthLimits;
+                }
+                sharedSea = new Palette(depths, dark, sea: true);
+            }
+            sharedVersion = Settings.Version;
+            sharedDark = dark;
         }
-        paletteVersion = Settings.Version;
-        paletteDark = dark;
+        palette = sharedLand;
+        seaPalette = sharedSea;
     }
 
-    private void StartIfStale(BoundingBox view, int viewPixels, bool dark, float danger)
+    private void StartIfStale(GeoRect view, double viewDpp, bool dark, float danger)
     {
-        double viewDpp = view.Height / viewPixels;
         bool covered = shownPlan != null && Covers(shownPlan, view);
         double zoom = shownPlan != null ? shownPlan.ViewDpp / viewDpp : 1.0;
         bool nearEdge = covered && NearEdge(shownPlan, view);
@@ -287,7 +463,32 @@ internal sealed class OverlayRenderer
             StartRecolour(dark, danger);
     }
 
-    private static bool Covers(Plan p, BoundingBox view)
+    private void StartFixedIfStale(bool dark, bool mayStart)
+    {
+        if (!mayStart)
+            return;
+        GeoRect a = area.Value;
+        bool sameArea = shownPlan != null && shownPlan.West == a.West && shownPlan.North == a.North && shownPlan.Dpp == areaDpp;
+        if (shown != null && sameArea && shownPlan.SettingsVersion == Settings.Version && shownPlan.Dark == dark && !DemArrived())
+            return;
+        var plan = new Plan
+        {
+            West = a.West,
+            North = a.North,
+            Dpp = areaDpp,
+            ViewDpp = areaDpp,
+            Width = Math.Max(2, (int)Math.Ceiling(a.Width / areaDpp)),
+            Height = Math.Max(2, (int)Math.Ceiling(a.Height / areaDpp)),
+            Dem = areaDem,
+            Dark = dark,
+            Danger = float.NaN,
+            SettingsVersion = Settings.Version,
+        };
+        plan.Interval = ContourInterval(areaDpp);
+        Begin(plan);
+    }
+
+    private static bool Covers(Plan p, GeoRect view)
     {
         const double eps = 1e-9;
         return view.West >= p.West - eps && view.East <= p.East + eps &&
@@ -296,7 +497,7 @@ internal sealed class OverlayRenderer
     }
 
     // Less than PrefetchAt of the planned margin left on some side (an edge at a pole doesn't count).
-    private static bool NearEdge(Plan p, BoundingBox view)
+    private static bool NearEdge(Plan p, GeoRect view)
     {
         const double eps = 1e-9;
         double lon = p.MarginLon * PrefetchAt, lat = p.MarginLat * PrefetchAt;
@@ -329,10 +530,15 @@ internal sealed class OverlayRenderer
         return false;
     }
 
-    private void StartFull(BoundingBox view, double viewDpp, bool dark, float danger)
+    private static float ContourInterval(double dpp) =>
+        !Settings.Contours.Value ? 0f
+        : Settings.ContourInterval.Value > 0 ? Settings.ContourInterval.Value
+        : Raster.AutoInterval(dpp * Raster.MetresPerDegree);
+
+    private void StartFull(GeoRect view, double viewDpp, bool dark, float danger)
     {
         double dpp = viewDpp / Settings.Resolution.Value;
-        double spanLon = view.East - view.West, spanLat = view.North - view.South;
+        double spanLon = view.Width, spanLat = view.Height;
         double margin = (Math.Sqrt(MaxPixels / (spanLon / dpp * (spanLat / dpp))) - 1.0) / 2.0;
         margin = Math.Min(margin, (MaxSide * dpp / Math.Max(spanLon, spanLat) - 1.0) / 2.0);
         margin = Math.Max(MinMargin, Math.Min(MaxMargin, margin));
@@ -363,12 +569,15 @@ internal sealed class OverlayRenderer
             Danger = danger,
             SettingsVersion = Settings.Version,
         };
-        plan.Interval = !Settings.Contours.Value ? 0f
-            : Settings.ContourInterval.Value > 0 ? Settings.ContourInterval.Value
-            : Raster.AutoInterval(viewDpp * Raster.MetresPerDegree);
+        plan.Interval = ContourInterval(viewDpp);
+        Begin(plan);
+    }
 
-        // Source grid: DEM samples (every n-th when zoomed out) or world grid texels, with two cells of margin
-        // around the image for the interpolation.
+    // Source grid: DEM samples (every n-th when zoomed out) or world grid texels, with two cells of margin around
+    // the image for the interpolation. Then the main-thread fill starts.
+    private void Begin(Plan plan)
+    {
+        double dpp = plan.Dpp, west = plan.West, north = plan.North;
         if (plan.Dem)
         {
             fillStep = Math.Max(1, (int)Math.Round(dpp * HeightReader.DemPerDegree));
@@ -443,7 +652,7 @@ internal sealed class OverlayRenderer
     private void ContinueFill()
     {
         var slice = Stopwatch.StartNew();
-        using (var reader = new HeightReader(lowres, buildingMissing))
+        using (var reader = new HeightReader(map.Lowres, buildingMissing))
         {
             if (!buildingPlan.Dem && !reader.HasLowres)
             {
@@ -489,8 +698,10 @@ internal sealed class OverlayRenderer
     {
         RasterJob job = building;
         SourceGrid src = source;
+        bool mips = area != null;
         Func<bool> cancelled = () => cancel;
-        work = System.Threading.Tasks.Task.Run(() => (!resample || Raster.Resample(src, job, cancelled)) && Raster.Shade(job, cancelled));
+        work = System.Threading.Tasks.Task.Run(() => (!resample || Raster.Resample(src, job, cancelled)) && Raster.Shade(job, cancelled) &&
+                              (!mips || Raster.Mipmaps(job, cancelled)));
         phase = Phase.Shading;
     }
 
@@ -501,7 +712,7 @@ internal sealed class OverlayRenderer
         phase = Phase.Idle;
         if (done.IsFaulted)
         {
-            ModLog.Error($"Overlay redraw failed: {done.Exception?.GetBaseException()}");
+            ModLog.Error($"Overlay redraw ({name}) failed: {done.Exception?.GetBaseException()}");
             spare = building;
             building = null;
             return;
@@ -515,36 +726,73 @@ internal sealed class OverlayRenderer
 
         RasterJob job = building;
         building = null;
-        if (texture == null || texture.width != job.Width || texture.height != job.Height)
+        bool mips = job.Mips != null && area != null;
+        if (texture == null || texture.width != job.Width || texture.height != job.Height || texture.mipmapCount > 1 != mips)
         {
             if (texture != null)
                 Object.Destroy(texture);
-            texture = new Texture2D(job.Width, job.Height, TextureFormat.RGBA32, false)
+            texture = new Texture2D(job.Width, job.Height, TextureFormat.RGBA32, mips)
             {
-                name = "SeaPowerTopo overlay",
+                name = $"SeaPowerTopo {name}",
                 wrapMode = TextureWrapMode.Clamp,
-                filterMode = FilterMode.Bilinear,
+                filterMode = mips ? FilterMode.Trilinear : FilterMode.Bilinear,
             };
             material.mainTexture = texture;
         }
-        texture.LoadRawTextureData(job.Rgba);
-        texture.Apply(false, false);
+        if (!mips)
+        {
+            texture.LoadRawTextureData(job.Rgba);
+            texture.Apply(false, false);
+        }
+        else
+        {
+            bool loaded = false;
+            if (texture.mipmapCount == Raster.MipCount(job.Width, job.Height))
+            {
+                try
+                {
+                    texture.LoadRawTextureData(job.Mips);
+                    texture.Apply(false, false);
+                    loaded = true;
+                }
+                catch (Exception ex)
+                {
+                    ModLog.Debug($"Overlay {name}: own mip levels refused ({ex.Message})");
+                }
+            }
+            if (!loaded)
+            {
+                // Unity lays the levels out differently: let it make them.
+                texture.SetPixelData(job.Rgba, 0);
+                texture.Apply(true, false);
+            }
+        }
         Place(job);
 
         spare = shown;
         shown = job;
         shownPlan = buildingPlan;
         shownMissing = buildingMissing;
-        ModLog.Debug($"Overlay {job.Width}x{job.Height} (margin {shownPlan.Margin:0.00}), {(shownPlan.Dem ? "DEM" : "world grid")}, " +
+        meshDirty = true;
+        ModLog.Debug($"Overlay {name} {job.Width}x{job.Height} (margin {shownPlan.Margin:0.00}), {(shownPlan.Dem ? "DEM" : "world grid")}, " +
                      $"{shownPlan.Dpp * HeightReader.DemPerDegree:0.00} DEM cells/px, contours {shownPlan.Interval:0} m, " +
                      $"{shownMissing.Count} chunk(s) missing, {timer.ElapsedMilliseconds} ms");
+        if (area != null)
+        {
+            // A pre-drawn layer is never recoloured, only drawn again: its buffers can go.
+            job.Heights = null;
+            job.Rgba = null;
+            job.Mips = null;
+            spare = null;
+            source.V = null;
+        }
     }
 
     private void Place(RasterJob job)
     {
         if (quad == null)
             return;
-        quad.transform.localPosition = new Vector3((float)job.West, (float)job.South, ZOffset);
+        quad.transform.localPosition = new Vector3((float)job.West, (float)job.South, zOffset);
         quad.transform.localScale = new Vector3((float)(job.Width * job.Dpp), (float)(job.Height * job.Dpp), 1f);
     }
 

@@ -1,4 +1,6 @@
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace SeaPowerTopo.Render;
 
@@ -43,6 +45,8 @@ internal sealed class RasterJob
     public float[] Heights;
     /// <summary>Width × Height RGBA, straight alpha, row 0 = north.</summary>
     public byte[] Rgba;
+    /// <summary>With <see cref="Raster.Mipmaps"/>: the image followed by every smaller mip level, as a texture takes it.</summary>
+    public byte[] Mips;
 
     public double South => North - Height * Dpp;
     public double East => West + Width * Dpp;
@@ -65,6 +69,9 @@ internal static class Raster
     private const float SeabedShading = 0.5f, SeabedExaggeration = 2f;
 
     private static readonly float[] NiceIntervals = { 20, 50, 100, 200, 500, 1000 };
+
+    // Half the cores: the game's own threads keep theirs.
+    private static readonly int Workers = Math.Max(1, Math.Min(8, Environment.ProcessorCount / 2));
 
     /// <summary>
     /// A raw DEM value in metres as the simulation uses it: land times the height multiplier, water depth times the
@@ -107,14 +114,8 @@ internal static class Raster
         int gw = job.Width + 2, gh = job.Height + 2;
         if (job.Heights == null || job.Heights.Length != gw * gh)
             job.Heights = new float[gw * gh];
-        float[] h = job.Heights;
-        float[] v = src.V;
-        int nx = src.Nx, ny = src.Ny;
         bool cubic = src.Cell > job.Dpp * 1.5;
 
-        var colHeight = new float[nx];
-        var colDepth = new float[nx];
-        var colLand = new float[nx];
         var ci = new int[gw];
         var cf = new float[gw];
         for (int x = 0; x < gw; x++)
@@ -125,10 +126,20 @@ internal static class Raster
             cf[x] = (float)(u - i);
         }
 
-        for (int y = 0; y < gh; y++)
+        return Rows(gh, cancelled, (from, to) => ResampleRows(src, job, cubic, ci, cf, from, to));
+    }
+
+    private static void ResampleRows(SourceGrid src, RasterJob job, bool cubic, int[] ci, float[] cf, int from, int to)
+    {
+        int gw = job.Width + 2;
+        float[] h = job.Heights;
+        float[] v = src.V;
+        int nx = src.Nx, ny = src.Ny;
+        var colHeight = new float[nx];
+        var colDepth = new float[nx];
+        var colLand = new float[nx];
+        for (int y = from; y < to; y++)
         {
-            if ((y & 15) == 0 && cancelled())
-                return false;
             double t = (src.Lat0 - (job.North - (y - 0.5) * job.Dpp)) / src.Cell;
             int j = (int)Math.Floor(t);
             float ty = (float)(t - j);
@@ -171,7 +182,6 @@ internal static class Raster
                     h[o + x] = value < -MinDepth ? value : -MinDepth;
             }
         }
-        return true;
     }
 
     /// <summary>
@@ -180,10 +190,16 @@ internal static class Raster
     /// </summary>
     public static bool Shade(RasterJob job, Func<bool> cancelled)
     {
-        int w = job.Width, ht = job.Height, gw = w + 2;
-        float[] h = job.Heights;
+        int w = job.Width, ht = job.Height;
         if (job.Rgba == null || job.Rgba.Length != w * ht * 4)
             job.Rgba = new byte[w * ht * 4];
+        return Rows(ht, cancelled, (from, to) => ShadeRows(job, from, to));
+    }
+
+    private static void ShadeRows(RasterJob job, int from, int to)
+    {
+        int w = job.Width, gw = w + 2;
+        float[] h = job.Heights;
         byte[] px = job.Rgba;
         Palette pal = job.Palette;
         byte[] rgb = pal.Rgb;
@@ -199,10 +215,8 @@ internal static class Raster
         if (pal.Dark) { lr = 178; lg = 168; lb = 148; minorAlpha = 0.3f; majorAlpha = 0.6f; }
         else { lr = 72; lg = 46; lb = 26; minorAlpha = 0.45f; majorAlpha = 0.8f; }
 
-        for (int y = 0; y < ht; y++)
+        for (int y = from; y < to; y++)
         {
-            if ((y & 31) == 0 && cancelled())
-                return false;
             double lat = job.North - (y + 0.5) * job.Dpp;
             float mx = my * (float)Math.Max(0.02, Math.Cos(lat * Math.PI / 180.0));
             float sx = z / (2f * mx), sy = z / (2f * my);
@@ -295,7 +309,86 @@ internal static class Raster
                 px[o + 3] = ToByte(a * 255f);
             }
         }
+    }
+
+    /// <summary>
+    /// Fills <see cref="RasterJob.Mips"/>: the image and every half-size level down to 1 × 1, for a pre-drawn layer
+    /// seen zoomed out (without them its contour lines flicker). Colours are averaged by their alpha, so the edges
+    /// of transparent areas don't darken.
+    /// </summary>
+    public static bool Mipmaps(RasterJob job, Func<bool> cancelled)
+    {
+        int w = job.Width, h = job.Height, levels = MipCount(w, h);
+        long total = 0;
+        for (int k = 0; k < levels; k++)
+            total += (long)Math.Max(1, w >> k) * Math.Max(1, h >> k) * 4;
+        if (job.Mips == null || job.Mips.Length != total)
+            job.Mips = new byte[total];
+        byte[] m = job.Mips;
+        Buffer.BlockCopy(job.Rgba, 0, m, 0, w * h * 4);
+        int src = 0, sw = w, sh = h;
+        int dst = w * h * 4;
+        for (int k = 1; k < levels; k++)
+        {
+            if (cancelled())
+                return false;
+            int dw = Math.Max(1, sw >> 1), dh = Math.Max(1, sh >> 1);
+            for (int y = 0; y < dh; y++)
+            {
+                int y0 = Math.Min(sh - 1, y * 2), y1 = Math.Min(sh - 1, y * 2 + 1);
+                for (int x = 0; x < dw; x++)
+                {
+                    int x0 = Math.Min(sw - 1, x * 2), x1 = Math.Min(sw - 1, x * 2 + 1);
+                    int p0 = src + (y0 * sw + x0) * 4, p1 = src + (y0 * sw + x1) * 4;
+                    int p2 = src + (y1 * sw + x0) * 4, p3 = src + (y1 * sw + x1) * 4;
+                    int a0 = m[p0 + 3], a1 = m[p1 + 3], a2 = m[p2 + 3], a3 = m[p3 + 3];
+                    int asum = a0 + a1 + a2 + a3;
+                    int o = dst + (y * dw + x) * 4;
+                    for (int c = 0; c < 3; c++)
+                    {
+                        m[o + c] = asum == 0
+                            ? (byte)((m[p0 + c] + m[p1 + c] + m[p2 + c] + m[p3 + c] + 2) >> 2)
+                            : (byte)((m[p0 + c] * a0 + m[p1 + c] * a1 + m[p2 + c] * a2 + m[p3 + c] * a3 + asum / 2) / asum);
+                    }
+                    m[o + 3] = (byte)((asum + 2) >> 2);
+                }
+            }
+            src = dst;
+            dst += dw * dh * 4;
+            sw = dw;
+            sh = dh;
+        }
         return true;
+    }
+
+    /// <summary>Mip levels of a full chain, as Unity counts them.</summary>
+    public static int MipCount(int width, int height)
+    {
+        int levels = 1;
+        for (int size = Math.Max(width, height); size > 1; size >>= 1)
+            levels++;
+        return levels;
+    }
+
+    /// <summary>Runs <paramref name="band"/> over rows [0, count) in bands on several cores; false if cancelled.</summary>
+    private static bool Rows(int count, Func<bool> cancelled, Action<int, int> band)
+    {
+        int bands = Math.Max(1, Math.Min(Workers * 4, count / 16));
+        int size = (count + bands - 1) / bands;
+        int stopped = 0;
+        Parallel.For(0, bands, new ParallelOptions { MaxDegreeOfParallelism = Workers }, (k, state) =>
+        {
+            if (Volatile.Read(ref stopped) != 0 || cancelled())
+            {
+                Interlocked.Exchange(ref stopped, 1);
+                state.Stop();
+                return;
+            }
+            int from = k * size, to = Math.Min(count, from + size);
+            if (from < to)
+                band(from, to);
+        });
+        return stopped == 0;
     }
 
     // One water pixel: the colour of its depth band, the seabed's relief (fainter than on land, with more
