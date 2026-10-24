@@ -26,7 +26,7 @@ Start Sea Power → Mods → Create Mod:
 | Field | Value |
 | --- | --- |
 | Existing item | first upload: none (creates the item); later: pick *Sea Power Topographic Map* |
-| Folder | `StreamingAssets\SeaPowerTopo` (the folder `package.ps1 -Install` filled) |
+| Folder | `StreamingAssets\SeaPowerTopo` (the folder `package.ps1 -Install` filled). **Double-click** `SeaPowerTopo` so the picker is *inside* it, then confirm: the picker takes the folder it is in, a single click only highlights. Confirming in `StreamingAssets` itself gets "… is a forbidden path!" (the game refuses `StreamingAssets` and `StreamingAssets\original`) |
 | Name | Sea Power Topographic Map |
 | Description | [workshop/description.bbcode](../workshop/description.bbcode) |
 | Preview image | `StreamingAssets\SeaPowerTopo\preview.jpg` (put there by `package.ps1`: the picker only browses StreamingAssets and only takes .jpg; Steam wants it under 1 MB) |
