@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
 using K4os.Compression.LZ4;
 using SeaPowerTopo.Render;
 
@@ -18,6 +19,9 @@ namespace SeaPowerTopo.Preview;
 /// </code>
 /// --theme picks the look (atlas, midnight, ecdis-day, ... – see Theme.cs; the map theme follows from it, --dark picks the
 /// default night look), --chart-safety the safety contour of the chart themes in metres.
+/// --themes-dir loads a folder of theme files (as the mod does from BepInEx/config/SeaPowerTopo/themes; --theme then
+/// takes their ids), --theme-file one such file. --check-themes tests the theme files: every built-in look written out and
+/// read back, and a file with only a Base, must draw exactly what the original does.
 /// --at is the centre (lat,lon), --span the view height in degrees, --size the map's pixel size; --nodepth leaves
 /// the sea to the stock map, --depth-factor is the game's under-water depth factor (Options → World, default 2).
 /// --sub 120 draws what a selected submarine at 120 m sees: the thermal layer (with a stand-in for the game's
@@ -38,7 +42,8 @@ internal static class Program
         int width = 1600, height = 900;
         float danger = float.NaN, interval = -1, depthFactor = 2, keel = float.NaN;
         bool dark = false, depth = true;
-        string themeId = null;
+        string themeId = null, themesDir = null, themeFile = null;
+        bool check = false;
         float chartSafety = 30f;
         string output = "preview.png", game = @"E:\Games\steamapps\common\Sea Power";
         for (int i = 0; i < args.Length; i++)
@@ -67,6 +72,9 @@ internal static class Program
                 case "--nodepth": depth = false; break;
                 case "--depth-factor": depthFactor = (float)D(next); i++; break;
                 case "--theme": themeId = next; i++; break;
+                case "--themes-dir": themesDir = next; i++; break;
+                case "--theme-file": themeFile = next; i++; break;
+                case "--check-themes": check = true; break;
                 case "--chart-safety": chartSafety = (float)D(next); i++; break;
                 case "--out": output = next; i++; break;
                 case "--game": game = next; i++; break;
@@ -76,7 +84,26 @@ internal static class Program
             }
         }
 
-        Theme theme = themeId == null ? Themes.Get(null, dark) : Themes.Light.Find(t => t.Id == themeId) ?? Themes.Dark.Find(t => t.Id == themeId);
+        if (themeFile != null)
+        {
+            // One file on its own: a folder of one.
+            themesDir = Path.Combine(Path.GetTempPath(), "topo-preview-theme");
+            if (Directory.Exists(themesDir))
+                Directory.Delete(themesDir, true);
+            Directory.CreateDirectory(themesDir);
+            File.Copy(themeFile, Path.Combine(themesDir, Path.GetFileName(themeFile)));
+        }
+        if (themesDir != null)
+        {
+            ThemeLibrary.SetFolder(themesDir);
+            ThemeLibrary.Load(Console.WriteLine, m => Console.Error.WriteLine("warning: " + m));
+            if (themeFile != null && themeId == null && ThemeLibrary.Loaded > 0)
+                themeId = Themes.Light.Concat(Themes.Dark).First(t => t.Custom).Id;
+        }
+        if (check)
+            return CheckThemes(game, depthFactor);
+
+        Theme theme = themeId == null ? Themes.Get(null, dark) : Themes.Find(themeId);
         if (theme == null)
         {
             Console.Error.WriteLine($"Unknown theme {themeId}");
@@ -118,6 +145,128 @@ internal static class Program
         Console.WriteLine($"{output}: {width}x{height}, {(dem ? "DEM" : "world grid")}, {dpp * DemPerDegree:0.00} DEM cells/px, " +
                           $"contours {job.Interval:0} m, fill {fillMs} ms, resample {resampleMs} ms, shade {shadeMs} ms");
         return 0;
+    }
+
+    // The round trip: every built-in look as a theme file, read back, and a file that only names its Base, must come out
+    // of the real Raster code exactly as the original does (the Standard looks may differ by a rounding error at most).
+    private static int CheckThemes(string game, float depthFactor)
+    {
+        dataDir = Path.Combine(game, "Sea Power_Data", "StreamingAssets", "original", "terrain", "data");
+        lowres = ReadShorts(Path.Combine(dataDir, "lowres.raw"), LowCols * LowRows);
+
+        var views = new[] { (lat: 61.5, lon: 8.0, span: 2.0, danger: float.NaN), (lat: 36.0, lon: -5.5, span: 3.0, danger: 600f) };
+        int failures = 0, checks = 0;
+        failures += CheckSaving(ref checks);
+        foreach (Theme original in Themes.Light.Concat(Themes.Dark).Where(t => !t.Custom).ToList())
+        {
+            var warnings = new List<string>();
+            string text = ThemeIni.Write(original, original.Name);
+            Theme copy = null;
+            bool ok = ThemeIni.TryRead(text, original.Id, out ThemeFile file, warnings) && ThemeIni.TryBuild(file, null, out copy, warnings);
+            var onlyBase = new ThemeFile { FileName = "x", Id = "x", BaseId = original.Id };
+            Theme inherited = null;
+            ok = ok && ThemeIni.TryBuild(onlyBase, original, out inherited, warnings);
+            if (!ok || warnings.Count > 0)
+            {
+                Console.WriteLine($"FAIL {original.Id}: {string.Join("; ", warnings)}");
+                failures++;
+                continue;
+            }
+
+            foreach (var v in views)
+            {
+                byte[] reference = Draw(original, v.lat, v.lon, v.span, v.danger, depthFactor);
+                foreach ((string what, Theme other) in new[] { ("written and read back", copy), ("Base only", inherited) })
+                {
+                    checks++;
+                    int different = 0, worst = 0;
+                    byte[] pixels = Draw(other, v.lat, v.lon, v.span, v.danger, depthFactor);
+                    for (int i = 0; i < reference.Length; i++)
+                    {
+                        int d = Math.Abs(reference[i] - pixels[i]);
+                        if (d > 0)
+                            different++;
+                        worst = Math.Max(worst, d);
+                    }
+                    bool pass = different == 0 || (original.Legacy && worst <= 1);
+                    if (!pass)
+                        failures++;
+                    Console.WriteLine($"{(pass ? "ok  " : "FAIL")} {original.Id,-16} {what,-22} view {v.lat},{v.lon}: {different} values differ, worst {worst}");
+                }
+            }
+        }
+        Console.WriteLine(failures == 0 ? $"All {checks} checks pass." : $"{failures} failures.");
+        return failures == 0 ? 0 : 1;
+    }
+
+    // "Save this look as a theme file": a free id each time, the file read back as a theme of its own, the example left alone.
+    private static int CheckSaving(ref int checks)
+    {
+        string dir = Path.Combine(Path.GetTempPath(), "topo-preview-saving");
+        if (Directory.Exists(dir))
+            Directory.Delete(dir, true);
+        ThemeLibrary.SetFolder(dir);
+        ThemeLibrary.Prepare();
+        ThemeLibrary.Load(m => { }, m => Console.WriteLine("  " + m));
+        int failures = 0, count = 0;
+        void Expect(bool pass, string what)
+        {
+            count++;
+            if (!pass)
+                failures++;
+            Console.WriteLine($"{(pass ? "ok  " : "FAIL")} saving: {what}");
+        }
+
+        Expect(File.Exists(Path.Combine(dir, "_example.ini")) && ThemeLibrary.Loaded == 0, "the example file is written and not loaded");
+        var warnings = new List<string>();
+        Theme black = Themes.Builtin("black");
+        Theme first = ThemeLibrary.Save(black, m => { }, m => warnings.Add(m), out string path, out string error);
+        Expect(first != null && first.Id == "my-black" && first.Name == "My Black" && first.Custom && Path.GetFileName(path) == "my-black.ini", "a built-in look is saved as my-black");
+        Theme second = ThemeLibrary.Save(black, m => { }, m => warnings.Add(m), out path, out error);
+        Expect(second != null && second.Id == "my-black-2" && second.Name == "My Black 2" && Themes.Dark.Contains(first) == false && Themes.Dark.Exists(t => t.Id == "my-black"), "saving again takes a free id");
+        Theme third = ThemeLibrary.Save(Themes.Find("my-black-2"), m => { }, m => warnings.Add(m), out path, out error);
+        Expect(third != null && third.Id == "my-black-2-2", "saving a file theme makes another file");
+        Expect(ThemeLibrary.Loaded == 3 && warnings.Count == 0 && !ThemeLibrary.Changed(), "all three are loaded, no warnings, nothing left to reload");
+        File.AppendAllText(Path.Combine(dir, "my-black.ini"), "LandLines=1,2,3\n");
+        Expect(ThemeLibrary.Changed(), "an edited file is noticed");
+        ThemeLibrary.Load(m => { }, m => { });
+        Expect(Themes.Find("my-black").LandLine[0] == 1 && Themes.Dark.Count(t => t.Custom) == 3, "an edited file is read again");
+        File.WriteAllText(Path.Combine(dir, "my-black.ini"), "Id=my-black\nBase=nowhere\n");
+        ThemeLibrary.Load(m => { }, m => { });
+        Expect(Themes.Find("my-black") != null && Themes.Find("my-black").LandLine[0] == 1 && ThemeLibrary.Problems == 1, "a file that breaks keeps the last version that worked");
+        File.Delete(Path.Combine(dir, "my-black.ini"));
+        ThemeLibrary.Load(m => { }, m => { });
+        Expect(Themes.Find("my-black") == null && Themes.Dark.Count(t => t.Custom) == 2, "a deleted file's theme is gone");
+        ThemeLibrary.SetFolder(null);
+        ThemeLibrary.Load(m => { }, m => { });
+        checks += count;
+        return failures;
+    }
+
+    private static byte[] Draw(Theme theme, double lat, double lon, double span, float danger, float depthFactor)
+    {
+        const int width = 640, height = 360;
+        double dpp = span / height;
+        var job = new RasterJob
+        {
+            Width = width,
+            Height = height,
+            Dpp = dpp,
+            West = lon - dpp * width / 2,
+            North = lat + span / 2,
+            Palette = new Palette(Palette.DefaultLimits, theme),
+            Sea = new Palette(Palette.DefaultDepthLimits, theme, sea: true),
+            Opacity = Math.Min(1f, theme.Opacity),
+            ChartSafety = 30f,
+            Hillshade = 0.6f,
+            Interval = Raster.AutoInterval(dpp * Raster.MetresPerDegree),
+            Danger = danger,
+            Keel = float.NaN,
+        };
+        SourceGrid src = Fill(job, depthFactor, out _);
+        Raster.Resample(src, job, () => false);
+        Raster.Shade(job, () => false);
+        return job.Rgba;
     }
 
     // Same source grid as OverlayRenderer.StartFull / FillRow.

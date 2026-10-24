@@ -41,6 +41,7 @@ internal sealed class MapDecoration
     private float noticeUntil;
     private bool pickerOpen;
     private string lookShown;
+    private int lookRevision = -1;
     private readonly Border legend;
     private readonly StackPanel legendBody;
     private readonly Describe describe;
@@ -147,7 +148,7 @@ internal sealed class MapDecoration
             Visibility = Visibility.Collapsed,
         };
 
-        noticeText = new TextBlock { Foreground = textBrush, FontSize = 12 };
+        noticeText = new TextBlock { Foreground = textBrush, FontSize = 12, TextWrapping = TextWrapping.Wrap, MaxWidth = 360 };
         notice = new Border
         {
             Background = panelBrush,
@@ -241,19 +242,20 @@ internal sealed class MapDecoration
     }
 
     /// <summary>A line of text above the buttons for a few seconds (the theme that was just chosen).</summary>
-    public void ShowNotice(string text)
+    public void ShowNotice(string text, float seconds = 2.5f)
     {
         noticeText.Text = text;
         notice.Visibility = Visibility.Visible;
-        noticeUntil = UnityEngine.Time.unscaledTime + 2.5f;
+        noticeUntil = UnityEngine.Time.unscaledTime + seconds;
     }
 
     // The button shows the theme on the map; the picker lists the themes of its map theme, the current one in bold.
     private void RefreshLookButton(Theme theme)
     {
-        if (lookShown == theme.Id)
+        if (lookShown == theme.Id && lookRevision == Themes.Revision)
             return;
         lookShown = theme.Id;
+        lookRevision = Themes.Revision;
         lookText.Text = theme.Name;
         lookButton.ToolTip = $"Map look: {theme.Name} ({theme.Note}). Click to choose another; {Settings.LookKey.Value} switches to the next.";
 
@@ -278,6 +280,17 @@ internal sealed class MapDecoration
                 FontWeight = choice == theme ? FontWeight.Bold : FontWeight.Normal,
                 VerticalAlignment = VerticalAlignment.Center,
             });
+            if (choice.Custom)
+            {
+                content.Children.Add(new TextBlock
+                {
+                    Text = "file",
+                    FontSize = 10,
+                    Opacity = 0.6f,
+                    Margin = new Thickness(6, 0, 0, 0),
+                    VerticalAlignment = VerticalAlignment.Center,
+                });
+            }
             var row = new Button
             {
                 Focusable = false,
@@ -297,14 +310,49 @@ internal sealed class MapDecoration
             };
             pickerList.Children.Add(row);
         }
+
+        pickerList.Children.Add(new Border
+        {
+            Height = 1,
+            Margin = new Thickness(0, 4, 0, 3),
+            Background = textBrush,
+            Opacity = 0.25f,
+        });
+        pickerList.Children.Add(ActionRow("Save this look as a theme file", "Writes the look on the map as a file you can edit; the map follows when you save it.",
+                                          () => TopoHost.Instance?.SaveLook()));
+        pickerList.Children.Add(ActionRow("Open the themes folder", "Where the theme files live (BepInEx/config/SeaPowerTopo/themes).",
+                                          () => TopoHost.Instance?.OpenThemeFolder()));
+    }
+
+    private Button ActionRow(string text, string tip, Action action)
+    {
+        var row = new Button
+        {
+            Focusable = false,
+            Padding = new Thickness(6, 2, 8, 2),
+            Margin = new Thickness(0, 1, 0, 1),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Left,
+            Content = new TextBlock { Text = text, FontSize = 11, FontStyle = FontStyle.Italic },
+            ToolTip = tip,
+        };
+        row.Click += (sender, args) =>
+        {
+            args.Handled = true;
+            pickerOpen = false;
+            picker.Visibility = Visibility.Collapsed;
+            action();
+        };
+        return row;
     }
 
     // Three little swatches of a theme: lowland, high ground, sea.
     private static UIElement Swatches(Theme t)
     {
-        int[] low = t.LandFlat ?? Dim(t.LandKeys[2], t.LandBright);
-        int[] high = t.LandFlat != null ? t.Coast ?? t.LandFlat : Dim(t.LandKeys[9], t.LandBright);
-        int[] sea = t.Zones != null ? t.Zones[1] : t.SeaKeys[2];
+        // Lowland, high ground and sea at fixed places along the key colours (a file's themes have any number of them).
+        int[] low = t.LandFlat ?? Dim(At(t.LandKeys, 2 / 12f), t.LandBright);
+        int[] high = t.LandFlat != null ? t.Coast ?? t.LandFlat : Dim(At(t.LandKeys, 9 / 12f), t.LandBright);
+        int[] sea = t.Zones != null ? t.Zones[1] : At(t.SeaKeys, 2 / 11f);
         var swatches = new StackPanel
         {
             Orientation = Orientation.Horizontal,
@@ -315,6 +363,8 @@ internal sealed class MapDecoration
             swatches.Children.Add(new Rectangle { Width = 6, Height = 12, Fill = Solid(c) });
         return swatches;
     }
+
+    private static int[] At(int[][] keys, float position) => keys[(int)Math.Round(position * (keys.Length - 1))];
 
     private static int[] Dim(int[] c, float k) => new[] { (int)(c[0] * k), (int)(c[1] * k), (int)(c[2] * k) };
 

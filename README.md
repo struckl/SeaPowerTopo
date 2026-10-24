@@ -22,6 +22,9 @@ flat colour: high ground is hard to judge and the seabed can't be seen at all. T
   **ECDIS dusk**, **Combat display**, **Phosphor green**, **Red light**, **Thermal imager**, **Neon**. The chart
   looks draw land flat with its contours and coastline and the sea in the four depth shades of a chart with a bold
   safety contour (the ECDIS ones in the real IHO S-52 colours).
+- **Looks of your own from theme files**: the picker's **Save this look as a theme file** writes the look on the map as
+  a small text file in `BepInEx\config\SeaPowerTopo\themes`; edit it (or write one that starts from another look with
+  `Base=` and only lists what differs), save – the map reloads it at once. Format and every key: [docs/themes.md](docs/themes.md).
 - **Height under the cursor** – terrain height in m and ft (or the sea depth) next to the mouse pointer.
 - **Terrain above the selected aircraft** – with an aircraft or helicopter in the air selected, terrain as high as or
   higher than its altitude is hatched red, and the readout gives the clearance ("Viper 2-1 clears it by 210 m").
@@ -65,7 +68,7 @@ redraw):
 | Setting | What it does |
 | --- | --- |
 | Toggle key | Key for the layer (default F6) |
-| Look (day map), Look (night map), Look key | The look for each map theme (Standard / Midnight by default; also set by the look button and Shift+F6) |
+| Look (day map), Look (night map), Look key | The look for each map theme (Standard / Midnight by default; also set by the look button and Shift+F6); a look from a theme file is named by its `Id` |
 | Chart safety contour | For the chart looks: the bold contour in metres (default 30); the shallowest water shade ends at a sixth of it, the deepest begins at three and a third times it |
 | Opacity, Hill shading | How strongly the colours and the relief cover the stock map |
 | Contour lines, Contour interval | Contours on/off; fixed step in metres or 0 = follows the zoom |
@@ -107,7 +110,8 @@ dotnet run --project tools/topo-preview -c Release -- --at 61.5,8 --span 2 --siz
 ```
 
 (`--at` lat,lon of the centre, `--span` view height in degrees; `--theme atlas` (any id from
-`src/SeaPowerTopo/Render/Theme.cs`; without it Standard by day, `--dark` Midnight), `--chart-safety 50`;
+`src/SeaPowerTopo/Render/Theme.cs`; without it Standard by day, `--dark` Midnight), `--theme-file my.ini` or
+`--themes-dir <folder>` + `--theme <id>` for theme files, `--check-themes` to test them, `--chart-safety 50`;
 `--danger 1200` adds the aircraft highlight, `--interval 100` a fixed contour step, `--nodepth` leaves the sea to the stock map,
 `--depth-factor 2` is the game's under-water depth factor, `--sub 120` what a submarine at 120 m sees – with a
 stand-in for the game's random layer depths, which need Unity – `--game <dir>` the game folder.)
@@ -129,7 +133,10 @@ otherwise from the same rule and the same seeded `UnityEngine.Random` draw, with
 A look is a plain parameter set (`Render/Theme.cs`): key colours spread over the height bands, in steps or
 blended, or one flat colour; relief strength with a tinted shadow and highlight; contour lines with an optional glow;
 a coastline; the sea's key colours or a chart's four depth shades; depth lines. The first release's look is one of
-them, drawn by its original rules (its output is byte for byte unchanged). Adding a look is adding such a block.
+them, drawn by its original rules (its output is byte for byte unchanged). Adding a look is adding such a block, or a
+theme file: `Render/ThemeIni.cs` reads and writes the file format and `Render/ThemeLibrary.cs` finds the files, resolves
+`Base=`, keeps the last working version of a file that breaks, and swaps the result into `Themes` when the folder changes
+(polled every 1.5 s); both are plain C# and tested offline by the preview tool's `--check-themes`.
 The legend, the look button and its list and the cursor readout are Noesis elements laid over the map control, handed over by a Harmony postfix
 on `RenderedLayer.OnRender` that is applied only once NoesisGUI runs.
 

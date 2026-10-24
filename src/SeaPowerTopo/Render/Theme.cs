@@ -21,6 +21,8 @@ internal sealed class Theme
     /// colour, the user's hill shading as it is). Its output must not change.
     /// </summary>
     public bool Legacy;
+    /// <summary>Read from a theme file by the player (not one that ships).</summary>
+    public bool Custom;
     /// <summary>
     /// How much of the stock map the theme covers at the default opacity setting (0.7); the user's setting scales it
     /// (a setting of 0.35 halves it). The Standard themes use the setting as it is.
@@ -42,9 +44,7 @@ internal sealed class Theme
     /// metres and above, and from <see cref="LandLineLowAmt"/> of their strength to the full strength. Null = every
     /// line the same.
     /// </summary>
-#pragma warning disable CS0649   // set by themes that grade their lines; none of the built-in ones does yet
     public int[] LandLineHigh;
-#pragma warning restore CS0649
     public float LandLineSpan = 1500f, LandLineLowAmt = 1f;
     public int[] Coast;
     public float CoastAmt;
@@ -73,7 +73,26 @@ internal static class Themes
     public static readonly List<Theme> Light = new List<Theme>();
     public static readonly List<Theme> Dark = new List<Theme>();
 
+    /// <summary>Counts every change to the custom themes, so a list built from them knows to rebuild.</summary>
+    public static int Revision { get; private set; }
+
     public static string DefaultId(bool dark) => dark ? "midnight" : "standard-day";
+
+    /// <summary>The theme that ships with this id (of either map theme), or null.</summary>
+    public static Theme Builtin(string id) => Light.Find(t => !t.Custom && t.Id == id) ?? Dark.Find(t => !t.Custom && t.Id == id);
+
+    /// <summary>Any theme with this id, built in or from a file, or null.</summary>
+    public static Theme Find(string id) => Light.Find(t => t.Id == id) ?? Dark.Find(t => t.Id == id);
+
+    /// <summary>Swaps the themes from files for these (each into the list of its map theme, after the built-in ones).</summary>
+    public static void ReplaceCustom(List<Theme> custom)
+    {
+        Light.RemoveAll(t => t.Custom);
+        Dark.RemoveAll(t => t.Custom);
+        foreach (Theme t in custom)
+            (t.Dark ? Dark : Light).Add(t);
+        Revision++;
+    }
 
     public static List<Theme> Of(bool dark) => dark ? Dark : Light;
 

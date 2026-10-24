@@ -155,3 +155,34 @@ Version 1.2.0. Everything of the 1.1.0 checklist above still applies; this adds 
 3. With an aircraft selected (red hatching above its altitude) and with a submarine selected (thermal layer, keel
    line): both stay clearly visible on the black.
 4. Unit symbols and labels stay readable on it.
+
+## Theme files (1.2.0, 2026-10-25)
+
+Needs a mission with a map. The offline checks (`dotnet run --project tools/topo-preview -- --check-themes`) already
+cover reading, writing, inheriting, saving, reloading and the broken-file cases; this is what only the game shows.
+
+1. After the first start with 1.2.0 the folder `<Sea Power>\BepInEx\config\SeaPowerTopo\themes` exists and holds
+   `_example.ini`; `LogOutput.log` has `Theme files: 0 loaded from …`.
+2. Night map, look button: below the looks there is a thin line and two italic entries, **Save this look as a theme
+   file** and **Open the themes folder**. The second opens the folder in the file explorer.
+3. Choose **Midnight**, then **Save this look as a theme file**: a notice (about 7 s, readable, wrapped) says
+   `Saved my-midnight.ini …`, the look button now reads **My Midnight**, and the map looks exactly as before. The list now
+   has **My Midnight** with a small "file" tag, in bold.
+4. Open `my-midnight.ini`, change `LandLines=` to `255,0,0`, save – within about 2 seconds the notice says
+   `Theme files: 1 loaded` and the contour lines on land turn red. No restart, no error lines.
+5. Write an invalid colour (`LandLines=banana`) and save: the notice says `1 with problems`, the map keeps the red lines
+   (the last version that worked), the log has `my-midnight.ini: 'LandLines=banana' is not usable here, ignored`.
+   Break the whole file (delete every line but `Id=my-midnight`): the map keeps the last working version, the log says
+   so. Fix it: normal again.
+6. Save the same look again: a second file `my-midnight-2.ini`, **My Midnight 2** in the list.
+7. A new file with just `Id=thin`, `Base=black`, `LandLines=170,150,120` (copy it into the folder while the game runs): it
+   appears in the list within 2 seconds and shows Black with warm lines. Shift+F6 goes through it.
+8. Delete the file of the look that is selected: the map falls back to Midnight (log line, no error); the look button
+   updates.
+9. Switch the map to its day theme: the file looks made from night looks are not in its list; a day look saved as a file
+   shows up only there.
+10. Close the game: the config's `Look (night map)` holds the id of the look that was selected; start again – it is
+    still selected.
+
+Worth reporting: a notice that is cut off or hides the buttons, the picker staying open after a click, the folder not
+opening, a file change that is not noticed, a redraw that flickers or shows the old colours.

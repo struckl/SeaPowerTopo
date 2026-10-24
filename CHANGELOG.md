@@ -5,6 +5,15 @@
 - New night look **Black**: dark-grey relief on black with neutral grey contour lines (every fifth bold), a thin light
   coastline, and a sea in colour that fades to black in the deep. Themes can now also grade their land contour lines
   by height (no built-in look uses it yet).
+- **Theme files**: make looks of your own as small text files in `BepInEx\config\SeaPowerTopo\themes`. They appear in
+  the look list (marked "file") and the Shift+F6 cycle, start from any built-in look or another file with `Base=`, and
+  are reloaded within a couple of seconds of saving. The look list has two new entries: **Save this look as a theme
+  file** (writes the look on the map as an editable file and switches to it) and **Open the themes folder**. Bad lines
+  and files are skipped with a line in the log; a file that breaks keeps its last working version. Format and keys:
+  [docs/themes.md](docs/themes.md); the folder also gets a commented `_example.ini`.
+- The two *Look* settings now take any id, including those of theme files (they used to be a fixed list).
+- The offline preview takes `--theme-file`, `--themes-dir` and `--check-themes` (every built-in look written out and read
+  back must draw exactly what the original does).
 
 ## 1.1.0 – 2026-10-24 (Workshop)
 

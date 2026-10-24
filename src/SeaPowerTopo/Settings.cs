@@ -45,9 +45,13 @@ internal static class Settings
     /// <summary>Bumped on every config change, so the overlay and the legend know to redraw.</summary>
     public static int Version { get; private set; }
 
-    // "id (Name: note), ..." for a config description.
+    /// <summary>Makes everything that depends on the settings redraw (the theme files changed).</summary>
+    public static void Touch() => Version++;
+
+    // "id (Name: note), ..." for a config description; your own theme files are chosen by their Id as well.
     private static string Describe(bool dark) =>
-        string.Join("; ", Themes.Of(dark).ConvertAll(t => $"{t.Id} ({t.Name}: {t.Note})"));
+        string.Join("; ", Themes.Of(dark).FindAll(t => !t.Custom).ConvertAll(t => $"{t.Id} ({t.Name}: {t.Note})")) +
+        ". Theme files in BepInEx/config/SeaPowerTopo/themes add their own: use their Id";
 
     public static void Init()
     {
@@ -100,14 +104,13 @@ internal static class Settings
             "world) once. Zoomed out the map then needs no drawing while you play, and closer in the pre-drawn " +
             "colours fill the edges until the sharp view has caught up with a pan.");
 
+        // No list of allowed values: the player's own theme files come and go while the game runs.
         DayLook = file.Bind("2. Overlay", "Look (day map)", Themes.DefaultId(false),
-            new ConfigDescription("The theme the layer uses while the map is in its day theme. Also set by the look button " +
-                                  "on the map and by the look key. Themes: " + Describe(false),
-                                  new AcceptableValueList<string>(Themes.Ids(false))));
+            "The theme the layer uses while the map is in its day theme. Also set by the look button " +
+            "on the map and by the look key. Themes: " + Describe(false));
         NightLook = file.Bind("2. Overlay", "Look (night map)", Themes.DefaultId(true),
-            new ConfigDescription("The theme the layer uses while the map is in its night theme. Also set by the look button " +
-                                  "on the map and by the look key. Themes: " + Describe(true),
-                                  new AcceptableValueList<string>(Themes.Ids(true))));
+            "The theme the layer uses while the map is in its night theme. Also set by the look button " +
+            "on the map and by the look key. Themes: " + Describe(true));
         LookKey = file.Bind("2. Overlay", "Look key", new KeyboardShortcut(KeyCode.F6, KeyCode.LeftShift),
             "Switches to the next theme of the map's current theme (day or night), or turns the layer on if it is off.");
         ChartSafety = file.Bind("2. Overlay", "Chart safety contour", 30,

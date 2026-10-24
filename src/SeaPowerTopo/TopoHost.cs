@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using MapControl;
 using SeaPower;
 using SeaPower.LiveMap;
@@ -47,7 +49,7 @@ internal sealed class TopoHost : MonoBehaviour
     private readonly HashSet<MapBase> undecoratable = new HashSet<MapBase>();
 
     private HookState mapHooks;
-    private float nextHookCheck, nextPrune, nextAircraftCheck;
+    private float nextHookCheck, nextPrune, nextAircraftCheck, nextThemePoll;
     private bool missionActive;
     private int errors;
 
@@ -88,6 +90,12 @@ internal sealed class TopoHost : MonoBehaviour
             return;
 
         layer.EnsureRegistered();
+        if (Time.unscaledTime >= nextThemePoll)
+        {
+            nextThemePoll = Time.unscaledTime + 1.5f;
+            if (ThemeLibrary.Changed())
+                ReloadThemes();
+        }
         if (Settings.LookKey.Value.IsDown())
         {
             CycleLook();                      // Shift+F6 must not also count as F6
@@ -302,8 +310,61 @@ internal sealed class TopoHost : MonoBehaviour
     {
         string text = $"{theme.Name}: {theme.Note}";
         ModLog.Info($"Look ({(theme.Dark ? "night" : "day")} map): {text}");
+        Notify(text, 2.5f);
+    }
+
+    private void Notify(string text, float seconds)
+    {
         foreach (MapDecoration decoration in maps)
-            decoration.ShowNotice(text);
+            decoration.ShowNotice(text, seconds);
+    }
+
+    // A theme file was added, changed or removed.
+    private void ReloadThemes()
+    {
+        ThemeLibrary.Load(ModLog.Info, ModLog.Warn);
+        Settings.Touch();
+        Notify(ThemeLibrary.Problems == 0
+            ? $"Theme files: {ThemeLibrary.Loaded} loaded"
+            : $"Theme files: {ThemeLibrary.Loaded} loaded, {ThemeLibrary.Problems} with problems (BepInEx/LogOutput.log)", 4f);
+    }
+
+    /// <summary>Saves the look on the map as a theme file of its own and switches to it.</summary>
+    internal void SaveLook()
+    {
+        try
+        {
+            Theme saved = ThemeLibrary.Save(CurrentTheme(), ModLog.Info, ModLog.Warn, out string path, out string error);
+            if (saved == null)
+            {
+                ModLog.Error($"Saving the look failed: {error}");
+                Notify($"Could not save the look: {error}", 5f);
+                return;
+            }
+            Settings.Touch();
+            (saved.Dark ? Settings.NightLook : Settings.DayLook).Value = saved.Id;
+            ModLog.Info($"Saved the look as {path}");
+            Notify($"Saved {Path.GetFileName(path)} in BepInEx/config/SeaPowerTopo/themes. Edit it, the map follows when you save.", 7f);
+        }
+        catch (Exception ex)
+        {
+            ModLog.Error($"Saving the look failed: {ex}");
+        }
+    }
+
+    /// <summary>Opens the themes folder in the file explorer.</summary>
+    internal void OpenThemeFolder()
+    {
+        try
+        {
+            ThemeLibrary.Prepare();
+            Process.Start(new ProcessStartInfo("explorer.exe", "\"" + ThemeLibrary.Folder + "\"") { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            ModLog.Warn($"Could not open the themes folder: {ex.Message}");
+            Notify($"The themes folder is {ThemeLibrary.Folder}", 7f);
+        }
     }
 
     private void ApplyMapHooks()

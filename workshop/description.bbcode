@@ -10,6 +10,7 @@ The stock map shows land as a satellite picture and all water in one flat colour
 [*][b]Terrain above your aircraft[/b] – select an aircraft or helicopter in the air: terrain as high as or higher than its altitude is hatched red, and the readout tells you the clearance.
 [*][b]Thermal layer for your submarine[/b] – select a submarine: see where it is below the game's thermal layer, where the layer ends, and where the water is too shallow for it; the readout gives the layer depth and the water under the keel.
 [*][b]18 looks[/b], light and dark, in a picker at the bottom right of the map (or Shift+F6): Standard, Atlas, army tactical map, paper sea chart, ECDIS (the real IHO S-52 colours), parchment, glacier; at night Midnight (default), Black, Atlas dusk, ECDIS dusk, combat display, phosphor green, red light, thermal imager, neon and more.
+[*][b]Looks of your own[/b] – [i]Save this look as a theme file[/i] in the picker writes the look as a small text file you can edit; the map follows when you save. Start from any look, change the colours you like.
 [*][b]Legend[/b] behind a small button at the bottom right of the map.
 [/list]
 
@@ -25,6 +26,9 @@ Open the map in a mission – the layer is on. Toggle it in the map menu (≡) �
 
 [h2]Settings[/h2]
 [i]<Sea Power>\BepInEx\config\dev.sewerlabs.seapowertopo.cfg[/i] – toggle key, look for the day and the night map, look key, chart safety contour, opacity, hill shading, contours and their step, height and depth bands, sea depth on/off, the aircraft highlight, the submarine's thermal layer, resolution, pre-drawing, cursor readout, units (m / ft / both).
+
+[h2]Theme files[/h2]
+[i]<Sea Power>\BepInEx\config\SeaPowerTopo\themes[/i] – one [b].ini[/b] file per look, e.g. [i]Base=black[/i] and [i]LandLines=170,150,120[/i] for Black with warm contour lines. Every key is explained in the commented [i]_example.ini[/i] that the mod puts there, and at [url=https://github.com/struckl/SeaPowerTopo/blob/main/docs/themes.md]docs/themes.md[/url].
 
 [h2]Compatibility[/h2]
 Sea Power 0.8.x. Works together with Better TacMap. No game files are changed.

@@ -13,6 +13,8 @@
 
   <ItemGroup>
     <Compile Include="..\..\src\SeaPowerTopo\Render\Theme.cs" Link="Shared\Theme.cs" />
+    <Compile Include="..\..\src\SeaPowerTopo\Render\ThemeIni.cs" Link="Shared\ThemeIni.cs" />
+    <Compile Include="..\..\src\SeaPowerTopo\Render\ThemeLibrary.cs" Link="Shared\ThemeLibrary.cs" />
     <Compile Include="..\..\src\SeaPowerTopo\Render\Palette.cs" Link="Shared\Palette.cs" />
     <Compile Include="..\..\src\SeaPowerTopo\Render\Raster.cs" Link="Shared\Raster.cs" />
   </ItemGroup>

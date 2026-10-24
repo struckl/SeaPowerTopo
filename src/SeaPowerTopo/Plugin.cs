@@ -1,6 +1,9 @@
 using System;
+using System.IO;
 using AnchorChain;
+using BepInEx;
 using HarmonyLib;
+using SeaPowerTopo.Render;
 using UnityEngine;
 
 namespace SeaPowerTopo;
@@ -38,6 +41,11 @@ public class Plugin : IAnchorChainMod
                 ModLog.Info("Disabled in config.");
                 return;
             }
+
+            // The player's own themes, before anything asks for a look.
+            ThemeLibrary.SetFolder(Path.Combine(Paths.ConfigPath, "SeaPowerTopo", "themes"));
+            ThemeLibrary.Prepare();
+            ThemeLibrary.Load(ModLog.Info, ModLog.Warn);
 
             // Only the hooks on plain game classes now; the map hook follows once NoesisGUI runs (see Patches).
             if (!Patches.ApplyGameHooks(new Harmony(Guid)))
