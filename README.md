@@ -1,5 +1,8 @@
 # Sea Power Topographic Map
 
+**[Get it on the Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3826122523)** – requires
+[Anchor Chain](https://steamcommunity.com/sharedfiles/filedetails/?id=3380210757).
+
 A mod for [Sea Power: Naval Combat in the Missile Age](https://store.steampowered.com/app/1286220/) that makes land
 heights and sea depths readable on the tactical map – for low-level flying, terrain masking and radar horizons, and
 for where a submarine has room to dive.
@@ -40,7 +43,7 @@ on top; the stock coastline is untouched. A dimmed palette goes with the map's n
    community mod loader, following its
    [installation guide](https://seapower-modders.github.io/AnchorChain/install-anchor-chain.html) (one manual step:
    copy its preloader into the game folder).
-2. Subscribe to Sea Power Topographic Map on the Steam Workshop *(link follows with the first release)*.
+2. Subscribe to **[Sea Power Topographic Map](https://steamcommunity.com/sharedfiles/filedetails/?id=3826122523)** on the Steam Workshop.
 3. Start the game. In a mission, open the map: the layer is on. Toggle it in the map menu (≡) → Map Layers →
    **Topography**, or with **F6**.
 

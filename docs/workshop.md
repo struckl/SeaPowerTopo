@@ -25,7 +25,7 @@ Start Sea Power → Mods → Create Mod:
 
 | Field | Value |
 | --- | --- |
-| Existing item | first upload: none (creates the item); later: pick *Sea Power Topographic Map* |
+| Existing item | pick *Sea Power Topographic Map* – Workshop item [3826122523](https://steamcommunity.com/sharedfiles/filedetails/?id=3826122523), first uploaded 2026-10-24 as 1.0.0 |
 | Folder | `StreamingAssets\SeaPowerTopo` (the folder `package.ps1 -Install` filled). **Double-click** `SeaPowerTopo` so the picker is *inside* it, then confirm: the picker takes the folder it is in, a single click only highlights. Confirming in `StreamingAssets` itself gets "… is a forbidden path!" (the game refuses `StreamingAssets` and `StreamingAssets\original`) |
 | Name | Sea Power Topographic Map |
 | Description | [workshop/description.bbcode](../workshop/description.bbcode) |
@@ -35,9 +35,10 @@ Start Sea Power → Mods → Create Mod:
 | Visibility | first upload **Hidden** (or Friends only); Public once the subscribed copy is tested |
 | Change log | the CHANGELOG entry |
 
-After the first upload, add the Workshop link to the README and the description, and the screenshots from
-[workshop/screenshots/](../workshop/screenshots) on the Workshop page itself (Steam web → Edit → Add/edit images),
-in their numbered order:
+After the first upload the Workshop link went into the README. Add the screenshots from
+[workshop/screenshots/](../workshop/screenshots) on the Workshop page itself: open the item while signed in as its
+owner (Steam client or browser) → right column **Owner Controls** → **Add/edit images & videos** → choose the files
+(one at a time or several), then drag them into their numbered order:
 
 | Image | Shows |
 | --- | --- |
