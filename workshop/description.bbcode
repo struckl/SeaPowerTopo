@@ -1,0 +1,31 @@
+[h1]Topographic Map[/h1]
+Land heights and sea depths on the tactical map – for low-level flying, terrain masking and radar horizons, and for where your submarine has room to dive.
+
+The stock map shows land as a satellite picture and all water in one flat colour. This mod adds a [b]Topography[/b] layer:
+
+[list]
+[*][b]Land tinted by height[/b] in 13 bands (0 – 4000 m), with hill shading and contour lines that follow the zoom (20 m close in, up to 1000 m zoomed out).
+[*][b]Sea tinted by depth[/b] in 12 bands (0 – 6000 m), the deeper the darker, with faint seabed relief and depth lines like on a chart: banks, shelf edges and basins stand out.
+[*][b]Height under the cursor[/b] – terrain height in m and ft, or the sea depth.
+[*][b]Terrain above your aircraft[/b] – select an aircraft or helicopter in the air: terrain as high as or higher than its altitude is hatched red, and the readout tells you the clearance.
+[*][b]Legend[/b] behind a small button at the bottom right of the map.
+[/list]
+
+All heights and depths are the ones the simulation itself uses – the game's own terrain data, including the terrain height multiplier and under-water depth factor from Options → World. Unit symbols, waypoints and labels stay on top. Night theme supported.
+
+[h2]How to use[/h2]
+Open the map in a mission – the layer is on. Toggle it in the map menu (≡) → Map Layers → [b]Topography[/b], or with [b]F6[/b].
+
+[h2]Requirements[/h2]
+[b]Anchor Chain[/b] is required: [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3380210757]subscribe[/url] and follow its [url=https://seapower-modders.github.io/AnchorChain/install-anchor-chain.html]installation guide[/url] (one manual step: copy its preloader into the game folder).
+
+[h2]Settings[/h2]
+[i]<Sea Power>\BepInEx\config\dev.sewerlabs.seapowertopo.cfg[/i] – toggle key, opacity, hill shading, contours and their step, height and depth bands, sea depth on/off, the aircraft highlight, resolution, cursor readout, units (m / ft / both).
+
+[h2]Compatibility[/h2]
+Sea Power 0.8.x. Works together with Better TacMap. No game files are changed.
+
+[h2]Problems?[/h2]
+Please post the file [i]<Sea Power>\BepInEx\LogOutput.log[/i] with your report.
+
+Source code (MIT): [url=https://github.com/struckl/SeaPowerTopo]github.com/struckl/SeaPowerTopo[/url]
