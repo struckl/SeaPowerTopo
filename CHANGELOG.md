@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.1.0 – unreleased
+
+- **17 looks** for the layer, light and dark. The look button at the bottom right of the map (left of **Legend**)
+  names the look and opens a list of the looks of the map's current theme; **Shift+F6** goes to the next one. By
+  default the day map keeps **Standard** and the night map gets **Midnight**: cool, rich colours, stronger relief,
+  glowing contour and depth lines.
+  - Day: Standard, Atlas, Army tactical map, Paper sea chart, ECDIS day (IHO S-52), Parchment, Glacier.
+  - Night: Midnight, Standard, Quiet, Atlas dusk, ECDIS dusk (IHO S-52), Combat display, Phosphor green, Red light,
+    Thermal imager, Neon.
+- The chart looks (Paper sea chart, ECDIS day / dusk) draw land flat with its contours and coastline, and the sea in
+  four depth shades with contours at the standard chart depths and a bold safety contour (setting **Chart safety
+  contour**, default 30 m). The legend shows the chart's key.
+- New settings: **Look (day map)**, **Look (night map)**, **Look key**, **Chart safety contour**.
+- The legend names the look; the aircraft highlight, the submarine layer and the cursor readout work in every look.
+- The Standard looks are drawn exactly as before (checked byte for byte, day and night, with the aircraft highlight
+  and the submarine layer on).
+- The offline preview takes `--theme`.
+
 ## 1.0.0 – 2026-10-24 (first Workshop release)
 
 Tested on Sea Power 0.8.7.

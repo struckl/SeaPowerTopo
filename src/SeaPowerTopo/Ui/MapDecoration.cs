@@ -34,6 +34,13 @@ internal sealed class MapDecoration
     private readonly TextBlock readoutText;
     private readonly StackPanel dock;
     private readonly Button button;
+    private readonly Border notice, picker;
+    private readonly TextBlock noticeText, lookText;
+    private readonly StackPanel pickerList;
+    private readonly Button lookButton;
+    private float noticeUntil;
+    private bool pickerOpen;
+    private string lookShown;
     private readonly Border legend;
     private readonly StackPanel legendBody;
     private readonly Describe describe;
@@ -112,6 +119,51 @@ internal sealed class MapDecoration
             Settings.LegendOpen.Value = !Settings.LegendOpen.Value;
         };
 
+        // The look button names the theme on the map; a click opens the list of themes of the map's current theme.
+        lookText = new TextBlock { FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
+        lookButton = new Button
+        {
+            Focusable = false,
+            Padding = new Thickness(6, 2, 7, 2),
+            Margin = new Thickness(0, 0, 4, 0),
+            Content = lookText,
+        };
+        lookButton.Click += (sender, args) =>
+        {
+            args.Handled = true;
+            pickerOpen = !pickerOpen;
+            picker.Visibility = pickerOpen ? Visibility.Visible : Visibility.Collapsed;
+        };
+
+        pickerList = new StackPanel { Orientation = Orientation.Vertical };
+        picker = new Border
+        {
+            Background = panelBrush,
+            CornerRadius = new CornerRadius(3),
+            Padding = new Thickness(6, 6, 6, 5),
+            Margin = new Thickness(0, 0, 0, Gap),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Child = pickerList,
+            Visibility = Visibility.Collapsed,
+        };
+
+        noticeText = new TextBlock { Foreground = textBrush, FontSize = 12 };
+        notice = new Border
+        {
+            Background = panelBrush,
+            CornerRadius = new CornerRadius(3),
+            Padding = new Thickness(7, 3, 7, 3),
+            Margin = new Thickness(0, 0, 0, Gap),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Child = noticeText,
+            Visibility = Visibility.Collapsed,
+            IsHitTestVisible = false,
+        };
+
+        var buttonRow = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+        buttonRow.Children.Add(lookButton);
+        buttonRow.Children.Add(button);
+
         dockMargin = new Thickness(0, 0, Inset, NoScaleBottom);
         dock = new StackPanel
         {
@@ -121,8 +173,10 @@ internal sealed class MapDecoration
             Margin = dockMargin,
             Visibility = Visibility.Collapsed,
         };
+        dock.Children.Add(notice);
+        dock.Children.Add(picker);
         dock.Children.Add(legend);
-        dock.Children.Add(button);
+        dock.Children.Add(buttonRow);
 
         // No background: hit tests fall through it to the map everywhere but on the dock.
         root = new Grid();
@@ -169,6 +223,12 @@ internal sealed class MapDecoration
             return;
         PlaceDock();
 
+        Theme theme = overlay.Theme;
+        if (theme != null)
+            RefreshLookButton(theme);
+        if (notice.Visibility == Visibility.Visible && UnityEngine.Time.unscaledTime > noticeUntil)
+            notice.Visibility = Visibility.Collapsed;
+
         bool open = Settings.LegendOpen.Value;
         if (shownOpen != open)
         {
@@ -179,6 +239,86 @@ internal sealed class MapDecoration
         if (open)
             RefreshLegend(overlay, aircraft, submarine);
     }
+
+    /// <summary>A line of text above the buttons for a few seconds (the theme that was just chosen).</summary>
+    public void ShowNotice(string text)
+    {
+        noticeText.Text = text;
+        notice.Visibility = Visibility.Visible;
+        noticeUntil = UnityEngine.Time.unscaledTime + 2.5f;
+    }
+
+    // The button shows the theme on the map; the picker lists the themes of its map theme, the current one in bold.
+    private void RefreshLookButton(Theme theme)
+    {
+        if (lookShown == theme.Id)
+            return;
+        lookShown = theme.Id;
+        lookText.Text = theme.Name;
+        lookButton.ToolTip = $"Map look: {theme.Name} ({theme.Note}). Click to choose another; {Settings.LookKey.Value} switches to the next.";
+
+        pickerList.Children.Clear();
+        pickerList.Children.Add(new TextBlock
+        {
+            Text = theme.Dark ? "Look for the night map" : "Look for the day map",
+            Foreground = textBrush,
+            FontSize = 12,
+            FontWeight = FontWeight.Bold,
+            Margin = new Thickness(0, 0, 0, 4),
+        });
+        foreach (Theme t in Themes.Of(theme.Dark))
+        {
+            Theme choice = t;
+            var content = new StackPanel { Orientation = Orientation.Horizontal };
+            content.Children.Add(Swatches(choice));
+            content.Children.Add(new TextBlock
+            {
+                Text = choice.Name,
+                FontSize = 12,
+                FontWeight = choice == theme ? FontWeight.Bold : FontWeight.Normal,
+                VerticalAlignment = VerticalAlignment.Center,
+            });
+            var row = new Button
+            {
+                Focusable = false,
+                Padding = new Thickness(6, 2, 8, 2),
+                Margin = new Thickness(0, 1, 0, 1),
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                HorizontalContentAlignment = HorizontalAlignment.Left,
+                Content = content,
+                ToolTip = choice.Note,
+            };
+            row.Click += (sender, args) =>
+            {
+                args.Handled = true;
+                pickerOpen = false;
+                picker.Visibility = Visibility.Collapsed;
+                TopoHost.Instance?.SetLook(choice);
+            };
+            pickerList.Children.Add(row);
+        }
+    }
+
+    // Three little swatches of a theme: lowland, high ground, sea.
+    private static UIElement Swatches(Theme t)
+    {
+        int[] low = t.LandFlat ?? Dim(t.LandKeys[2], t.LandBright);
+        int[] high = t.LandFlat != null ? t.Coast ?? t.LandFlat : Dim(t.LandKeys[9], t.LandBright);
+        int[] sea = t.Zones != null ? t.Zones[1] : t.SeaKeys[2];
+        var swatches = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 6, 0),
+        };
+        foreach (int[] c in new[] { low, high, sea })
+            swatches.Children.Add(new Rectangle { Width = 6, Height = 12, Fill = Solid(c) });
+        return swatches;
+    }
+
+    private static int[] Dim(int[] c, float k) => new[] { (int)(c[0] * k), (int)(c[1] * k), (int)(c[2] * k) };
+
+    private static SolidColorBrush Solid(int[] c) => new SolidColorBrush(Color.FromArgb(255, (byte)c[0], (byte)c[1], (byte)c[2]));
 
     private void OnMouseMove(object sender, MouseEventArgs e)
     {
@@ -315,15 +455,30 @@ internal sealed class MapDecoration
         legendUnits = units;
 
         legendBody.Children.Clear();
-        var columns = new StackPanel { Orientation = Orientation.Horizontal };
-        columns.Children.Add(Column("Terrain height", palette, units, highestFirst: true));
-        if (sea != null)
+        Theme theme = palette.Theme;
+        legendBody.Children.Add(new TextBlock
         {
-            StackPanel seaColumn = Column("Sea depth", sea, units, highestFirst: false);
-            seaColumn.Margin = new Thickness(14, 0, 0, 0);
-            columns.Children.Add(seaColumn);
+            Text = $"{theme.Name} · {theme.Note}",
+            Foreground = textBrush,
+            FontSize = 11,
+            Margin = new Thickness(0, 0, 0, 5),
+        });
+        if (theme.IsChart)
+        {
+            AddChartRows(theme, interval, units);
         }
-        legendBody.Children.Add(columns);
+        else
+        {
+            var columns = new StackPanel { Orientation = Orientation.Horizontal };
+            columns.Children.Add(Column("Terrain height", palette, units, highestFirst: true));
+            if (sea != null)
+            {
+                StackPanel seaColumn = Column("Sea depth", sea, units, highestFirst: false);
+                seaColumn.Margin = new Thickness(14, 0, 0, 0);
+                columns.Children.Add(seaColumn);
+            }
+            legendBody.Children.Add(columns);
+        }
 
         if (!float.IsNaN(danger))
         {
@@ -332,7 +487,7 @@ internal sealed class MapDecoration
         }
         if (!float.IsNaN(keel))
             AddSubmarineRows(keel, layer, palette.Dark, string.IsNullOrEmpty(submarine) ? "the submarine" : submarine, units);
-        if (interval > 0f)
+        if (interval > 0f && !theme.IsChart)
         {
             string text = $"Contours every {HeightText.Format(interval, units)}\nBold every {HeightText.Format(interval * 5f, units)}";
             if (sea != null)
@@ -345,6 +500,27 @@ internal sealed class MapDecoration
                 Margin = new Thickness(0, 6, 0, 0),
             });
         }
+    }
+
+    // A chart theme's key: land, coastline, the four water shades by the shallow, safety and deep contours, and the lines.
+    private void AddChartRows(Theme theme, float interval, HeightUnits units)
+    {
+        float safety = Settings.ChartSafety.Value;
+        float shallow = Math.Max(2f, safety / 6f), deep = safety * 100f / 30f;
+        string F(float metres) => HeightText.Format(metres, units, 10);
+        legendBody.Children.Add(Row(Solid(theme.LandFlat), "Land"));
+        if (theme.Coast != null)
+            legendBody.Children.Add(Row(Solid(theme.Coast), "Coastline"));
+        if (interval > 0f && theme.LandLine != null)
+            legendBody.Children.Add(Row(Solid(theme.LandLine), $"Land contours every {F(interval)}, bold every {F(interval * 5f)}"));
+        legendBody.Children.Add(Row(Solid(theme.Zones[0]), $"Water under {F(shallow)}", 5f));
+        legendBody.Children.Add(Row(Solid(theme.Zones[1]), $"to {F(safety)}"));
+        legendBody.Children.Add(Row(Solid(theme.Zones[2]), $"to {F(deep)}"));
+        legendBody.Children.Add(Row(Solid(theme.Zones[3]), "deeper"));
+        if (theme.SafetyLine != null)
+            legendBody.Children.Add(Row(Solid(theme.SafetyLine), $"Safety contour {F(safety)}", 4f));
+        if (theme.SeaLine != null)
+            legendBody.Children.Add(Row(Solid(theme.SeaLine), "Depth contours"));
     }
 
     // One band per row, each labelled with the height (depth) it starts at: land highest on top, sea shallowest

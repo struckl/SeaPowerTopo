@@ -16,6 +16,8 @@ namespace SeaPowerTopo.Preview;
 /// dotnet run --project tools/topo-preview -- --at 61.5,8 --span 2 --size 1600x900 [--danger 1200] [--dark]
 ///     [--interval 100] [--nodepth] [--depth-factor 2] [--out preview.png] [--game "E:\Games\steamapps\common\Sea Power"]
 /// </code>
+/// --theme picks the look (atlas, midnight, ecdis-day, ... – see Theme.cs; the map theme follows from it, --dark picks the
+/// default night look), --chart-safety the safety contour of the chart themes in metres.
 /// --at is the centre (lat,lon), --span the view height in degrees, --size the map's pixel size; --nodepth leaves
 /// the sea to the stock map, --depth-factor is the game's under-water depth factor (Options → World, default 2).
 /// --sub 120 draws what a selected submarine at 120 m sees: the thermal layer (with a stand-in for the game's
@@ -36,6 +38,8 @@ internal static class Program
         int width = 1600, height = 900;
         float danger = float.NaN, interval = -1, depthFactor = 2, keel = float.NaN;
         bool dark = false, depth = true;
+        string themeId = null;
+        float chartSafety = 30f;
         string output = "preview.png", game = @"E:\Games\steamapps\common\Sea Power";
         for (int i = 0; i < args.Length; i++)
         {
@@ -62,6 +66,8 @@ internal static class Program
                 case "--dark": dark = true; break;
                 case "--nodepth": depth = false; break;
                 case "--depth-factor": depthFactor = (float)D(next); i++; break;
+                case "--theme": themeId = next; i++; break;
+                case "--chart-safety": chartSafety = (float)D(next); i++; break;
                 case "--out": output = next; i++; break;
                 case "--game": game = next; i++; break;
                 default:
@@ -70,6 +76,13 @@ internal static class Program
             }
         }
 
+        Theme theme = themeId == null ? Themes.Get(null, dark) : Themes.Light.Find(t => t.Id == themeId) ?? Themes.Dark.Find(t => t.Id == themeId);
+        if (theme == null)
+        {
+            Console.Error.WriteLine($"Unknown theme {themeId}");
+            return 1;
+        }
+        dark = theme.Dark;
         dataDir = Path.Combine(game, "Sea Power_Data", "StreamingAssets", "original", "terrain", "data");
         lowres = ReadShorts(Path.Combine(dataDir, "lowres.raw"), LowCols * LowRows);
 
@@ -81,9 +94,10 @@ internal static class Program
             Dpp = dpp,
             West = lon - dpp * width / 2,
             North = lat + span / 2,
-            Palette = new Palette(Palette.DefaultLimits, dark),
-            Sea = depth ? new Palette(Palette.DefaultDepthLimits, dark, sea: true) : null,
-            Opacity = 0.7f,
+            Palette = new Palette(Palette.DefaultLimits, theme),
+            Sea = depth || theme.IsChart ? new Palette(Palette.DefaultDepthLimits, theme, sea: true) : null,
+            Opacity = Math.Min(1f, theme.Opacity),
+            ChartSafety = chartSafety,
             Hillshade = 0.6f,
             Interval = interval >= 0 ? interval : Raster.AutoInterval(dpp * Raster.MetresPerDegree),
             Danger = danger,

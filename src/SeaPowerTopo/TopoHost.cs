@@ -88,14 +88,18 @@ internal sealed class TopoHost : MonoBehaviour
             return;
 
         layer.EnsureRegistered();
-        if (Settings.ToggleKey.Value.IsDown())
+        if (Settings.LookKey.Value.IsDown())
+        {
+            CycleLook();                      // Shift+F6 must not also count as F6
+        }
+        else if (Settings.ToggleKey.Value.IsDown())
         {
             layer.Toggle();
             ModLog.Info($"Topography {(layer.Visible ? "on" : "off")}.");
         }
 
         bool on = layer.Visible;
-        bool dark = Singleton<ThemeTracker>.InstanceExists() && Singleton<ThemeTracker>.Instance.CurrentTheme == ThemeMode.Dark;
+        bool dark = IsDark();
         UpdateAircraft();
         float danger = Settings.AircraftClearance.Value ? aircraftAltitude : float.NaN;
         float keel = Settings.SubmarineLayer.Value ? submarineDepth : float.NaN;
@@ -254,6 +258,52 @@ internal sealed class TopoHost : MonoBehaviour
         foreach (double v in values)
             m = Math.Max(m, v);
         return m;
+    }
+
+    private static bool IsDark() =>
+        Singleton<ThemeTracker>.InstanceExists() && Singleton<ThemeTracker>.Instance.CurrentTheme == ThemeMode.Dark;
+
+    /// <summary>The theme the map shows now: the user's choice for the map theme (day or night) it is in.</summary>
+    internal static Theme CurrentTheme() => CurrentTheme(IsDark());
+
+    private static Theme CurrentTheme(bool dark) => Themes.Get(dark ? Settings.NightLook.Value : Settings.DayLook.Value, dark);
+
+    /// <summary>
+    /// The next theme of the map's current theme. With the layer off, the first press only turns it on, showing
+    /// the theme it will have.
+    /// </summary>
+    internal void CycleLook()
+    {
+        try
+        {
+            Theme current = CurrentTheme();
+            if (!layer.Visible)
+            {
+                layer.Toggle();
+                Announce(current);
+                return;
+            }
+            SetLook(Themes.Next(current));
+        }
+        catch (Exception ex)
+        {
+            ModLog.Error($"Look switch failed: {ex}");
+        }
+    }
+
+    /// <summary>Makes <paramref name="theme"/> the look of its map theme and says so on every map.</summary>
+    internal void SetLook(Theme theme)
+    {
+        (theme.Dark ? Settings.NightLook : Settings.DayLook).Value = theme.Id;
+        Announce(theme);
+    }
+
+    private void Announce(Theme theme)
+    {
+        string text = $"{theme.Name}: {theme.Note}";
+        ModLog.Info($"Look ({(theme.Dark ? "night" : "day")} map): {text}");
+        foreach (MapDecoration decoration in maps)
+            decoration.ShowNotice(text);
     }
 
     private void ApplyMapHooks()

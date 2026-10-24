@@ -12,6 +12,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="..\..\src\SeaPowerTopo\Render\Theme.cs" Link="Shared\Theme.cs" />
     <Compile Include="..\..\src\SeaPowerTopo\Render\Palette.cs" Link="Shared\Palette.cs" />
     <Compile Include="..\..\src\SeaPowerTopo\Render\Raster.cs" Link="Shared\Raster.cs" />
   </ItemGroup>

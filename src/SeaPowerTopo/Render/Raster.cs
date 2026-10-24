@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -60,6 +61,12 @@ internal sealed class RasterJob
     public float Keel = float.NaN;
     /// <summary>Thermal layer to show for the selected submarine; null = none.</summary>
     public LayerTiles Layer;
+    /// <summary>
+    /// Chart themes: the safety contour in metres (the shallow and the deep contour follow from it), set by the
+    /// caller; <see cref="Raster.Shade"/> works out the shades' edges and the contour depths from it.
+    /// </summary>
+    public float ChartSafety = 30f, ChartShallow = 5f, ChartDeep = 100f;
+    public float[] ChartLevels;
 
     /// <summary>
     /// (Width + 2) × (Height + 2) heights in metres with a one-pixel border: land 0 or more, water below 0 (minus
@@ -269,6 +276,8 @@ internal static class Raster
         int w = job.Width, ht = job.Height;
         if (job.Rgba == null || job.Rgba.Length != w * ht * 4)
             job.Rgba = new byte[w * ht * 4];
+        if (job.Palette.Theme.IsChart)
+            PrepareChart(job);
         int[] layerCols = null;
         if (job.Layer != null)
         {
@@ -279,14 +288,38 @@ internal static class Raster
         return Rows(ht, cancelled, (from, to) => ShadeRows(job, layerCols, from, to));
     }
 
+    private static readonly float[] ChartDepths = { 2, 5, 10, 20, 30, 50, 100, 200, 500, 1000, 2000, 3000, 4000, 5000, 6000 };
+
+    // A chart's depths: the shallow, safety and deep contours set the four water shades, and contours run at the
+    // standard chart depths and at those three.
+    private static void PrepareChart(RasterJob job)
+    {
+        float safety = Math.Max(2f, job.ChartSafety);
+        job.ChartShallow = Math.Max(2f, safety / 6f);
+        job.ChartDeep = safety * 100f / 30f;
+        var set = new SortedSet<float>(ChartDepths) { job.ChartShallow, safety, job.ChartDeep };
+        var levels = new List<float>();
+        foreach (float v in set)
+        {
+            // Neighbours closer than a tenth of a metre are one contour (a safety contour of 30.04 m is 30 m).
+            if (levels.Count == 0 || v - levels[levels.Count - 1] > 0.1f)
+                levels.Add(v);
+        }
+        job.ChartLevels = levels.ToArray();
+    }
+
     private static void ShadeRows(RasterJob job, int[] layerCols, int from, int to)
     {
         int w = job.Width, gw = w + 2;
         float[] h = job.Heights;
         byte[] px = job.Rgba;
         Palette pal = job.Palette;
-        byte[] rgb = pal.Rgb;
+        Theme theme = pal.Theme;
         float tint = job.Opacity, shading = job.Hillshade;
+        // The Standard themes draw with the user's hill shading as it is; the others have their own strength, which
+        // the setting scales (0 = off, the default 0.6 = the theme's own).
+        if (!theme.Legacy)
+            shading = job.Hillshade <= 0f ? 0f : Math.Min(1.3f, theme.Shade * job.Hillshade / 0.6f);
         float minor = job.Interval, major = job.Interval * 5f;
         bool contours = minor > 0f;
         float danger = job.Danger;
@@ -297,6 +330,16 @@ internal static class Raster
         float lr, lg, lb, minorAlpha, majorAlpha;
         if (pal.Dark) { lr = 178; lg = 168; lb = 148; minorAlpha = 0.3f; majorAlpha = 0.6f; }
         else { lr = 72; lg = 46; lb = 26; minorAlpha = 0.45f; majorAlpha = 0.8f; }
+        float haloAlpha = 0f;
+        if (!theme.Legacy && theme.LandLine != null)
+        {
+            lr = theme.LandLine[0];
+            lg = theme.LandLine[1];
+            lb = theme.LandLine[2];
+            minorAlpha = theme.LandMinor;
+            majorAlpha = theme.LandMajor;
+            haloAlpha = theme.LandHalo;
+        }
 
         bool submarine = job.Layer != null || !float.IsNaN(job.Keel);
         for (int y = from; y < to; y++)
@@ -320,6 +363,8 @@ internal static class Raster
                 {
                     if (job.Sea == null)
                         px[o] = px[o + 1] = px[o + 2] = px[o + 3] = 0;
+                    else if (theme.IsChart)
+                        ShadeChartWater(job, i, contours, px, o);
                     else
                         ShadeWater(job, i, sx, sy, contours, px, o);
                     if (submarine)
@@ -333,8 +378,17 @@ internal static class Raster
                 if (!landU) hu = 0f;
                 if (!landD) hd = 0f;
 
-                int band = pal.BandOf(h0) * 3;
-                float r = rgb[band], g = rgb[band + 1], b = rgb[band + 2];
+                float r, g, b;
+                if (theme.LandFlat != null)
+                {
+                    r = theme.LandFlat[0];
+                    g = theme.LandFlat[1];
+                    b = theme.LandFlat[2];
+                }
+                else
+                {
+                    pal.Colour(h0, out r, out g, out b);
+                }
                 float a = tint;
 
                 if (shading > 0f)
@@ -347,6 +401,24 @@ internal static class Raster
                     r *= s;
                     g *= s;
                     b *= s;
+                    if (!theme.Legacy)
+                    {
+                        // Shadows fall towards the theme's shadow colour, lit slopes towards its highlight.
+                        if (s < 1f && theme.ShadowTint != null)
+                        {
+                            float tt = Clamp01((1f - s) * theme.ShadowAmt);
+                            r += (theme.ShadowTint[0] - r) * tt;
+                            g += (theme.ShadowTint[1] - g) * tt;
+                            b += (theme.ShadowTint[2] - b) * tt;
+                        }
+                        else if (s > 1f && theme.HighlightTint != null)
+                        {
+                            float tt = Clamp01((s - 1f) * theme.HighlightAmt * 3f);
+                            r += (theme.HighlightTint[0] - r) * tt;
+                            g += (theme.HighlightTint[1] - g) * tt;
+                            b += (theme.HighlightTint[2] - b) * tt;
+                        }
+                    }
                 }
 
                 if (hatch && h0 >= danger)
@@ -373,6 +445,8 @@ internal static class Raster
                         la = Clamp01(1.6f - Math.Abs(h0 - boldLevel) / grad) * majorAlpha * Fade(perPixel / 5f);
                     if (level > 0f)       // level 0 is the coastline, which the stock map draws
                         la = Math.Max(la, Clamp01(1.1f - Math.Abs(h0 - level) / grad) * minorAlpha * Fade(perPixel));
+                    if (haloAlpha > 0f && level > 0f)
+                        la = Math.Max(la, Clamp01(1f - Math.Abs(h0 - level) / (grad * 3.5f)) * haloAlpha * Fade(perPixel));
                     if (la > 0f)
                     {
                         r += (lr - r) * la;
@@ -380,6 +454,16 @@ internal static class Raster
                         b += (lb - b) * la;
                         a += la * (1f - a);
                     }
+                }
+
+                if (theme.Coast != null && (!landL || !landR || !landU || !landD))
+                {
+                    // The theme draws its own coastline on the land side of the shore.
+                    float ck = theme.CoastAmt;
+                    r += (theme.Coast[0] - r) * ck;
+                    g += (theme.Coast[1] - g) * ck;
+                    b += (theme.Coast[2] - b) * ck;
+                    a += ck * (1f - a);
                 }
 
                 if (hatch && grad > 1e-3f)
@@ -565,12 +649,14 @@ internal static class Raster
         float hl = Math.Min(h[i - 1], 0f), hr = Math.Min(h[i + 1], 0f), hu = Math.Min(h[i - gw], 0f), hd = Math.Min(h[i + gw], 0f);
 
         int bandIndex = sea.BandOf(d0);
-        int band = bandIndex * 3;
-        float r = sea.Rgb[band], g = sea.Rgb[band + 1], b = sea.Rgb[band + 2];
+        sea.Colour(d0, out float r, out float g, out float b);
         float a = job.Opacity;
         bool darkBand = 0.3f * r + 0.59f * g + 0.11f * b < 110f;
+        Theme theme = sea.Theme;
 
         float shading = job.Hillshade * SeabedShading;
+        if (!theme.Legacy)
+            shading = job.Hillshade <= 0f ? 0f : Math.Min(1.2f, theme.SeaShade * job.Hillshade / 0.6f);
         if (shading > 0f)
         {
             float dx = (hr - hl) * sx * SeabedExaggeration, dy = (hu - hd) * sy * SeabedExaggeration;
@@ -580,6 +666,13 @@ internal static class Raster
             r *= s;
             g *= s;
             b *= s;
+            if (!theme.Legacy && s < 1f && theme.ShadowTint != null)
+            {
+                float tt = Clamp01((1f - s) * theme.ShadowAmt * 0.6f);
+                r += (theme.ShadowTint[0] - r) * tt;
+                g += (theme.ShadowTint[1] - g) * tt;
+                b += (theme.ShadowTint[2] - b) * tt;
+            }
         }
 
         float gxp = (hr - hl) * 0.5f, gyp = (hd - hu) * 0.5f;
@@ -598,13 +691,83 @@ internal static class Raster
                 if (edge + 1 < n)
                     spacing = Math.Min(spacing, limits[edge + 1] - limits[edge]);
                 float la = Clamp01(1.1f - dist / grad) * (sea.Dark ? 0.35f : 0.45f) * Fade(grad / spacing);
+                float lr = darkBand ? 176f : 28f, lg = darkBand ? 196f : 48f, lb = darkBand ? 216f : 82f;
+                if (!theme.Legacy && theme.SeaLine != null)
+                {
+                    // A line of the theme's colour with an optional glow; the shelf break (200 m) brightest.
+                    bool shelf = Math.Abs(limits[edge] - 200f) < 1f;
+                    int[] lc = shelf && theme.ShelfLine != null ? theme.ShelfLine : theme.SeaLine;
+                    lr = lc[0];
+                    lg = lc[1];
+                    lb = lc[2];
+                    float boost = shelf ? theme.ShelfBoost : 1f;
+                    float core = Clamp01(1.1f - dist / grad) * Math.Min(1f, theme.SeaLineAmt * boost);
+                    float halo = theme.SeaLineHalo > 0f ? Clamp01(1f - dist / (grad * 3.5f)) * theme.SeaLineHalo * boost : 0f;
+                    la = Math.Max(core, halo) * Fade(grad / spacing);
+                }
                 if (la > 0f)
                 {
-                    float lr = darkBand ? 176f : 28f, lg = darkBand ? 196f : 48f, lb = darkBand ? 216f : 82f;
                     r += (lr - r) * la;
                     g += (lg - g) * la;
                     b += (lb - b) * la;
                     a += la * (1f - a);
+                }
+            }
+        }
+
+        px[o] = ToByte(r);
+        px[o + 1] = ToByte(g);
+        px[o + 2] = ToByte(b);
+        px[o + 3] = ToByte(a * 255f);
+    }
+
+    // A chart's water: the four depth shades of the theme, contours at the standard chart depths with the safety
+    // contour bold in its own colour. No relief – a chart shows depths, not the shape of the sea floor.
+    private static void ShadeChartWater(RasterJob job, int i, bool lines, byte[] px, int o)
+    {
+        Theme theme = job.Palette.Theme;
+        float[] h = job.Heights;
+        int gw = job.Width + 2;
+        float d0 = -h[i];
+        int[] zone = d0 < job.ChartShallow ? theme.Zones[0] : d0 < job.ChartSafety ? theme.Zones[1] : d0 < job.ChartDeep ? theme.Zones[2] : theme.Zones[3];
+        float r = zone[0], g = zone[1], b = zone[2];
+        float a = 1f;
+
+        if (lines && theme.SeaLine != null)
+        {
+            // Land next to the water counts as sea level.
+            float hl = Math.Min(h[i - 1], 0f), hr = Math.Min(h[i + 1], 0f), hu = Math.Min(h[i - gw], 0f), hd = Math.Min(h[i + gw], 0f);
+            float gxp = (hr - hl) * 0.5f, gyp = (hd - hu) * 0.5f;
+            float grad = (float)Math.Sqrt(gxp * gxp + gyp * gyp);
+            float[] levels = job.ChartLevels;
+            if (grad > 1e-3f && levels != null)
+            {
+                int n = levels.Length;
+                int k = 0;
+                while (k < n && levels[k] <= d0)
+                    k++;                                      // the first contour deeper than this pixel
+                float below = k > 0 ? d0 - levels[k - 1] : float.PositiveInfinity;
+                float above = k < n ? levels[k] - d0 : float.PositiveInfinity;
+                int edge = below <= above ? k - 1 : k;
+                float dist = Math.Min(below, above);
+                if (edge >= 0 && edge < n && !float.IsInfinity(dist))
+                {
+                    float spacing = float.PositiveInfinity;
+                    if (edge > 0)
+                        spacing = levels[edge] - levels[edge - 1];
+                    if (edge + 1 < n)
+                        spacing = Math.Min(spacing, levels[edge + 1] - levels[edge]);
+                    if (float.IsInfinity(spacing))
+                        spacing = levels[edge];
+                    bool safety = Math.Abs(levels[edge] - job.ChartSafety) < 0.15f;
+                    float la = Clamp01((safety ? 1.9f : 1.1f) - dist / grad) * Math.Min(1f, theme.SeaLineAmt) * Fade(grad / spacing / (safety ? 3f : 1f));
+                    if (la > 0f)
+                    {
+                        int[] lc = safety && theme.SafetyLine != null ? theme.SafetyLine : theme.SeaLine;
+                        r += (lc[0] - r) * la;
+                        g += (lc[1] - g) * la;
+                        b += (lc[2] - b) * la;
+                    }
                 }
             }
         }

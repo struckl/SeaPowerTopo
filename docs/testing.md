@@ -110,3 +110,34 @@ Same build as 0.2.0 apart from the version and the menu text.
 2. Map menu (≡) → Map Layers: the last entry reads **Topography (heights and depths)**, ticked; unticking hides the
    overlay, legend button and readout, F6 brings them back. The on/off state from before the update is kept.
 3. Run sections 2–4 of the 0.2.0 check above in any mission – no `[Error  :SeaPowerTopo]` lines.
+
+## Themes – 17 looks and the look button (1.1.0, 2026-10-24)
+
+Version 1.1.0. Turn on `Verbose log` in `dev.sewerlabs.seapowertopo.cfg` for this test.
+
+1. **Start a mission** with the map in its night theme. Log: `Sea Power Topographic Map 1.1.0 loaded.` The layer
+   shows **Midnight** (deep blue-black sea with glowing cyan depth lines, teal-green to rust land, cool shadows).
+2. **Look button**: bottom right, left of **Legend**, reads "Midnight". Click it: a list "Look for the night map" with
+   10 looks, each with three colour swatches, Midnight in bold. Click **Quiet**: the list closes, a line "Quiet:
+   grey land, colour on high ground" shows above the buttons for a couple of seconds, the layer redraws (verbose log:
+   new `Overlay …` lines), the button reads "Quiet". The config file now has `Look (night map) = quiet`.
+3. **Shift+F6** goes to the next look (Atlas dusk, ECDIS dusk, Combat display, Phosphor green, Red light, Thermal
+   imager, Neon, Midnight, Standard, Quiet …) and shows its name; F6 alone still toggles the layer – Shift+F6 must not
+   toggle it. With the layer off, Shift+F6 turns it on without changing the look.
+4. Go through every look once on a coast: nothing missing (no transparent holes, no flat colour where there should be
+   relief), land and sea clearly apart, the legend (open it) shows that look's key. **ECDIS dusk / paper chart**: land
+   flat with brown contour lines and a coastline, sea in four shades, a bold safety contour at 30 m (change `Chart
+   safety contour` in the config to 60: the contour and the shade edges move after the next redraw).
+5. **Standard (night)** must look exactly like the 1.0.0 night look.
+6. **Day map**: switch the map to its day theme. The look button reads "Standard" and its list has 7 looks (Standard,
+   Atlas, Army tactical map, Paper sea chart, ECDIS day, Parchment, Glacier); the night choice is remembered for when
+   the map goes dark again.
+7. With an aircraft selected (altitude highlight) and with a submarine selected (thermal layer, keel line): both
+   still show in at least Midnight, Atlas and ECDIS dusk, with their legend rows.
+8. Zoom out to the whole world and back, pan: the pre-drawn layers redraw once after a look change (a second or so),
+   no error lines.
+9. Close the game normally – no `[Error  :SeaPowerTopo]` lines expected.
+
+Worth reporting: a look that is too dark or too bright to use, the picker or the notice overlapping the legend or the
+map scale, the look button text cut off, a look change that doesn't redraw the pre-drawn layers, the picker staying
+open.

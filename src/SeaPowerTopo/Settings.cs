@@ -1,6 +1,7 @@
 using System.IO;
 using BepInEx;
 using BepInEx.Configuration;
+using SeaPowerTopo.Render;
 using UnityEngine;
 
 namespace SeaPowerTopo;
@@ -31,6 +32,10 @@ internal static class Settings
     public static ConfigEntry<bool> SubmarineLayer;
     public static ConfigEntry<float> Resolution;
     public static ConfigEntry<bool> Predraw;
+    public static ConfigEntry<string> DayLook;
+    public static ConfigEntry<string> NightLook;
+    public static ConfigEntry<KeyboardShortcut> LookKey;
+    public static ConfigEntry<int> ChartSafety;
 
     public static ConfigEntry<ReadoutMode> Readout;
     public static ConfigEntry<bool> Legend;
@@ -39,6 +44,10 @@ internal static class Settings
 
     /// <summary>Bumped on every config change, so the overlay and the legend know to redraw.</summary>
     public static int Version { get; private set; }
+
+    // "id (Name: note), ..." for a config description.
+    private static string Describe(bool dark) =>
+        string.Join("; ", Themes.Of(dark).ConvertAll(t => $"{t.Id} ({t.Name}: {t.Note})"));
 
     public static void Init()
     {
@@ -90,6 +99,22 @@ internal static class Settings
             "At mission start, draw the area of all units (and three times larger areas around it, and the whole " +
             "world) once. Zoomed out the map then needs no drawing while you play, and closer in the pre-drawn " +
             "colours fill the edges until the sharp view has caught up with a pan.");
+
+        DayLook = file.Bind("2. Overlay", "Look (day map)", Themes.DefaultId(false),
+            new ConfigDescription("The theme the layer uses while the map is in its day theme. Also set by the look button " +
+                                  "on the map and by the look key. Themes: " + Describe(false),
+                                  new AcceptableValueList<string>(Themes.Ids(false))));
+        NightLook = file.Bind("2. Overlay", "Look (night map)", Themes.DefaultId(true),
+            new ConfigDescription("The theme the layer uses while the map is in its night theme. Also set by the look button " +
+                                  "on the map and by the look key. Themes: " + Describe(true),
+                                  new AcceptableValueList<string>(Themes.Ids(true))));
+        LookKey = file.Bind("2. Overlay", "Look key", new KeyboardShortcut(KeyCode.F6, KeyCode.LeftShift),
+            "Switches to the next theme of the map's current theme (day or night), or turns the layer on if it is off.");
+        ChartSafety = file.Bind("2. Overlay", "Chart safety contour", 30,
+            new ConfigDescription("For the chart themes (ECDIS, paper chart): the depth in metres drawn as the bold safety contour " +
+                                  "and where the shallow water ends; the shallowest shade ends at a sixth of it, the deepest begins at " +
+                                  "three and a third times it. Depths as the simulation has them.",
+                                  new AcceptableValueRange<int>(5, 500)));
 
         Readout = file.Bind("3. Readout and legend", "Height under cursor", ReadoutMode.WithOverlay,
             "Show the terrain height under the mouse pointer on the map: WithOverlay (while the Topography layer " +

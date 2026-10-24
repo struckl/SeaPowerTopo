@@ -133,6 +133,7 @@ internal sealed class OverlayRenderer
         public float Keel = float.NaN;
         public bool Layer;
         public bool Dark;
+        public string ThemeId;
         public int SettingsVersion;
         public double South => North - Height * Dpp;
         public double East => West + Width * Dpp;
@@ -179,6 +180,7 @@ internal sealed class OverlayRenderer
     private static Palette sharedLand, sharedSea;
     private static int sharedVersion = -1;
     private static bool sharedDark;
+    private static Theme sharedTheme;
 
     /// <param name="name">For the log.</param>
     /// <param name="zOffset">Depth in the map scene: the stock tiles are at 0, the background at 0.1, nearer is in front.</param>
@@ -193,6 +195,8 @@ internal sealed class OverlayRenderer
     public Palette Palette => palette;
     /// <summary>Depth bands of the sea; null while the sea is left to the stock map.</summary>
     public Palette SeaPalette => seaPalette;
+    /// <summary>The theme of the palette in use (null before the first draw).</summary>
+    public Theme Theme => palette?.Theme;
     public float ShownInterval => shownPlan?.Interval ?? 0f;
     public float ShownDanger => shownPlan?.Danger ?? float.NaN;
     public float ShownKeel => shownPlan?.Keel ?? float.NaN;
@@ -423,7 +427,9 @@ internal sealed class OverlayRenderer
 
     private void EnsurePalette(bool dark)
     {
-        if (sharedLand == null || sharedVersion != Settings.Version || sharedDark != dark)
+        // The theme the user chose for this map theme (day or night).
+        Theme theme = Themes.Get(dark ? Settings.NightLook.Value : Settings.DayLook.Value, dark);
+        if (sharedLand == null || sharedVersion != Settings.Version || sharedDark != dark || sharedTheme != theme)
         {
             float[] limits = Palette.ParseLimits(Settings.Bands.Value);
             if (limits == null)
@@ -431,9 +437,9 @@ internal sealed class OverlayRenderer
                 ModLog.Warn($"Height bands '{Settings.Bands.Value}' unusable (ascending metres from 0) - using the default.");
                 limits = Palette.DefaultLimits;
             }
-            sharedLand = new Palette(limits, dark);
+            sharedLand = new Palette(limits, theme);
             sharedSea = null;
-            if (Settings.SeaDepth.Value)
+            if (Settings.SeaDepth.Value || theme.IsChart)
             {
                 float[] depths = Palette.ParseLimits(Settings.DepthBands.Value);
                 if (depths == null)
@@ -441,10 +447,11 @@ internal sealed class OverlayRenderer
                     ModLog.Warn($"Depth bands '{Settings.DepthBands.Value}' unusable (ascending metres from 0) - using the default.");
                     depths = Palette.DefaultDepthLimits;
                 }
-                sharedSea = new Palette(depths, dark, sea: true);
+                sharedSea = new Palette(depths, theme, sea: true);
             }
             sharedVersion = Settings.Version;
             sharedDark = dark;
+            sharedTheme = theme;
         }
         palette = sharedLand;
         seaPalette = sharedSea;
@@ -458,7 +465,8 @@ internal sealed class OverlayRenderer
         bool nearEdge = covered && NearEdge(shownPlan, view);
         // The layer tiles are worked out with the heights on the main thread: taking it up needs a full redraw.
         bool geometryStale = shown == null || !covered || shownPlan.SettingsVersion != Settings.Version ||
-                             zoom > 1.45 || zoom < 0.7 || nearEdge || shownPlan.Layer != layer || DemArrived();
+                             zoom > 1.45 || zoom < 0.7 || nearEdge || shownPlan.Layer != layer ||
+                             shownPlan.ThemeId != palette.Theme.Id || DemArrived();
         if (geometryStale)
         {
             // Let a zoom settle first, unless the view has run off the image. A pan that has used up most of the
@@ -479,8 +487,11 @@ internal sealed class OverlayRenderer
             return;
         GeoRect a = area.Value;
         bool sameArea = shownPlan != null && shownPlan.West == a.West && shownPlan.North == a.North && shownPlan.Dpp == areaDpp;
-        if (shown != null && sameArea && shownPlan.SettingsVersion == Settings.Version && shownPlan.Dark == dark && !DemArrived())
+        if (shown != null && sameArea && shownPlan.SettingsVersion == Settings.Version && shownPlan.Dark == dark &&
+            shownPlan.ThemeId == palette.Theme.Id && !DemArrived())
+        {
             return;
+        }
         var plan = new Plan
         {
             West = a.West,
@@ -491,6 +502,7 @@ internal sealed class OverlayRenderer
             Height = Math.Max(2, (int)Math.Ceiling(a.Height / areaDpp)),
             Dem = areaDem,
             Dark = dark,
+            ThemeId = palette.Theme.Id,
             Danger = float.NaN,
             SettingsVersion = Settings.Version,
         };
@@ -548,10 +560,10 @@ internal sealed class OverlayRenderer
         return false;
     }
 
-    private static float ContourInterval(double dpp) =>
+    private float ContourInterval(double dpp) =>
         !Settings.Contours.Value ? 0f
         : Settings.ContourInterval.Value > 0 ? Settings.ContourInterval.Value
-        : Raster.AutoInterval(dpp * Raster.MetresPerDegree);
+        : Raster.AutoInterval(dpp * Raster.MetresPerDegree * palette.Theme.LandIntervalScale);
 
     private void StartFull(GeoRect view, double viewDpp, bool dark, float danger, float keel, bool layer)
     {
@@ -584,6 +596,7 @@ internal sealed class OverlayRenderer
             Height = Math.Max(2, height),
             Dem = dpp < DemLimitDpp,
             Dark = dark,
+            ThemeId = palette.Theme.Id,
             Danger = danger,
             Keel = keel,
             Layer = layer,
@@ -665,7 +678,10 @@ internal sealed class OverlayRenderer
         job.Dpp = plan.Dpp;
         job.Palette = palette;
         job.Sea = seaPalette;
-        job.Opacity = Settings.Opacity.Value;
+        // A theme covers the stock map as much as it wants at the default setting (0.7); the setting scales that.
+        job.Opacity = palette.Theme.Legacy ? Settings.Opacity.Value
+            : Math.Min(1f, palette.Theme.Opacity * Settings.Opacity.Value / 0.7f);
+        job.ChartSafety = Settings.ChartSafety.Value;
         job.Hillshade = Settings.Hillshade.Value;
         job.Interval = plan.Interval;
         job.Danger = plan.Danger;

@@ -16,6 +16,12 @@ flat colour: high ground is hard to judge and the seabed can't be seen at all. T
   north-west, and contour lines whose step follows the zoom (20 m close in … 1000 m zoomed out, every fifth bold).
 - **Sea tinted by depth** in 12 bands (0 – 6000 m), the deeper the darker, with faint seabed relief and a thin depth
   line at every band edge – banks, shelf edges and basins stand out like on a chart.
+- **17 looks**, light and dark, in a picker next to the legend (or Shift+F6): the map theme you are in decides which
+  list it shows. Day: **Standard** (the original), **Atlas**, **Army tactical map**, **Paper sea chart**,
+  **ECDIS day**, **Parchment**, **Glacier**. Night: **Midnight** (the default), **Standard**, **Quiet**, **Atlas dusk**,
+  **ECDIS dusk**, **Combat display**, **Phosphor green**, **Red light**, **Thermal imager**, **Neon**. The chart
+  looks draw land flat with its contours and coastline and the sea in the four depth shades of a chart with a bold
+  safety contour (the ECDIS ones in the real IHO S-52 colours).
 - **Height under the cursor** – terrain height in m and ft (or the sea depth) next to the mouse pointer.
 - **Terrain above the selected aircraft** – with an aircraft or helicopter in the air selected, terrain as high as or
   higher than its altitude is hatched red, and the readout gives the clearance ("Viper 2-1 clears it by 210 m").
@@ -35,7 +41,7 @@ flat colour: high ground is hard to judge and the seabed can't be seen at all. T
 
 All heights and depths are the ones the simulation itself uses: the game's own terrain data (the DEM), including the
 terrain height multiplier and under-water depth factor from Options → World. Unit symbols, waypoints and labels stay
-on top; the stock coastline is untouched. A dimmed palette goes with the map's night theme.
+on top; the stock coastline is untouched. The map's night theme gets its own looks (Midnight by default).
 
 ## Installation
 
@@ -45,7 +51,8 @@ on top; the stock coastline is untouched. A dimmed palette goes with the map's n
    copy its preloader into the game folder).
 2. Subscribe to **[Sea Power Topographic Map](https://steamcommunity.com/sharedfiles/filedetails/?id=3826122523)** on the Steam Workshop.
 3. Start the game. In a mission, open the map: the layer is on. Toggle it in the map menu (≡) → Map Layers →
-   **Topography**, or with **F6**.
+   **Topography**, or with **F6**. The look button at the bottom right (next to **Legend**) names the look and opens
+   the list of looks; **Shift+F6** goes to the next one.
 
 Manual install instead of the Workshop: put `SeaPowerTopo.dll` and `_info.ini` into
 `<Sea Power>\Sea Power_Data\StreamingAssets\SeaPowerTopo\`.
@@ -58,6 +65,8 @@ redraw):
 | Setting | What it does |
 | --- | --- |
 | Toggle key | Key for the layer (default F6) |
+| Look (day map), Look (night map), Look key | The look for each map theme (Standard / Midnight by default; also set by the look button and Shift+F6) |
+| Chart safety contour | For the chart looks: the bold contour in metres (default 30); the shallowest water shade ends at a sixth of it, the deepest begins at three and a third times it |
 | Opacity, Hill shading | How strongly the colours and the relief cover the stock map |
 | Contour lines, Contour interval | Contours on/off; fixed step in metres or 0 = follows the zoom |
 | Height bands, Depth bands | Lower edges of the colour bands in metres |
@@ -97,8 +106,9 @@ Offline preview with the plugin's own colouring code and the game's terrain file
 dotnet run --project tools/topo-preview -c Release -- --at 61.5,8 --span 2 --size 1600x900 --out norway.png
 ```
 
-(`--at` lat,lon of the centre, `--span` view height in degrees; `--danger 1200` adds the aircraft highlight, `--dark`
-the night palette, `--interval 100` a fixed contour step, `--nodepth` leaves the sea to the stock map,
+(`--at` lat,lon of the centre, `--span` view height in degrees; `--theme atlas` (any id from
+`src/SeaPowerTopo/Render/Theme.cs`; without it Standard by day, `--dark` Midnight), `--chart-safety 50`;
+`--danger 1200` adds the aircraft highlight, `--interval 100` a fixed contour step, `--nodepth` leaves the sea to the stock map,
 `--depth-factor 2` is the game's under-water depth factor, `--sub 120` what a submarine at 120 m sees – with a
 stand-in for the game's random layer depths, which need Unity – `--game <dir>` the game folder.)
 
@@ -116,7 +126,11 @@ the view leaves it, when a pan has used up most of the margin, or when the zoom 
 holes into the ones behind (their mesh is the image minus the others' rectangles), so the translucent colours never
 stack. The thermal layer comes from the game's own tile cache where a tile is settled (`Environment._layerDepths`),
 otherwise from the same rule and the same seeded `UnityEngine.Random` draw, with the generator's state put back.
-The legend and the cursor readout are Noesis elements laid over the map control, handed over by a Harmony postfix
+A look is a plain parameter set (`Render/Theme.cs`): key colours spread over the height bands, in steps or
+blended, or one flat colour; relief strength with a tinted shadow and highlight; contour lines with an optional glow;
+a coastline; the sea's key colours or a chart's four depth shades; depth lines. The first release's look is one of
+them, drawn by its original rules (its output is byte for byte unchanged). Adding a look is adding such a block.
+The legend, the look button and its list and the cursor readout are Noesis elements laid over the map control, handed over by a Harmony postfix
 on `RenderedLayer.OnRender` that is applied only once NoesisGUI runs.
 
 Depths are the simulation's: the DEM depth times the game's under-water depth factor, doubled once more where the DEM
