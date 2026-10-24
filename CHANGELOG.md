@@ -2,9 +2,9 @@
 
 ## 1.2.0 – unreleased
 
-- New night look **Black**: dark-grey relief on black, contour lines that glow brighter and warmer with height (dim
-  blue-grey near the sea, warm white on the peaks), a thin coastline, and a sea in colour that fades to black in the
-  deep. Themes can now grade their land contour lines by height.
+- New night look **Black**: dark-grey relief on black with neutral grey contour lines (every fifth bold), a thin light
+  coastline, and a sea in colour that fades to black in the deep. Themes can now also grade their land contour lines
+  by height (no built-in look uses it yet).
 
 ## 1.1.0 – 2026-10-24 (Workshop)
 

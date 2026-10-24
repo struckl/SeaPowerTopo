@@ -42,7 +42,9 @@ internal sealed class Theme
     /// metres and above, and from <see cref="LandLineLowAmt"/> of their strength to the full strength. Null = every
     /// line the same.
     /// </summary>
+#pragma warning disable CS0649   // set by themes that grade their lines; none of the built-in ones does yet
     public int[] LandLineHigh;
+#pragma warning restore CS0649
     public float LandLineSpan = 1500f, LandLineLowAmt = 1f;
     public int[] Coast;
     public float CoastAmt;
@@ -250,17 +252,15 @@ internal static class Themes
             SeaShade = 0.85f, SeaLine = C(90, 215, 238), SeaLineAmt = 0.5f, SeaLineHalo = 0.12f, ShelfLine = C(150, 245, 255), ShelfBoost = 1.7f,
         });
 
-        // Black: dark-grey relief on black, contour lines that glow brighter and warmer with height (dim blue-grey near
-        // the sea, warm white on the peaks), a coastline, a sea in colour between Midnight's blue and a teal, fading to
-        // black in the deep.
+        // Black: dark-grey relief on black with neutral grey contour lines, a light coastline, a sea in colour between
+        // Midnight's blue and a teal, fading to black in the deep.
         Dark.Add(new Theme
         {
-            Id = "black", Name = "Black", Note = "black, grey relief, lines that glow brighter with height", Dark = true,
+            Id = "black", Name = "Black", Note = "black, grey relief and lines, a coloured sea", Dark = true,
             LandKeys = K(C(6, 6, 6), C(9, 9, 9), C(12, 12, 12), C(16, 16, 16), C(21, 21, 21), C(28, 28, 28),
                          C(36, 36, 36), C(46, 46, 46), C(58, 58, 58), C(72, 72, 72), C(88, 88, 88), C(108, 108, 108), C(130, 130, 130)),
             Shade = 0.9f, ShadowTint = C(0, 0, 0), ShadowAmt = 0.8f, HighlightTint = C(200, 200, 210), HighlightAmt = 0.25f,
-            LandLine = C(70, 120, 175), LandLineHigh = C(255, 244, 222), LandLineLowAmt = 0.45f, LandLineSpan = 1400f,
-            LandMinor = 0.4f, LandMajor = 1f, LandHalo = 0.14f,
+            LandLine = C(125, 125, 132), LandMinor = 0.45f, LandMajor = 0.95f, LandHalo = 0.08f,
             Coast = C(235, 235, 240), CoastAmt = 0.9f,
             SeaKeys = Mean(Grade(Dark.Find(t => t.Id == "midnight").SeaKeys, 0.8f, 1f, null, 0f),
                            K(C(30, 96, 104), C(26, 86, 96), C(22, 76, 88), C(19, 68, 82), C(16, 58, 74), C(13, 48, 66),
