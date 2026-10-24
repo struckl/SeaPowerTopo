@@ -33,7 +33,7 @@ Start Sea Power → Mods → Create Mod:
 | Tags | Scripting |
 | Dependencies | `3380210757` (Anchor Chain) – shows as a required item on the Workshop page |
 | Visibility | first upload **Hidden** (or Friends only); Public once the subscribed copy is tested |
-| Change log | the CHANGELOG entry |
+| Change log | [workshop/changenote.txt](../workshop/changenote.txt) – a few lines, plain ASCII. The Create Mod screen's change log field becomes unusable with long text (the full CHANGELOG entry froze it), so keep it short; details belong in CHANGELOG.md and the description |
 
 After the first upload the Workshop link went into the README. Add the screenshots from
 [workshop/screenshots/](../workshop/screenshots) on the Workshop page itself: open the item while signed in as its
