@@ -70,3 +70,33 @@ Same mod, second build. The config file gets three new entries (`Sea depth`, `De
 
 Worth reporting: sea colours that look off next to the stock map or hide the grid lines too much (config `Opacity`),
 depth lines that are too busy, the button sitting in a bad spot (where?), uncoloured edges while panning.
+
+## Topographic Map – pre-drawn layers and the submarine layer (2026-10-24)
+
+Version 0.2.0. Turn on `Verbose log` in `dev.sewerlabs.seapowertopo.cfg` for this test: every redraw is logged
+with its layer name and time.
+
+1. **Start a mission.** Log: `Sea Power Topographic Map 0.2.0 loaded.`, then within a few seconds of the mission
+   start `Pre-drawn layer 1: … m per pixel` (up to 3 of them) and `Pre-drawn layers for N units, plus the world at
+   11 km per pixel.` With verbose log: `Overlay mission x1 …`, `mission x4`, `mission x16`, `world` once each.
+2. **Zoomed out**: open the map and zoom out step by step until the whole ocean shows. The colours are simply
+   there – no redraw lines in the log (`Overlay live …`) while you stay zoomed out and pan around the mission
+   area. Further out the world layer takes over; colours and contour lines look the same as before, a little
+   softer at some zoom levels.
+3. **Zoomed in** (closer than about 350 km across on a 4K map): the live layer draws the view as before
+   (`Overlay live …` lines, now about 3× faster). Pan quickly: the edge never shows uncoloured map – the
+   pre-drawn colours are there first, the sharp ones follow. No doubled (darker) colours where layers meet.
+4. **Submarine**: select a submarine. Its area gets the thermal layer: teal squares where the sub at its current
+   depth is below the layer, faint teal where the layer is deeper, a thin line where the layer area ends (towards
+   shallow water), red hatching and edge where the water is shallower than the sub. Dive or surface: the teal
+   squares follow its depth. Cursor readout over the sea: `Layer at …` (or `No layer here`), `… of water under
+   <sub>` (red `Bottom … above <sub>` where it's too shallow). Compare the layer depth under the sub with the
+   game's own layer depth display for the selected unit – they should match. The legend (button bottom right)
+   has a "Thermal layer · <sub> at … m" section. Deselect the sub: all of it disappears.
+5. Day/night map theme switch: the pre-drawn layers redraw once in the new colours (verbose log), the map stays
+   usable meanwhile.
+6. Close the game normally – no `[Error  :SeaPowerTopo]` lines expected.
+
+Worth reporting: stutter when the mission starts or when a pre-drawn layer finishes (a short hitch is the
+texture upload), any visible seam or darker band where the sharp view ends, a layer depth that disagrees with
+the game's own number.

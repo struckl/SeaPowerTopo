@@ -8,8 +8,11 @@ The stock map shows land as a satellite picture and all water in one flat colour
 [*][b]Sea tinted by depth[/b] in 12 bands (0 – 6000 m), the deeper the darker, with faint seabed relief and depth lines like on a chart: banks, shelf edges and basins stand out.
 [*][b]Height under the cursor[/b] – terrain height in m and ft, or the sea depth.
 [*][b]Terrain above your aircraft[/b] – select an aircraft or helicopter in the air: terrain as high as or higher than its altitude is hatched red, and the readout tells you the clearance.
+[*][b]Thermal layer for your submarine[/b] – select a submarine: see where it is below the game's thermal layer, where the layer ends, and where the water is too shallow for it; the readout gives the layer depth and the water under the keel.
 [*][b]Legend[/b] behind a small button at the bottom right of the map.
 [/list]
+
+The mission area and the whole world are drawn once when the mission starts, so zoomed out nothing is drawn while you play.
 
 All heights and depths are the ones the simulation itself uses – the game's own terrain data, including the terrain height multiplier and under-water depth factor from Options → World. Unit symbols, waypoints and labels stay on top. Night theme supported.
 
@@ -20,7 +23,7 @@ Open the map in a mission – the layer is on. Toggle it in the map menu (≡) �
 [b]Anchor Chain[/b] is required: [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3380210757]subscribe[/url] and follow its [url=https://seapower-modders.github.io/AnchorChain/install-anchor-chain.html]installation guide[/url] (one manual step: copy its preloader into the game folder).
 
 [h2]Settings[/h2]
-[i]<Sea Power>\BepInEx\config\dev.sewerlabs.seapowertopo.cfg[/i] – toggle key, opacity, hill shading, contours and their step, height and depth bands, sea depth on/off, the aircraft highlight, resolution, cursor readout, units (m / ft / both).
+[i]<Sea Power>\BepInEx\config\dev.sewerlabs.seapowertopo.cfg[/i] – toggle key, opacity, hill shading, contours and their step, height and depth bands, sea depth on/off, the aircraft highlight, the submarine's thermal layer, resolution, pre-drawing, cursor readout, units (m / ft / both).
 
 [h2]Compatibility[/h2]
 Sea Power 0.8.x. Works together with Better TacMap. No game files are changed.
