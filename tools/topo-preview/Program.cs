@@ -18,6 +18,8 @@ namespace SeaPowerTopo.Preview;
 /// </code>
 /// --at is the centre (lat,lon), --span the view height in degrees, --size the map's pixel size; --nodepth leaves
 /// the sea to the stock map, --depth-factor is the game's under-water depth factor (Options → World, default 2).
+/// --sub 120 draws what a selected submarine at 120 m sees: the thermal layer (with a stand-in for the game's
+/// random layer depths, which need Unity) and water shallower than the submarine.
 /// </summary>
 internal static class Program
 {
@@ -32,7 +34,7 @@ internal static class Program
     {
         double lat = 61.5, lon = 8, span = 2;
         int width = 1600, height = 900;
-        float danger = float.NaN, interval = -1, depthFactor = 2;
+        float danger = float.NaN, interval = -1, depthFactor = 2, keel = float.NaN;
         bool dark = false, depth = true;
         string output = "preview.png", game = @"E:\Games\steamapps\common\Sea Power";
         for (int i = 0; i < args.Length; i++)
@@ -55,6 +57,7 @@ internal static class Program
                     i++;
                     break;
                 case "--danger": danger = (float)D(next); i++; break;
+                case "--sub": keel = (float)D(next); i++; break;
                 case "--interval": interval = (float)D(next); i++; break;
                 case "--dark": dark = true; break;
                 case "--nodepth": depth = false; break;
@@ -84,10 +87,13 @@ internal static class Program
             Hillshade = 0.6f,
             Interval = interval >= 0 ? interval : Raster.AutoInterval(dpp * Raster.MetresPerDegree),
             Danger = danger,
+            Keel = keel,
         };
 
         var watch = System.Diagnostics.Stopwatch.StartNew();
         SourceGrid src = Fill(job, depthFactor, out bool dem);
+        if (!float.IsNaN(keel))
+            job.Layer = StandInLayer(job, src);
         long fillMs = watch.ElapsedMilliseconds;
         Raster.Resample(src, job, () => false);
         long resampleMs = watch.ElapsedMilliseconds - fillMs;
@@ -101,6 +107,27 @@ internal static class Program
     }
 
     // Same source grid as OverlayRenderer.StartFull / FillRow.
+    // The game's tiles and its 500 ft rule, but a hash for the layer depth instead of Unity's seeded random.
+    private static LayerTiles StandInLayer(RasterJob job, SourceGrid src)
+    {
+        int x0 = Raster.LayerTileX(job.West), nx = Raster.LayerTileX(job.East) - x0 + 1;
+        int y0 = Raster.LayerTileY(job.North), ny = Raster.LayerTileY(job.South) - y0 + 1;
+        var tiles = new LayerTiles { X0 = x0, Y0 = y0, Nx = nx, Ny = ny, Depth = new float[nx * ny] };
+        for (int j = 0; j < ny; j++)
+        {
+            for (int i = 0; i < nx; i++)
+            {
+                Raster.LayerTileCentre(x0 + i, y0 + j, out double lon, out double lat);
+                int si = Math.Max(0, Math.Min(src.Nx - 1, (int)Math.Round((lon - src.Lon0) / src.Cell)));
+                int sj = Math.Max(0, Math.Min(src.Ny - 1, (int)Math.Round((src.Lat0 - lat) / src.Cell)));
+                float sea = -src.V[sj * src.Nx + si];
+                uint hash = (uint)((x0 + i) * 73856093) ^ (uint)((y0 + j) * 19349663);
+                tiles.Depth[j * nx + i] = sea / 0.3048f > 500f ? (250f + hash % 200) * 0.3048f : float.NaN;
+            }
+        }
+        return tiles;
+    }
+
     private static SourceGrid Fill(RasterJob job, float depthFactor, out bool dem)
     {
         var src = new SourceGrid();

@@ -4,6 +4,7 @@ using MapControl;
 using Noesis;
 using SeaPower;
 using SeaPowerTopo.Render;
+using SeaPowerTopo.Terrain;
 
 namespace SeaPowerTopo.Ui;
 
@@ -49,8 +50,9 @@ internal sealed class MapDecoration
 
     private bool legendBuilt;
     private Palette legendPalette, legendSea;
-    private float legendInterval, legendDanger;
-    private string legendAircraft;
+    private float legendInterval, legendDanger, legendKeel;
+    private bool legendLayer;
+    private string legendAircraft, legendSubmarine;
     private HeightUnits legendUnits;
 
     /// <summary>Decorates the map, or returns null if its template isn't laid out as expected.</summary>
@@ -154,7 +156,8 @@ internal sealed class MapDecoration
     /// <param name="overlayOn">The Topography layer is on (the legend button shows only then).</param>
     /// <param name="readoutOn">The cursor readout may show.</param>
     /// <param name="aircraft">Name of the selected aircraft whose altitude is highlighted, or null.</param>
-    public void Update(bool overlayOn, bool readoutOn, OverlayRenderer overlay, string aircraft)
+    /// <param name="submarine">Name of the selected submarine the thermal layer is shown for, or null.</param>
+    public void Update(bool overlayOn, bool readoutOn, OverlayRenderer overlay, string aircraft, string submarine)
     {
         readoutAllowed = readoutOn;
         if (!readoutOn && readout.Visibility == Visibility.Visible)
@@ -174,7 +177,7 @@ internal sealed class MapDecoration
             button.ToolTip = open ? "Hide the legend" : "Show the legend: height and depth colours, contour step";
         }
         if (open)
-            RefreshLegend(overlay, aircraft);
+            RefreshLegend(overlay, aircraft, submarine);
     }
 
     private void OnMouseMove(object sender, MouseEventArgs e)
@@ -286,14 +289,17 @@ internal sealed class MapDecoration
         return null;
     }
 
-    private void RefreshLegend(OverlayRenderer overlay, string aircraft)
+    private void RefreshLegend(OverlayRenderer overlay, string aircraft, string submarine)
     {
         Palette palette = overlay.Palette, sea = overlay.SeaPalette;
-        float interval = overlay.ShownInterval, danger = overlay.ShownDanger;
+        float interval = overlay.ShownInterval, danger = overlay.ShownDanger, keel = overlay.ShownKeel;
+        bool layer = overlay.ShownLayer;
         HeightUnits units = Settings.Units.Value;
         bool sameDanger = float.IsNaN(danger) ? float.IsNaN(legendDanger) : danger == legendDanger;
+        bool sameKeel = float.IsNaN(keel) ? float.IsNaN(legendKeel) : keel == legendKeel;
         if (legendBuilt && palette == legendPalette && sea == legendSea && interval == legendInterval && sameDanger &&
-            aircraft == legendAircraft && units == legendUnits)
+            sameKeel && layer == legendLayer && aircraft == legendAircraft && submarine == legendSubmarine &&
+            units == legendUnits)
         {
             return;
         }
@@ -302,7 +308,10 @@ internal sealed class MapDecoration
         legendSea = sea;
         legendInterval = interval;
         legendDanger = danger;
+        legendKeel = keel;
+        legendLayer = layer;
         legendAircraft = aircraft;
+        legendSubmarine = submarine;
         legendUnits = units;
 
         legendBody.Children.Clear();
@@ -321,6 +330,8 @@ internal sealed class MapDecoration
             string who = string.IsNullOrEmpty(aircraft) ? "selected aircraft" : aircraft;
             legendBody.Children.Add(Row(dangerBrush, $"As high as {who} ({HeightText.Format(danger, units, 10)}) or higher", 6f));
         }
+        if (!float.IsNaN(keel))
+            AddSubmarineRows(keel, layer, palette.Dark, string.IsNullOrEmpty(submarine) ? "the submarine" : submarine, units);
         if (interval > 0f)
         {
             string text = $"Contours every {HeightText.Format(interval, units)}\nBold every {HeightText.Format(interval * 5f, units)}";
@@ -358,6 +369,48 @@ internal sealed class MapDecoration
             column.Children.Add(Row(swatch, label));
         }
         return column;
+    }
+
+    // The thermal layer's depth bands, where the submarine is below it, and water too shallow for it.
+    private void AddSubmarineRows(float keel, bool layer, bool dark, string who, HeightUnits units)
+    {
+        legendBody.Children.Add(new TextBlock
+        {
+            Text = $"Thermal layer · {who} at {HeightText.Format(keel, units, 5)}",
+            Foreground = textBrush,
+            FontSize = 12,
+            FontWeight = FontWeight.Bold,
+            Margin = new Thickness(0, 8, 0, 2),
+        });
+        if (LayerMap.Disabled)
+        {
+            legendBody.Children.Add(new TextBlock { Text = "None in this mission", Foreground = textBrush, FontSize = 11 });
+        }
+        else if (!layer)
+        {
+            legendBody.Children.Add(new TextBlock { Text = "Zoom in to see it", Foreground = textBrush, FontSize = 11 });
+        }
+        else
+        {
+            float[] edges = Raster.LayerBands;
+            for (int band = 0; band <= edges.Length; band++)
+            {
+                Raster.LayerColour(band, dark, out float r, out float g, out float b);
+                string label = band == 0 ? $"Layer shallower than {HeightText.Format(edges[0], units, 5)}"
+                    : band == edges.Length ? $"Layer {HeightText.Format(edges[band - 1], units, 5)} or deeper"
+                    : $"Layer from {HeightText.Format(edges[band - 1], units, 5)}";
+                legendBody.Children.Add(Row(new SolidColorBrush(Color.FromArgb(255, (byte)r, (byte)g, (byte)b)), label));
+            }
+            Color stripes = dark ? Color.FromArgb(255, 40, 175, 170) : Color.FromArgb(255, 0, 190, 180);
+            legendBody.Children.Add(Row(new SolidColorBrush(stripes), $"Stripes: {who} is below the layer there", 3f));
+            legendBody.Children.Add(new TextBlock
+            {
+                Text = "No tint: no layer (water under 500 ft)",
+                Foreground = textBrush,
+                FontSize = 11,
+            });
+        }
+        legendBody.Children.Add(Row(dangerBrush, $"Shallower than {who} is deep", 4f));
     }
 
     private StackPanel Row(Brush swatch, string label, float topMargin = 1f)

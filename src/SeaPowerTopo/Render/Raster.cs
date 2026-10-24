@@ -22,6 +22,25 @@ internal sealed class SourceGrid
     }
 }
 
+/// <summary>The game's thermal layer over an image: depth in metres per 0.2° tile (NaN = no layer there).</summary>
+internal sealed class LayerTiles
+{
+    /// <summary>First tile (game tile numbers, see <see cref="Raster.LayerTileX"/>) and the count each way.</summary>
+    public int X0, Y0, Nx, Ny;
+    public float[] Depth;
+
+    /// <summary>Layer depth of a tile, NaN outside the grid or where there is none.</summary>
+    public float At(int tileX, int tileY)
+    {
+        int i = tileX - X0, j = tileY - Y0;
+        if (i < 0)
+            i += Raster.LayerTilesX;
+        if (i < 0 || i >= Nx || j < 0 || j >= Ny)
+            return float.NaN;
+        return Depth[j * Nx + i];
+    }
+}
+
 /// <summary>One overlay image: where it lies on the map, how it is coloured, and its buffers.</summary>
 internal sealed class RasterJob
 {
@@ -37,6 +56,10 @@ internal sealed class RasterJob
     public float Interval;
     /// <summary>Terrain at or above this height (metres) is hatched red; NaN = off.</summary>
     public float Danger = float.NaN;
+    /// <summary>Depth of the selected submarine in metres: water shallower than this is hatched red; NaN = off.</summary>
+    public float Keel = float.NaN;
+    /// <summary>Thermal layer to show for the selected submarine; null = none.</summary>
+    public LayerTiles Layer;
 
     /// <summary>
     /// (Width + 2) × (Height + 2) heights in metres with a one-pixel border: land 0 or more, water below 0 (minus
@@ -70,6 +93,12 @@ internal static class Raster
 
     private static readonly float[] NiceIntervals = { 20, 50, 100, 200, 500, 1000 };
 
+    /// <summary>The game's thermal layer tiles: 0.2° squares, numbered from 180° W and from the north pole.</summary>
+    public const int LayerTilesX = 1800;
+    private const float LayerTile = 0.2f, LayerOffset = 1f / 120f;
+    /// <summary>Upper edges of the layer depth bands in metres (300, 350 and 400 ft); the last band is deeper.</summary>
+    public static readonly float[] LayerBands = { 91.44f, 106.68f, 121.92f };
+
     // Half the cores: the game's own threads keep theirs.
     private static readonly int Workers = Math.Max(1, Math.Min(8, Environment.ProcessorCount / 2));
 
@@ -85,6 +114,53 @@ internal static class Raster
             return raw * heightMultiplier;
         float depth = raw * depthFactor;
         return raw > ShallowDoubling ? depth * 2f : depth;
+    }
+
+    // Utils.longLatToTile, float for float, so the tile edges fall where the game's do.
+    public static int LayerTileX(double longitude)
+    {
+        float x = (float)longitude + 180f - LayerOffset;
+        if (x < 0f)
+            x = 0f;
+        int tile = (int)Math.Floor(x / LayerTile);
+        if (tile < 0)
+            tile += LayerTilesX;
+        if (tile >= LayerTilesX)
+            tile -= LayerTilesX;
+        return tile;
+    }
+
+    public static int LayerTileY(double latitude) => (int)Math.Floor((Math.Abs((float)latitude - 90f) - LayerOffset) / LayerTile);
+
+    /// <summary>Centre of a layer tile.</summary>
+    public static void LayerTileCentre(int tileX, int tileY, out double longitude, out double latitude)
+    {
+        longitude = -180.0 + LayerOffset + (tileX + 0.5) * LayerTile;
+        latitude = 90.0 - LayerOffset - (tileY + 0.5) * LayerTile;
+    }
+
+    /// <summary>Band of a layer depth (metres) in <see cref="LayerBands"/>.</summary>
+    public static int LayerBand(float metres)
+    {
+        int band = 0;
+        while (band < LayerBands.Length && metres >= LayerBands[band])
+            band++;
+        return band;
+    }
+
+    /// <summary>Colour of a layer depth band: one teal, a little darker the deeper the layer.</summary>
+    public static void LayerColour(int band, bool dark, out float r, out float g, out float b)
+    {
+        float t = band / (float)LayerBands.Length;
+        r = 110f + (60f - 110f) * t;
+        g = 215f + (170f - 215f) * t;
+        b = 205f + (175f - 205f) * t;
+        if (dark)
+        {
+            r *= 0.7f;
+            g *= 0.75f;
+            b *= 0.8f;
+        }
     }
 
     /// <summary>Contour step that keeps lines a few pixels apart on moderate slopes at this map scale.</summary>
@@ -193,10 +269,17 @@ internal static class Raster
         int w = job.Width, ht = job.Height;
         if (job.Rgba == null || job.Rgba.Length != w * ht * 4)
             job.Rgba = new byte[w * ht * 4];
-        return Rows(ht, cancelled, (from, to) => ShadeRows(job, from, to));
+        int[] layerCols = null;
+        if (job.Layer != null)
+        {
+            layerCols = new int[w + 1];
+            for (int x = -1; x < w; x++)
+                layerCols[x + 1] = LayerTileX(job.West + (x + 0.5) * job.Dpp);
+        }
+        return Rows(ht, cancelled, (from, to) => ShadeRows(job, layerCols, from, to));
     }
 
-    private static void ShadeRows(RasterJob job, int from, int to)
+    private static void ShadeRows(RasterJob job, int[] layerCols, int from, int to)
     {
         int w = job.Width, gw = w + 2;
         float[] h = job.Heights;
@@ -215,6 +298,7 @@ internal static class Raster
         if (pal.Dark) { lr = 178; lg = 168; lb = 148; minorAlpha = 0.3f; majorAlpha = 0.6f; }
         else { lr = 72; lg = 46; lb = 26; minorAlpha = 0.45f; majorAlpha = 0.8f; }
 
+        bool submarine = job.Layer != null || !float.IsNaN(job.Keel);
         for (int y = from; y < to; y++)
         {
             double lat = job.North - (y + 0.5) * job.Dpp;
@@ -222,6 +306,12 @@ internal static class Raster
             float sx = z / (2f * mx), sy = z / (2f * my);
             int row = (y + 1) * gw + 1;
             int o = y * w * 4;
+            int tileY = 0, tileYAbove = 0;
+            if (job.Layer != null)
+            {
+                tileY = LayerTileY(lat);
+                tileYAbove = LayerTileY(lat + job.Dpp);
+            }
             for (int x = 0; x < w; x++, o += 4)
             {
                 int i = row + x;
@@ -232,6 +322,8 @@ internal static class Raster
                         px[o] = px[o + 1] = px[o + 2] = px[o + 3] = 0;
                     else
                         ShadeWater(job, i, sx, sy, contours, px, o);
+                    if (submarine)
+                        ShadeSubmarine(job, layerCols, x, y, i, tileY, tileYAbove, px, o);
                     continue;
                 }
                 float hl = h[i - 1], hr = h[i + 1], hu = h[i - gw], hd = h[i + gw];
@@ -389,6 +481,75 @@ internal static class Raster
                 band(from, to);
         });
         return stopped == 0;
+    }
+
+    // What a selected submarine needs on a water pixel: the thermal layer's tile in teal – clearly where the
+    // submarine, at its depth, is below the layer, faintly where the layer is deeper than the submarine – with a line
+    // where the layer area ends; and red hatching with a solid edge where the water is shallower than the submarine.
+    private static void ShadeSubmarine(RasterJob job, int[] layerCols, int x, int y, int i, int tileY, int tileYAbove,
+                                       byte[] px, int o)
+    {
+        float r = px[o], g = px[o + 1], b = px[o + 2], a = px[o + 3] / 255f;
+        bool dark = job.Palette.Dark;
+        float d0 = -job.Heights[i];
+        float keel = job.Keel;
+
+        LayerTiles layer = job.Layer;
+        if (layer != null)
+        {
+            int tileX = layerCols[x + 1];
+            float depth = layer.At(tileX, tileY);
+            bool here = !float.IsNaN(depth);
+            // The edge of the layer area: the tile to the left or above differs in having a layer.
+            bool edge = here != !float.IsNaN(layer.At(layerCols[x], tileY)) ||
+                        here != !float.IsNaN(layer.At(tileX, tileYAbove));
+            if (here)
+            {
+                LayerColour(LayerBand(depth), dark, out float cr, out float cg, out float cb);
+                bool below = !float.IsNaN(keel) && keel > depth;
+                Over(ref r, ref g, ref b, ref a, cr, cg, cb, below ? LayerBelow : LayerAbove);
+            }
+            if (edge)
+                Over(ref r, ref g, ref b, ref a, dark ? 90f : 0f, dark ? 220f : 150f, dark ? 210f : 150f, 0.7f);
+        }
+
+        if (!float.IsNaN(keel) && keel > 0f)
+        {
+            if (d0 < keel)
+                Over(ref r, ref g, ref b, ref a, 232f, 36f, 28f, (((x + y) >> 2) & 1) == 0 ? 0.8f : 0.5f);
+            int gw = job.Width + 2;
+            float[] h = job.Heights;
+            float gxp = (Math.Min(h[i + 1], 0f) - Math.Min(h[i - 1], 0f)) * 0.5f;
+            float gyp = (Math.Min(h[i + gw], 0f) - Math.Min(h[i - gw], 0f)) * 0.5f;
+            float grad = (float)Math.Sqrt(gxp * gxp + gyp * gyp);
+            if (grad > 1e-3f)
+            {
+                float line = Clamp01(1.8f - Math.Abs(d0 - keel) / grad);
+                if (line > 0f)
+                    Over(ref r, ref g, ref b, ref a, 205f, 18f, 18f, line * 0.95f);
+            }
+        }
+
+        px[o] = ToByte(r);
+        px[o + 1] = ToByte(g);
+        px[o + 2] = ToByte(b);
+        px[o + 3] = ToByte(a * 255f);
+    }
+
+    /// <summary>Strength of the layer's teal where the submarine is below the layer, and where it is above.</summary>
+    public const float LayerBelow = 0.4f, LayerAbove = 0.13f;
+
+    // A colour of the given opacity laid over the pixel (straight alpha).
+    private static void Over(ref float r, ref float g, ref float b, ref float a, float cr, float cg, float cb, float k)
+    {
+        float outA = k + a * (1f - k);
+        if (outA <= 0f)
+            return;
+        float under = a * (1f - k) / outA, over = k / outA;
+        r = cr * over + r * under;
+        g = cg * over + g * under;
+        b = cb * over + b * under;
+        a = outA;
     }
 
     // One water pixel: the colour of its depth band, the seabed's relief (fainter than on land, with more

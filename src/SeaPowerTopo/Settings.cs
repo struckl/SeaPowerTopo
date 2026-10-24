@@ -28,6 +28,7 @@ internal static class Settings
     public static ConfigEntry<bool> SeaDepth;
     public static ConfigEntry<string> DepthBands;
     public static ConfigEntry<bool> AircraftClearance;
+    public static ConfigEntry<bool> SubmarineLayer;
     public static ConfigEntry<float> Resolution;
     public static ConfigEntry<bool> Predraw;
 
@@ -78,6 +79,10 @@ internal static class Settings
         AircraftClearance = file.Bind("2. Overlay", "Terrain above selected aircraft", true,
             "While an aircraft or helicopter is selected, terrain as high as or higher than its current altitude " +
             "is hatched red, and the cursor readout shows the clearance.");
+        SubmarineLayer = file.Bind("2. Overlay", "Thermal layer for selected submarine", true,
+            "While a submarine is selected: the game's thermal layer (tinted by its depth, outlined where it ends), " +
+            "stripes where the submarine at its current depth is below it, water shallower than the submarine's " +
+            "depth hatched red, and layer and water under the keel in the cursor readout.");
         Resolution = file.Bind("2. Overlay", "Resolution", 1f,
             new ConfigDescription("Overlay resolution relative to the map's own. Lower is faster, higher is sharper.",
                                   new AcceptableValueRange<float>(0.25f, 2f)));

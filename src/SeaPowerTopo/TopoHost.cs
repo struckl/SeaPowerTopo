@@ -53,6 +53,8 @@ internal sealed class TopoHost : MonoBehaviour
 
     private string aircraftName;
     private float aircraftAltitude = float.NaN;
+    private string submarineName;
+    private float submarineDepth = float.NaN;      // metres below the surface
 
     public TopoHost() => live = new OverlayRenderer(map, "live", -0.05f);
 
@@ -96,12 +98,13 @@ internal sealed class TopoHost : MonoBehaviour
         bool dark = Singleton<ThemeTracker>.InstanceExists() && Singleton<ThemeTracker>.Instance.CurrentTheme == ThemeMode.Dark;
         UpdateAircraft();
         float danger = Settings.AircraftClearance.Value ? aircraftAltitude : float.NaN;
+        float keel = Settings.SubmarineLayer.Value ? submarineDepth : float.NaN;
         if (on && Settings.Predraw.Value && !drawnPlanned && Time.unscaledTime >= nextPlanTry)
         {
             nextPlanTry = Time.unscaledTime + 1f;
             drawnPlanned = PlanDrawnLayers();
         }
-        TickLayers(on, dark, danger);
+        TickLayers(on, dark, danger, keel);
 
         if (Time.unscaledTime >= nextPrune)
         {
@@ -118,8 +121,9 @@ internal sealed class TopoHost : MonoBehaviour
         ReadoutMode mode = Settings.Readout.Value;
         bool readout = mode == ReadoutMode.Always || (mode == ReadoutMode.WithOverlay && on);
         string highlighted = live.Showing && !float.IsNaN(live.ShownDanger) ? aircraftName : null;
+        string submarine = live.Showing && !float.IsNaN(live.ShownKeel) ? submarineName : null;
         foreach (MapDecoration decoration in maps)
-            decoration.Update(on, readout, legendSource, highlighted);
+            decoration.Update(on, readout, legendSource, highlighted, submarine);
     }
 
     /// <summary>
@@ -127,7 +131,7 @@ internal sealed class TopoHost : MonoBehaviour
     /// makes the live layer unnecessary (unless the aircraft highlight needs it); every layer leaves out what the
     /// layers in front of it show. One layer at a time copies heights on the main thread, the live one first.
     /// </summary>
-    private void TickLayers(bool on, bool dark, float danger)
+    private void TickLayers(bool on, bool dark, float danger, float keel)
     {
         bool haveView = map.TryView(out GeoRect view, out double viewDpp);
         // Beyond the poles there is nothing to draw.
@@ -143,8 +147,8 @@ internal sealed class TopoHost : MonoBehaviour
                 primary = layer;
         }
 
-        bool liveOn = on && (primary == null || !float.IsNaN(danger));
-        live.Tick(liveOn, liveOn, dark, danger, mayStart: true);
+        bool liveOn = on && (primary == null || !float.IsNaN(danger) || !float.IsNaN(keel));
+        live.Tick(liveOn, liveOn, dark, danger, keel, mayStart: true);
         bool busy = live.Filling;
         front.Clear();
         if (live.Showing)
@@ -154,7 +158,7 @@ internal sealed class TopoHost : MonoBehaviour
         {
             OverlayRenderer layer = drawn[i];
             layer.SetHoles(front);
-            layer.Tick(predraw, showing[i], dark, float.NaN, mayStart: !busy);
+            layer.Tick(predraw, showing[i], dark, float.NaN, float.NaN, mayStart: !busy);
             busy |= layer.Filling;
             if (layer.Showing)
             {
@@ -298,6 +302,8 @@ internal sealed class TopoHost : MonoBehaviour
             undecoratable.Clear();
             aircraftName = null;
             aircraftAltitude = float.NaN;
+            submarineName = null;
+            submarineDepth = float.NaN;
         }
         catch (Exception ex)
         {
@@ -351,7 +357,7 @@ internal sealed class TopoHost : MonoBehaviour
         HeightUnits units = Settings.Units.Value;
         string approx = s.Coarse ? "about " : "";
         if (s.Water)
-            return $"Sea, {approx}{HeightText.Format(s.Metres, units)} deep";
+            return DescribeSea(position, s, approx, units, out warning);
 
         string text = $"Terrain {approx}{HeightText.Format(s.Metres, units)}";
         if (!float.IsNaN(aircraftAltitude) && Settings.AircraftClearance.Value)
@@ -371,7 +377,45 @@ internal sealed class TopoHost : MonoBehaviour
         return text;
     }
 
-    // The selected unit, if it is an aircraft or helicopter in the air: its altitude above sea level.
+    // Water under the cursor: its depth and, with a submarine selected, the thermal layer there and how much water
+    // the submarine has under it.
+    private string DescribeSea(GeoPosition position, HeightSample s, string approx, HeightUnits units, out bool warning)
+    {
+        warning = false;
+        string text = $"Sea, {approx}{HeightText.Format(s.Metres, units)} deep";
+        if (float.IsNaN(submarineDepth) || !Settings.SubmarineLayer.Value)
+            return text;
+        if (LayerMap.Disabled)
+        {
+            text += "\nNo thermal layer in this mission";
+        }
+        else
+        {
+            float layer = LayerMap.Depth(Raster.LayerTileX(position.Longitude), Raster.LayerTileY(position.Latitude), SeaDepthAt);
+            text += float.IsNaN(layer) ? "\nNo layer here (too shallow)" : $"\nLayer at {HeightText.Format(layer, units)}";
+        }
+        string who = string.IsNullOrEmpty(submarineName) ? "submarine" : submarineName;
+        float underKeel = s.Metres - submarineDepth;
+        if (underKeel >= 0f)
+        {
+            text += $"\n{HeightText.Format(underKeel, units)} of water under {who}";
+        }
+        else
+        {
+            text += $"\nBottom {HeightText.Format(-underKeel, units)} above {who}";
+            warning = true;
+        }
+        return text;
+    }
+
+    private float SeaDepthAt(double lon, double lat)
+    {
+        HeightSample s = Sample(lon, lat);
+        return s.Known && s.Water ? s.Metres : 0f;
+    }
+
+    // The selected unit: an aircraft or helicopter in the air (its altitude above sea level), or a submarine (its
+    // depth).
     private void UpdateAircraft()
     {
         if (Time.unscaledTime < nextAircraftCheck)
@@ -379,10 +423,20 @@ internal sealed class TopoHost : MonoBehaviour
         nextAircraftCheck = Time.unscaledTime + 0.25f;
         aircraftAltitude = float.NaN;
         aircraftName = null;
+        submarineDepth = float.NaN;
+        submarineName = null;
         if (!Singleton<RenderPosition>.InstanceExists())
             return;
         ObjectBase unit = Singleton<RenderPosition>.Instance.getSelectedObject();
-        if (unit == null || unit.IsDestroyed || !unit.IsAirUnit)
+        if (unit == null || unit.IsDestroyed)
+            return;
+        if (unit._type == ObjectBase.ObjectType.Submarine)
+        {
+            submarineDepth = Math.Max(0f, -Utils.unityHeightToMeter(unit.transform.position.y));
+            submarineName = unit.getName();
+            return;
+        }
+        if (!unit.IsAirUnit)
             return;
         float altitude = Utils.unityHeightToMeter(unit.transform.position.y);
         HeightSample ground = Sample(unit._geoPosition.Longitude, unit._geoPosition.Latitude);

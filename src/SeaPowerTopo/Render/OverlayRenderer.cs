@@ -117,6 +117,7 @@ internal sealed class OverlayRenderer
     private const int MaxPixels = 8_000_000, MaxSide = 8192;
     private const double DemLimitDpp = 0.04;         // beyond ~5 DEM samples per pixel the world grid is enough
     private const float SettleSeconds = 0.12f;
+    private const int MaxLayerTiles = 40_000;        // further out the thermal layer is left off (main-thread work)
 
     private enum Phase { Idle, Filling, Shading }
 
@@ -128,6 +129,9 @@ internal sealed class OverlayRenderer
         public int Width, Height;
         public bool Dem;
         public float Interval, Danger;
+        /// <summary>Selected submarine's depth (NaN = none), and whether the thermal layer is drawn for it.</summary>
+        public float Keel = float.NaN;
+        public bool Layer;
         public bool Dark;
         public int SettingsVersion;
         public double South => North - Height * Dpp;
@@ -191,6 +195,8 @@ internal sealed class OverlayRenderer
     public Palette SeaPalette => seaPalette;
     public float ShownInterval => shownPlan?.Interval ?? 0f;
     public float ShownDanger => shownPlan?.Danger ?? float.NaN;
+    public float ShownKeel => shownPlan?.Keel ?? float.NaN;
+    public bool ShownLayer => shownPlan?.Layer ?? false;
     public bool HasImage => shown != null && quad != null;
 
     /// <summary>Copying heights out of the DEM right now (the main-thread part of a redraw).</summary>
@@ -236,8 +242,10 @@ internal sealed class OverlayRenderer
     /// <param name="show">Show it on the map this frame.</param>
     /// <param name="dark">The map shows its night theme.</param>
     /// <param name="danger">Highlight terrain at or above this many metres; NaN = off (always off for pre-drawn layers).</param>
+    /// <param name="keel">Selected submarine's depth in metres: the thermal layer and water shallower than this
+    /// are drawn; NaN = no submarine (always for pre-drawn layers).</param>
     /// <param name="mayStart">May use this frame's main-thread budget (another layer isn't using it).</param>
-    public void Tick(bool on, bool show, bool dark, float danger, bool mayStart)
+    public void Tick(bool on, bool show, bool dark, float danger, float keel, bool mayStart)
     {
         if (map.Generation != generation)
         {
@@ -278,7 +286,7 @@ internal sealed class OverlayRenderer
                 if (area != null)
                     StartFixedIfStale(dark, mayStart);
                 else if (haveView)
-                    StartIfStale(view, viewDpp, dark, danger);
+                    StartIfStale(view, viewDpp, dark, danger, keel);
                 break;
         }
         if (meshDirty)
@@ -442,13 +450,15 @@ internal sealed class OverlayRenderer
         seaPalette = sharedSea;
     }
 
-    private void StartIfStale(GeoRect view, double viewDpp, bool dark, float danger)
+    private void StartIfStale(GeoRect view, double viewDpp, bool dark, float danger, float keel)
     {
+        bool layer = !float.IsNaN(keel) && !LayerMap.Disabled;
         bool covered = shownPlan != null && Covers(shownPlan, view);
         double zoom = shownPlan != null ? shownPlan.ViewDpp / viewDpp : 1.0;
         bool nearEdge = covered && NearEdge(shownPlan, view);
+        // The layer tiles are worked out with the heights on the main thread: taking it up needs a full redraw.
         bool geometryStale = shown == null || !covered || shownPlan.SettingsVersion != Settings.Version ||
-                             zoom > 1.45 || zoom < 0.7 || nearEdge || DemArrived();
+                             zoom > 1.45 || zoom < 0.7 || nearEdge || shownPlan.Layer != layer || DemArrived();
         if (geometryStale)
         {
             // Let a zoom settle first, unless the view has run off the image. A pan that has used up most of the
@@ -456,11 +466,11 @@ internal sealed class OverlayRenderer
             bool panning = nearEdge && zoom < 1.15 && zoom > 0.87;
             if (covered && !panning && Time.unscaledTime - lastViewChange < SettleSeconds)
                 return;
-            StartFull(view, viewDpp, dark, danger);
+            StartFull(view, viewDpp, dark, danger, keel, layer);
             return;
         }
-        if (shownPlan.Dark != dark || DangerMoved(shownPlan.Danger, danger))
-            StartRecolour(dark, danger);
+        if (shownPlan.Dark != dark || DangerMoved(shownPlan.Danger, danger) || KeelMoved(shownPlan.Keel, keel))
+            StartRecolour(dark, danger, keel);
     }
 
     private void StartFixedIfStale(bool dark, bool mayStart)
@@ -508,6 +518,14 @@ internal sealed class OverlayRenderer
         return p.South > -90.0 + eps && view.South - p.South < lat;
     }
 
+    private static bool KeelMoved(float shownKeel, float keel)
+    {
+        bool shownOn = !float.IsNaN(shownKeel), on = !float.IsNaN(keel);
+        if (shownOn != on)
+            return true;
+        return on && Math.Abs(shownKeel - keel) > Math.Max(3f, 0.03f * keel);
+    }
+
     private static bool DangerMoved(float shownDanger, float danger)
     {
         bool shownOn = !float.IsNaN(shownDanger), on = !float.IsNaN(danger);
@@ -535,7 +553,7 @@ internal sealed class OverlayRenderer
         : Settings.ContourInterval.Value > 0 ? Settings.ContourInterval.Value
         : Raster.AutoInterval(dpp * Raster.MetresPerDegree);
 
-    private void StartFull(GeoRect view, double viewDpp, bool dark, float danger)
+    private void StartFull(GeoRect view, double viewDpp, bool dark, float danger, float keel, bool layer)
     {
         double dpp = viewDpp / Settings.Resolution.Value;
         double spanLon = view.Width, spanLat = view.Height;
@@ -567,6 +585,8 @@ internal sealed class OverlayRenderer
             Dem = dpp < DemLimitDpp,
             Dark = dark,
             Danger = danger,
+            Keel = keel,
+            Layer = layer,
             SettingsVersion = Settings.Version,
         };
         plan.Interval = ContourInterval(viewDpp);
@@ -612,14 +632,16 @@ internal sealed class OverlayRenderer
         ContinueFill();
     }
 
-    private void StartRecolour(bool dark, float danger)
+    private void StartRecolour(bool dark, float danger, float keel)
     {
         Plan plan = shownPlan.Clone();
         plan.Dark = dark;
         plan.Danger = danger;
+        plan.Keel = keel;
         building = TakeJob();
         Configure(building, plan);
         building.Heights = shown.Heights;
+        building.Layer = shown.Layer;
         buildingPlan = plan;
         buildingMissing = new HashSet<string>(shownMissing);
         cancel = false;
@@ -647,6 +669,8 @@ internal sealed class OverlayRenderer
         job.Hillshade = Settings.Hillshade.Value;
         job.Interval = plan.Interval;
         job.Danger = plan.Danger;
+        job.Keel = plan.Keel;
+        job.Layer = null;
     }
 
     private void ContinueFill()
@@ -667,7 +691,59 @@ internal sealed class OverlayRenderer
             }
         }
         if (fillRow >= source.Ny)
+        {
+            if (buildingPlan.Layer)
+                building.Layer = LayerTilesFor(buildingPlan);
             StartWorker(resample: true);
+        }
+    }
+
+    /// <summary>
+    /// The thermal layer over the image, tile by tile (main thread: the game's cache and random generator). Whether
+    /// a tile's water is deep enough comes from the heights just copied.
+    /// </summary>
+    private LayerTiles LayerTilesFor(Plan plan)
+    {
+        int x0 = Raster.LayerTileX(plan.West), nx;
+        if (plan.East - plan.West >= 359.0)
+        {
+            x0 = 0;
+            nx = Raster.LayerTilesX;
+        }
+        else
+        {
+            nx = Raster.LayerTileX(plan.East) - x0 + 1;
+            if (nx <= 0)
+                nx += Raster.LayerTilesX;           // across the date line
+        }
+        int y0 = Raster.LayerTileY(plan.North), ny = Raster.LayerTileY(plan.South) - y0 + 1;
+        if ((long)nx * ny > MaxLayerTiles || ny <= 0)
+        {
+            ModLog.Debug($"Thermal layer left off: {nx}x{ny} tiles in view");
+            return null;
+        }
+        var tiles = new LayerTiles { X0 = x0, Y0 = y0, Nx = nx, Ny = ny, Depth = new float[nx * ny] };
+        for (int j = 0; j < ny; j++)
+        {
+            for (int i = 0; i < nx; i++)
+                tiles.Depth[j * nx + i] = LayerMap.Depth((x0 + i) % Raster.LayerTilesX, y0 + j, SeaDepthFromSource);
+        }
+        return tiles;
+    }
+
+    // Water depth at the nearest sample of the heights just copied (0 on land).
+    private float SeaDepthFromSource(double lon, double lat)
+    {
+        double span = source.Nx * source.Cell;
+        while (lon < source.Lon0)
+            lon += 360.0;
+        while (lon > source.Lon0 + span && lon - 360.0 >= source.Lon0)
+            lon -= 360.0;
+        int i = (int)Math.Round((lon - source.Lon0) / source.Cell), j = (int)Math.Round((source.Lat0 - lat) / source.Cell);
+        i = Math.Max(0, Math.Min(source.Nx - 1, i));
+        j = Math.Max(0, Math.Min(source.Ny - 1, j));
+        float v = source.V[j * source.Nx + i];
+        return v < 0f ? -v : 0f;
     }
 
     private void FillRow(HeightReader reader, int j)
