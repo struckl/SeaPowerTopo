@@ -13,7 +13,7 @@ internal sealed class TopoLayer
 {
     private const int PreferredNumber = 600;          // Better Tac Map uses 500-509
     private const string Name = "SEWERLABS_TOPOGRAPHY";
-    private const string DisplayName = "Topography (terrain heights)";
+    private const string DisplayName = "Topography (heights and depths)";
 
     private MapLayer layer;
     private bool failed;

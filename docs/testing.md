@@ -100,3 +100,13 @@ with its layer name and time.
 Worth reporting: stutter when the mission starts or when a pre-drawn layer finishes (a short hitch is the
 texture upload), any visible seam or darker band where the sharp view ends, a layer depth that disagrees with
 the game's own number.
+
+## 1.0.0 – release check (2026-10-24)
+
+Same build as 0.2.0 apart from the version and the menu text.
+
+1. Log: `Sea Power Topographic Map 1.0.0 loaded.` and `Map layer 'Topography (heights and depths)' added to the
+   Layers menu (#600)`.
+2. Map menu (≡) → Map Layers: the last entry reads **Topography (heights and depths)**, ticked; unticking hides the
+   overlay, legend button and readout, F6 brings them back. The on/off state from before the update is kept.
+3. Run sections 2–4 of the 0.2.0 check above in any mission – no `[Error  :SeaPowerTopo]` lines.
