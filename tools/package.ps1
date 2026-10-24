@@ -4,7 +4,8 @@
 
 .DESCRIPTION
     Release build without the automatic deploy, then dist\SeaPowerTopo\ with exactly what players get:
-    SeaPowerTopo.dll, _info.ini, LICENSE.txt and the Mod Manager thumbnail (workshop\thumbnail.png, if present).
+    SeaPowerTopo.dll, _info.ini, LICENSE.txt and preview.jpg – the Workshop preview, which the game's upload screen
+    only lets you pick from inside StreamingAssets.
     With -Install the staged folder also replaces <GameDir>\Sea Power_Data\StreamingAssets\SeaPowerTopo\, the folder
     to pick in the game's Create Mod screen. Sea Power must be closed for that.
 
@@ -30,8 +31,7 @@ New-Item -ItemType Directory -Force $dist | Out-Null
 Copy-Item (Join-Path $out 'SeaPowerTopo.dll') $dist
 Copy-Item (Join-Path $root 'src\SeaPowerTopo\mod\_info.ini') $dist
 Copy-Item (Join-Path $root 'LICENSE') (Join-Path $dist 'LICENSE.txt')
-$thumbnail = Join-Path $root 'workshop\thumbnail.png'
-if (Test-Path $thumbnail) { Copy-Item $thumbnail $dist } else { Write-Warning 'workshop\thumbnail.png missing - no Mod Manager picture.' }
+Copy-Item (Join-Path $root 'workshop\preview.jpg') $dist
 
 $version = (Select-String -Path (Join-Path $root 'src\SeaPowerTopo\Plugin.cs') -Pattern 'Version = "([^"]+)"').Matches[0].Groups[1].Value
 Write-Host "Staged Sea Power Topographic Map $version in $dist"

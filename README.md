@@ -4,6 +4,8 @@ A mod for [Sea Power: Naval Combat in the Missile Age](https://store.steampowere
 heights and sea depths readable on the tactical map – for low-level flying, terrain masking and radar horizons, and
 for where a submarine has room to dive.
 
+![The fjords around Tromsø with the Topography layer](workshop/screenshots/01-relief.jpg)
+
 The stock map colours land only with its satellite-style texture and a faint slope shade, and paints all water one
 flat colour: high ground is hard to judge and the seabed can't be seen at all. This mod adds a **Topography** layer:
 
@@ -22,6 +24,11 @@ flat colour: high ground is hard to judge and the seabed can't be seen at all. T
   in the background. Zoomed out they are simply shown; closer in the view is drawn live, and the pre-drawn colours
   fill the edges while it catches up with a pan.
 - **Legend** behind a small button at the bottom right of the map, above the scale.
+
+| | |
+| --- | --- |
+| ![Sea depth over the Norwegian shelf edge, legend open](workshop/screenshots/02-sea-depth.jpg) | ![Terrain above a selected F-4E hatched red](workshop/screenshots/03-aircraft-clearance.jpg) |
+| ![Thermal layer and shallow water for a selected submarine](workshop/screenshots/04-submarine-layer.jpg) | ![Zoomed out over Scandinavia and the North Atlantic](workshop/screenshots/05-overview.jpg) |
 
 All heights and depths are the ones the simulation itself uses: the game's own terrain data (the DEM), including the
 terrain height multiplier and under-water depth factor from Options → World. Unit symbols, waypoints and labels stay
@@ -130,6 +137,8 @@ src/SeaPowerTopo/
   mod/_info.ini              Mod Manager entry
 tools/topo-preview/          offline preview (links Raster.cs and Palette.cs)
 tools/package.ps1            release build → dist/SeaPowerTopo/
+tools/shot-director/         dev-only plugin that scripts the Workshop screenshots (docs/workshop.md)
+workshop/                    Workshop description, preview.jpg, screenshots/
 ```
 
 ## License
