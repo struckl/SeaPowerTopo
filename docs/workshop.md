@@ -51,6 +51,11 @@ owner (Steam client or browser) → right column **Owner Controls** → **Add/ed
 | 07-close-up | a fjord close in: 50 m contours, depth lines |
 | 08-layers-menu | the Topography entry in the map's Layers menu |
 
+`screenshots/midnight-renders/` has five 2560x1440 pictures of the Midnight look (the night default of 1.1.0): fjords,
+shelf edge, aircraft clearance, submarine layer, overview. They are renders from `tools/topo-preview` (the mod's own
+drawing code over a flat stand-in for the stock map, no unit symbols or legend; the submarine one uses stand-in layer
+depths), not in-game captures.
+
 ## Remaking the screenshots
 
 [tools/shot-director](../tools/shot-director) is a dev-only Anchor Chain plugin (never shipped) that takes commands
