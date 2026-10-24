@@ -32,6 +32,11 @@ internal sealed class Theme
     public bool LandStepped;
     public float LandBright = 1f;
     public int[] LandFlat;
+    /// <summary>
+    /// Land without colour: the tint becomes its brightness (grey), and shadows and highlights are not tinted. The
+    /// sea is not touched.
+    /// </summary>
+    public bool LandMono;
     public float Shade = 0.6f;
     public int[] ShadowTint, HighlightTint;
     public float ShadowAmt, HighlightAmt;

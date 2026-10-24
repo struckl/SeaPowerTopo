@@ -39,6 +39,7 @@ internal static class Program
         float danger = float.NaN, interval = -1, depthFactor = 2, keel = float.NaN;
         bool dark = false, depth = true;
         string themeId = null;
+        float landGrey = 0f;
         float chartSafety = 30f;
         string output = "preview.png", game = @"E:\Games\steamapps\common\Sea Power";
         for (int i = 0; i < args.Length; i++)
@@ -67,6 +68,7 @@ internal static class Program
                 case "--nodepth": depth = false; break;
                 case "--depth-factor": depthFactor = (float)D(next); i++; break;
                 case "--theme": themeId = next; i++; break;
+                case "--land-grey": landGrey = (float)D(next); i++; break;
                 case "--chart-safety": chartSafety = (float)D(next); i++; break;
                 case "--out": output = next; i++; break;
                 case "--game": game = next; i++; break;
@@ -81,6 +83,15 @@ internal static class Program
         {
             Console.Error.WriteLine($"Unknown theme {themeId}");
             return 1;
+        }
+        if (landGrey > 0f)
+        {
+            // Experiment: the theme's land in grey (brightness times the given factor), lines in light grey, sea as is.
+            theme = theme.Clone();
+            theme.LandMono = true;
+            theme.LandBright *= landGrey;
+            theme.LandLine = new[] { 210, 210, 210 };
+            theme.Coast = null;
         }
         dark = theme.Dark;
         dataDir = Path.Combine(game, "Sea Power_Data", "StreamingAssets", "original", "terrain", "data");

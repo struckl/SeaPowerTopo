@@ -428,6 +428,11 @@ internal static class Raster
                 {
                     pal.Colour(h0, out r, out g, out b);
                 }
+                if (theme.LandMono)
+                {
+                    float gray = 0.3f * r + 0.59f * g + 0.11f * b;
+                    r = g = b = gray;
+                }
                 float a = tint;
 
                 if (shading > 0f)
@@ -440,7 +445,7 @@ internal static class Raster
                     r *= s;
                     g *= s;
                     b *= s;
-                    if (!theme.Legacy)
+                    if (!theme.Legacy && !theme.LandMono)
                     {
                         // Shadows fall towards the theme's shadow colour, lit slopes towards its highlight.
                         if (s < 1f && theme.ShadowTint != null)
