@@ -16,6 +16,9 @@
 - The legend names the look; the aircraft highlight, the submarine layer and the cursor readout work in every look.
 - The Standard looks are drawn exactly as before (checked byte for byte, day and night, with the aircraft highlight
   and the submarine layer on).
+- The thermal layer is drawn softly: the game's 0.2° squares blend into each other as rounded patches instead of hard
+  blocks. The change from one square to the next still lies on their common edge, and the thin outline where the
+  layer area ends is as before.
 - The offline preview takes `--theme`.
 
 ## 1.0.0 – 2026-10-24 (first Workshop release)

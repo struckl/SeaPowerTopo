@@ -738,6 +738,14 @@ internal sealed class OverlayRenderer
             ModLog.Debug($"Thermal layer left off: {nx}x{ny} tiles in view");
             return null;
         }
+        // One tile more all round: the soft edges of the layer blend with the neighbours of the tiles in view.
+        if (nx < Raster.LayerTilesX)
+        {
+            x0 = (x0 + Raster.LayerTilesX - 1) % Raster.LayerTilesX;
+            nx = Math.Min(Raster.LayerTilesX, nx + 2);
+        }
+        y0 -= 1;
+        ny += 2;
         var tiles = new LayerTiles { X0 = x0, Y0 = y0, Nx = nx, Ny = ny, Depth = new float[nx * ny] };
         for (int j = 0; j < ny; j++)
         {

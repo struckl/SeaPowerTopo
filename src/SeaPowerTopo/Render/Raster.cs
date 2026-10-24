@@ -62,6 +62,12 @@ internal sealed class RasterJob
     /// <summary>Thermal layer to show for the selected submarine; null = none.</summary>
     public LayerTiles Layer;
     /// <summary>
+    /// Per image column, for the soft edges of the thermal layer: the first of the two tile centres the column lies
+    /// between, and how far (0..1) it is towards the second. Set by <see cref="Raster.Shade"/>.
+    /// </summary>
+    public int[] LayerI0;
+    public float[] LayerFx;
+    /// <summary>
     /// Chart themes: the safety contour in metres (the shallow and the deep contour follow from it), set by the
     /// caller; <see cref="Raster.Shade"/> works out the shades' edges and the contour depths from it.
     /// </summary>
@@ -138,6 +144,26 @@ internal static class Raster
     }
 
     public static int LayerTileY(double latitude) => (int)Math.Floor((Math.Abs((float)latitude - 90f) - LayerOffset) / LayerTile);
+
+    // The same tile grid as a continuous coordinate: tile k spans [k, k + 1) and its centre is k + 0.5.
+    public static float LayerTileXf(double longitude)
+    {
+        double lon = longitude + 180.0;
+        lon -= Math.Floor(lon / 360.0) * 360.0;
+        return (float)(lon - LayerOffset) / LayerTile;
+    }
+
+    public static float LayerTileYf(double latitude) => (Math.Abs((float)latitude - 90f) - LayerOffset) / LayerTile;
+
+    private static int WrapTile(int tileX) => ((tileX % LayerTilesX) + LayerTilesX) % LayerTilesX;
+
+    // The soft switch of the thermal layer: nothing below a weight of 0.3, full above 0.7, so the change from tile
+    // to tile happens around the tile edge (where the weight is a half) and not as a hard block.
+    private static float SoftWeight(float w)
+    {
+        float t = Clamp01((w - 0.3f) / 0.4f);
+        return t * t * (3f - 2f * t);
+    }
 
     /// <summary>Centre of a layer tile.</summary>
     public static void LayerTileCentre(int tileX, int tileY, out double longitude, out double latitude)
@@ -284,6 +310,15 @@ internal static class Raster
             layerCols = new int[w + 1];
             for (int x = -1; x < w; x++)
                 layerCols[x + 1] = LayerTileX(job.West + (x + 0.5) * job.Dpp);
+            job.LayerI0 = new int[w];
+            job.LayerFx = new float[w];
+            for (int x = 0; x < w; x++)
+            {
+                float s = LayerTileXf(job.West + (x + 0.5) * job.Dpp) - 0.5f;
+                int i0 = (int)Math.Floor(s);
+                job.LayerI0[x] = i0;
+                job.LayerFx[x] = s - i0;
+            }
         }
         return Rows(ht, cancelled, (from, to) => ShadeRows(job, layerCols, from, to));
     }
@@ -349,11 +384,15 @@ internal static class Raster
             float sx = z / (2f * mx), sy = z / (2f * my);
             int row = (y + 1) * gw + 1;
             int o = y * w * 4;
-            int tileY = 0, tileYAbove = 0;
+            int tileY = 0, tileYAbove = 0, layerJ0 = 0;
+            float layerFy = 0f;
             if (job.Layer != null)
             {
                 tileY = LayerTileY(lat);
                 tileYAbove = LayerTileY(lat + job.Dpp);
+                float ty = LayerTileYf(lat) - 0.5f;
+                layerJ0 = (int)Math.Floor(ty);
+                layerFy = ty - layerJ0;
             }
             for (int x = 0; x < w; x++, o += 4)
             {
@@ -368,7 +407,7 @@ internal static class Raster
                     else
                         ShadeWater(job, i, sx, sy, contours, px, o);
                     if (submarine)
-                        ShadeSubmarine(job, layerCols, x, y, i, tileY, tileYAbove, px, o);
+                        ShadeSubmarine(job, layerCols, x, y, i, tileY, tileYAbove, layerJ0, layerFy, px, o);
                     continue;
                 }
                 float hl = h[i - 1], hr = h[i + 1], hu = h[i - gw], hd = h[i + gw];
@@ -571,7 +610,7 @@ internal static class Raster
     // submarine, at its depth, is below the layer, faintly where the layer is deeper than the submarine – with a line
     // where the layer area ends; and red hatching with a solid edge where the water is shallower than the submarine.
     private static void ShadeSubmarine(RasterJob job, int[] layerCols, int x, int y, int i, int tileY, int tileYAbove,
-                                       byte[] px, int o)
+                                       int layerJ0, float layerFy, byte[] px, int o)
     {
         float r = px[o], g = px[o + 1], b = px[o + 2], a = px[o + 3] / 255f;
         bool dark = job.Palette.Dark;
@@ -587,11 +626,33 @@ internal static class Raster
             // The edge of the layer area: the tile to the left or above differs in having a layer.
             bool edge = here != !float.IsNaN(layer.At(layerCols[x], tileY)) ||
                         here != !float.IsNaN(layer.At(tileX, tileYAbove));
-            if (here)
+
+            // The tint is soft: the state of each tile (the submarine below the layer, or above it) is blended with
+            // its neighbours' by the distance from the tile centres and held to a narrow band around the tile edge,
+            // so the squares of the game's model show as rounded patches, not hard blocks. Where two tiles differ the
+            // switch lies on their common edge, as in the game.
+            float wBelow = 0f, wAbove = 0f, wDepth = 0f, wExist = 0f;
+            int i0 = job.LayerI0[x];
+            float fx = job.LayerFx[x];
+            for (int k = 0; k < 4; k++)
             {
-                LayerColour(LayerBand(depth), dark, out float cr, out float cg, out float cb);
-                bool below = !float.IsNaN(keel) && keel > depth;
-                Over(ref r, ref g, ref b, ref a, cr, cg, cb, below ? LayerBelow : LayerAbove);
+                float td = layer.At(WrapTile(i0 + (k & 1)), layerJ0 + (k >> 1));
+                if (float.IsNaN(td))
+                    continue;
+                float wk = ((k & 1) == 0 ? 1f - fx : fx) * ((k >> 1) == 0 ? 1f - layerFy : layerFy);
+                wExist += wk;
+                wDepth += wk * td;
+                if (!float.IsNaN(keel) && keel > td)
+                    wBelow += wk;
+                else
+                    wAbove += wk;
+            }
+            if (wExist > 0f)
+            {
+                LayerColour(LayerBand(wDepth / wExist), dark, out float cr, out float cg, out float cb);
+                float alpha = LayerBelow * SoftWeight(wBelow) + LayerAbove * SoftWeight(wAbove);
+                if (alpha > 0f)
+                    Over(ref r, ref g, ref b, ref a, cr, cg, cb, alpha);
             }
             if (edge)
                 Over(ref r, ref g, ref b, ref a, dark ? 90f : 0f, dark ? 220f : 150f, dark ? 210f : 150f, 0.7f);

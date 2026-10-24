@@ -124,8 +124,9 @@ internal static class Program
     // The game's tiles and its 500 ft rule, but a hash for the layer depth instead of Unity's seeded random.
     private static LayerTiles StandInLayer(RasterJob job, SourceGrid src)
     {
-        int x0 = Raster.LayerTileX(job.West), nx = Raster.LayerTileX(job.East) - x0 + 1;
-        int y0 = Raster.LayerTileY(job.North), ny = Raster.LayerTileY(job.South) - y0 + 1;
+        // One tile more all round, for the soft edges.
+        int x0 = Raster.LayerTileX(job.West) - 1, nx = Raster.LayerTileX(job.East) - x0 + 2;
+        int y0 = Raster.LayerTileY(job.North) - 1, ny = Raster.LayerTileY(job.South) - y0 + 2;
         var tiles = new LayerTiles { X0 = x0, Y0 = y0, Nx = nx, Ny = ny, Depth = new float[nx * ny] };
         for (int j = 0; j < ny; j++)
         {

@@ -133,7 +133,9 @@ Version 1.1.0. Turn on `Verbose log` in `dev.sewerlabs.seapowertopo.cfg` for thi
    Atlas, Army tactical map, Paper sea chart, ECDIS day, Parchment, Glacier); the night choice is remembered for when
    the map goes dark again.
 7. With an aircraft selected (altitude highlight) and with a submarine selected (thermal layer, keel line): both
-   still show in at least Midnight, Atlas and ECDIS dusk, with their legend rows.
+   still show in at least Midnight, Atlas and ECDIS dusk, with their legend rows. The thermal layer's tint is made of
+   soft rounded patches, not hard squares; where the submarine's depth crosses a square's layer depth the tint
+   switches at the square's edge (check with the cursor readout `Layer at …` on both sides of an edge).
 8. Zoom out to the whole world and back, pan: the pre-drawn layers redraw once after a look change (a second or so),
    no error lines.
 9. Close the game normally – no `[Error  :SeaPowerTopo]` lines expected.

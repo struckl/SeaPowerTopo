@@ -27,8 +27,8 @@ flat colour: high ground is hard to judge and the seabed can't be seen at all. T
   higher than its altitude is hatched red, and the readout gives the clearance ("Viper 2-1 clears it by 210 m").
 - **Thermal layer for the selected submarine** – teal where the submarine, at its current depth, is below the
   game's thermal layer (hidden from hull sonars above it), faint teal where the layer is deeper, a thin line where
-  the layer area ends. Water shallower than the submarine is hatched red; the readout adds the layer depth and the
-  water under the keel.
+  the layer area ends (the game's 0.2° squares blend softly, the change lies on each square's edge). Water shallower
+  than the submarine is hatched red; the readout adds the layer depth and the water under the keel.
 - **No drawing while zoomed out** – at mission start the area around all units and the whole world are drawn once
   in the background. Zoomed out they are simply shown; closer in the view is drawn live, and the pre-drawn colours
   fill the edges while it catches up with a pan.
