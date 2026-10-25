@@ -1,1 +1,1 @@
-1.1.0: 17 map looks, light and dark. New look button next to Legend and Shift+F6 to switch. Night map default is Midnight. Chart looks (ECDIS, paper chart). Thermal layer drawn softly. Standard look unchanged.
+1.2.0: new night look Black (grey land, coloured sea). Make your own looks: save the current look as a theme file from the look list and edit it, the map reloads on save. Standard look unchanged.
