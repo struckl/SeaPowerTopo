@@ -19,7 +19,24 @@ owns the item. No SteamCMD needed.
 
    This replaces `<Sea Power>\Sea Power_Data\StreamingAssets\SeaPowerTopo\` with exactly what players get.
 
-## Upload
+## Upload from the command line (no game needed)
+
+Updates an existing item through the running, signed-in Steam client – the same Steam calls as the game's Create Mod
+screen, without starting the game and without a password. Steam must be running and signed in with the account that owns
+the item (the tool refuses any other).
+
+```powershell
+dotnet build tools\workshop-upload -c Release
+# read-only: shows the item's title, owner, visibility and last update
+dotnet run --project tools\workshop-upload -c Release --no-build -- check 3826122523
+# content folder + change note (+ optional new description); title, tags, visibility and preview stay as they are
+dotnet run --project tools\workshop-upload -c Release --no-build -- upload 3826122523 "<Sea Power>\Sea Power_Data\StreamingAssets\SeaPowerTopo" workshop\changenote.txt workshop\description.bbcode
+```
+
+`Result: k_EResultOK` = done; the entry shows on the item's Change Notes page. The same tool is in the Pop-Out and Radio
+repos (1.2.0 of this mod went out with an in-game variant of it, 2026-10-25).
+
+## Upload in the game
 
 Start Sea Power → Mods → Create Mod:
 
