@@ -18,6 +18,8 @@
 param(
     [string]$GameDir = $(if ($env:GameDir) { $env:GameDir } else { 'E:\Games\steamapps\common\Sea Power' }),
     [string]$FlatManagedDir = $(if ($env:FlatManagedDir) { $env:FlatManagedDir } else { 'E:\Project\Mods\_gamerefs\SeaPower-0.8.7-public\Managed' }),
+    # The globe build's game assemblies when the installed game isn't the globe version (a saved copy of its Managed).
+    [string]$GlobeManagedDir = $env:GlobeManagedDir,
     [switch]$NoFlat,
     [switch]$Install
 )
@@ -27,8 +29,10 @@ $root = Split-Path -Parent $PSScriptRoot
 $project = Join-Path $root 'src\SeaPowerTopo\SeaPowerTopo.csproj'
 $dist = Join-Path $root 'dist\SeaPowerTopo'
 
-dotnet build $project -c Release -p:Deploy=false -p:GameDir="$GameDir"
-if ($LASTEXITCODE -ne 0) { throw 'Build failed.' }
+$globeRefs = @()
+if ($GlobeManagedDir) { $globeRefs = @("-p:ManagedDir=$GlobeManagedDir") }
+dotnet build $project -c Release -p:Deploy=false -p:GameDir="$GameDir" @globeRefs
+if ($LASTEXITCODE -ne 0) { throw 'Build failed (with the game on 0.8.7, pass -GlobeManagedDir with the globe version''s assemblies).' }
 
 $out = Join-Path $root 'src\SeaPowerTopo\bin\Release\netstandard2.1'
 if (Test-Path $dist) { Remove-Item -Recurse -Force $dist }

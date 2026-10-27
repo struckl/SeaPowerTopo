@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.3.0 – unreleased (for both maps: 0.8.7 and the 3D globe)
+## 1.3.0 – 2026-10-27 (Workshop; for both maps: 0.8.7 and the 3D globe)
 
 For the Sea Power version with the new 3D globe map – the public beta of 26 Oct 2026 (build 261026), due in the
 11 November release – and still for 0.8.7. The package carries two builds: `SeaPowerTopo.dll` for the globe map and

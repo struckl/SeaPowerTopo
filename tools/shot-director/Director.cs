@@ -29,6 +29,7 @@ namespace ShotDirector;
 /// wait SECONDS
 /// waitload                               wait until no load screen runs (start-up or mission)
 /// play                                   leave the mission briefing (its Play button)
+/// blank                                  empty the menu layer (a main menu shown over a loaded mission)
 /// mapfull                                map full screen (Tab)
 /// view SOUTH WEST NORTH EAST             map view on these bounds (animated; the view model may undo it)
 /// center LAT LON [ZOOM] | where          map centre and zoom level through the map's view model
@@ -132,7 +133,7 @@ internal sealed class Director : MonoBehaviour
         switch (a[0].ToLowerInvariant())
         {
             case "load":
-                Log($"load {Globals.OpenMission(Singleton<FileManager>.Instance.GetFile(rest))}");
+                Log($"load {OpenMission(GetFile(rest))}");
                 MissionManager.DoLoad();
                 break;
             case "click":
@@ -157,6 +158,11 @@ internal sealed class Director : MonoBehaviour
                 break;
             case "play":
                 Play();
+                break;
+            case "blank":
+                // The menu layer empty, as at a mission start (a main menu shown late can cover a mission loaded early).
+                Singleton<MenuSystemViewModel>.Instance.CurrentWindow = new SeapowerUI.BlankMenuView();
+                Log(line);
                 break;
             case "mapfull":
                 MapFull();
@@ -190,8 +196,7 @@ internal sealed class Director : MonoBehaviour
                 Log($"call {a[1]} -> {Reflect.Call(a[1], a.Skip(2).ToArray())}");
                 break;
             case "theme":
-                MapThemeSettings.Shared(MapThemeSettings.Tactical).Theme =
-                    (ThemeMode)Enum.Parse(typeof(ThemeMode), a[1], ignoreCase: true);
+                SetMapTheme((ThemeMode)Enum.Parse(typeof(ThemeMode), a[1], ignoreCase: true));
                 Log(line);
                 break;
             case "units":
@@ -271,6 +276,35 @@ internal sealed class Director : MonoBehaviour
                 Log($"unknown command: {line}");
                 break;
         }
+    }
+
+    // FileManager.GetFile's second parameter differs between 0.8.7 and the globe beta: called with its default.
+    private static string GetFile(string relative)
+    {
+        MethodInfo getFile = typeof(FileManager).GetMethods()
+            .First(m => m.Name == "GetFile" && m.GetParameters().Length >= 1 && m.GetParameters()[0].ParameterType == typeof(string));
+        object[] values = getFile.GetParameters().Select((p, i) => i == 0 ? relative : p.DefaultValue).ToArray();
+        return (string)getFile.Invoke(Singleton<FileManager>.Instance, values);
+    }
+
+    // The globe beta opens a mission with Globals.OpenMission; 0.8.7 just has the public field.
+    private static string OpenMission(string path)
+    {
+        MethodInfo open = typeof(Globals).GetMethod("OpenMission", BindingFlags.Public | BindingFlags.Static);
+        if (open != null)
+            return (string)open.Invoke(null, new object[] { path });
+        typeof(Globals).GetField("currentMissionFilePath", BindingFlags.Public | BindingFlags.Static).SetValue(null, path);
+        return path;
+    }
+
+    // The globe beta keeps the tactical map's theme in MapThemeSettings; 0.8.7 on the map's MapThemeSelector.
+    private static void SetMapTheme(ThemeMode mode)
+    {
+        Type settings = typeof(ThemeMode).Assembly.GetType("SeaPower.LiveMap.MapThemeSettings");
+        object target = settings != null
+            ? settings.GetMethod("Shared").Invoke(null, new object[] { "Tactical" })
+            : Object.FindFirstObjectByType<MapThemeSelector>();
+        target.GetType().GetProperty("Theme").SetValue(target, mode);
     }
 
     private void Play()
