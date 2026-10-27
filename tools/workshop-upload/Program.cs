@@ -7,8 +7,10 @@
 //   dotnet run --project tools/workshop-upload -- upload <item id> <content folder> <change note file> [description file]
 //                                                        [--preview <image>] [--screenshots <folder>]
 //   dotnet run --project tools/workshop-upload -- pictures <item id> [--preview <image>] [--screenshots <folder>]
+//   dotnet run --project tools/workshop-upload -- description <item id> <description file>
 //
-// pictures leaves the content, the description and the change notes alone and only replaces the pictures.
+// pictures and description leave the content and the change notes alone and only replace the pictures or the
+// description.
 // With a description file (BBCode, UTF-8) the item's description is replaced too; without one it stays as it is.
 // --preview replaces the item's main picture (JPG/PNG under 1 MB). --screenshots replaces the pictures on the item's
 // page: the ones there are removed and every .jpg/.png of the folder added, in file name order.
@@ -18,10 +20,12 @@ const uint SeaPowerAppId = 1286220;
 
 string preview = Option("--preview"), screenshots = Option("--screenshots");
 args = args.Where(a => a != "--preview" && a != "--screenshots" && a != preview && a != screenshots).ToArray();
-if (args.Length < 2 || (args[0] == "upload" && args.Length < 4) || !ulong.TryParse(args[1], out ulong itemId))
+if (args.Length < 2 || (args[0] == "upload" && args.Length < 4) || (args[0] == "description" && args.Length < 3)
+    || !ulong.TryParse(args[1], out ulong itemId))
 {
     Console.Error.WriteLine("usage: check <item id> | upload <item id> <content folder> <change note file> [description file] " +
-                            "[--preview <image>] [--screenshots <folder>] | pictures <item id> [--preview <image>] [--screenshots <folder>]");
+                            "[--preview <image>] [--screenshots <folder>] | pictures <item id> [--preview <image>] [--screenshots <folder>] " +
+                            "| description <item id> <description file>");
     return 2;
 }
 
@@ -50,14 +54,15 @@ try
     if (args[0] == "check")
         return 0;
 
-    bool content = args[0] == "upload";
-    if (!content && args[0] != "pictures")
+    bool content = args[0] == "upload", descriptionOnly = args[0] == "description";
+    if (!content && !descriptionOnly && args[0] != "pictures")
     {
         Console.Error.WriteLine($"unknown command {args[0]}");
         return 2;
     }
     string folder = content ? Path.GetFullPath(args[2]) : null;
     string note = content ? File.ReadAllText(args[3]).Trim() : null;
+    string descriptionFile = content && args.Length > 4 ? args[4] : descriptionOnly ? args[2] : null;
     if (content && !File.Exists(Path.Combine(folder, "_info.ini")))
     {
         Console.Error.WriteLine($"{folder} has no _info.ini - not a mod folder.");
@@ -70,9 +75,9 @@ try
         Console.Error.WriteLine("SetItemContent refused the folder.");
         return 1;
     }
-    if (content && args.Length > 4)
+    if (descriptionFile != null)
     {
-        string description = File.ReadAllText(args[4], System.Text.Encoding.UTF8);
+        string description = File.ReadAllText(descriptionFile, System.Text.Encoding.UTF8);
         SteamUGC.SetItemDescription(update, description);
         Console.WriteLine($"New description: {description.Length} characters.");
     }
@@ -113,7 +118,7 @@ try
     bool done = false, ioFailure = false;
     var call = CallResult<SubmitItemUpdateResult_t>.Create((r, failed) => { result = r; ioFailure = failed; done = true; });
     call.Set(SteamUGC.SubmitItemUpdate(update, note));
-    Console.WriteLine(content ? $"Uploading {folder} ..." : "Uploading the pictures ...");
+    Console.WriteLine(content ? $"Uploading {folder} ..." : descriptionOnly ? "Uploading the description ..." : "Uploading the pictures ...");
     DateTime nextReport = DateTime.MinValue;
     while (!done)
     {

@@ -12,7 +12,7 @@ The stock map shows land as a satellite picture and all water in one flat colour
 [*][b]18 looks[/b], light and dark: Standard, Atlas, army tactical map, paper sea chart, ECDIS (the real IHO S-52 colours), parchment, glacier; at night Midnight, Black, Atlas dusk, ECDIS dusk, combat display, phosphor green, red light, thermal imager, neon and more.
 [*][b]Looks of your own[/b] – [i]Save this look as a theme file[/i] in the look list writes the look as a small text file you can edit; the map follows when you save. Start from any look, change the colours you like.
 [*][b]On the new 3D globe map[/b] – exactly on the stock map at every zoom, at high latitudes, across the date line and over the poles.
-[*][b]In the mission editor[/b] too – the layer, the buttons, the legend and the readout on the editor's map.
+[*][b]In the mission editor[/b] too (globe map) – the layer, the buttons, the legend and the readout on the editor's map.
 [/list]
 
 The mission area and the whole world are drawn once when the mission starts, so zoomed out nothing is drawn while you play.
@@ -20,14 +20,14 @@ The mission area and the whole world are drawn once when the mission starts, so 
 All heights and depths are the ones the simulation itself uses – the game's own terrain data, including the terrain height multiplier and under-water depth factor from Options → World. Unit symbols, waypoints and labels stay on top.
 
 [h2]How to use[/h2]
-Open the map in a mission – the layer is on. Its buttons sit in the map's title bar, left of the map menu (≡):
+Open the map in a mission – the layer is on. On the globe map its buttons sit in the map's title bar, left of the map menu (≡):
 [list]
 [*][b]Topography[/b] – the layer on or off (also [b]F6[/b], or the map menu → Map Layers → Topography).
 [*][b]The look's name[/b] – opens the list of looks for the day or night map you are in ([b]Shift+F6[/b] goes to the next one), with [i]Save this look as a theme file[/i] and [i]Open the themes folder[/i].
 [*][b]Legend[/b] – the colour key with the contour step.
 [*][b]Cursor height[/b] – the height or depth next to the pointer on or off; lit while it shows.
 [/list]
-In the mission editor the same buttons sit at the top right of its map.
+In the mission editor the same buttons sit at the top right of its map. On 0.8.7 they are elsewhere – see [i]Compatibility[/i].
 
 [h2]Requirements[/h2]
 [b]Anchor Chain[/b] is required: [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3380210757]subscribe[/url] and follow its [url=https://seapower-modders.github.io/AnchorChain/install-anchor-chain.html]installation guide[/url] (one manual step: copy its preloader into the game folder).
@@ -53,6 +53,8 @@ Everything is in [i]<Sea Power>\BepInEx\config\dev.sewerlabs.seapowertopo.cfg[/i
 
 [h2]Compatibility[/h2]
 Works on [b]both[/b] versions of the game: the current one (0.8.7, flat map) and the new [b]3D globe map[/b] (public beta of 26 Oct 2026, the 11 November release). The item carries a build for each; the one for your game switches on by itself. The screenshots show the globe version.
+
+[b]On 0.8.7[/b] the mod works as in 1.2.0: the look and [b]Legend[/b] buttons sit at the bottom right of the map, the height under the cursor is switched with the [i]Height under cursor[/i] setting, and the mission editor has no layer. The title bar buttons, the Cursor height button and the mission editor come with the globe map.
 
 [b]On the public beta:[/b] Anchor Chain doesn't start there yet, so no Anchor Chain mod loads on the beta until Anchor Chain is updated ([url=https://github.com/seapower-modders/AnchorChain/issues/19]Anchor Chain issue #19[/url]).
 

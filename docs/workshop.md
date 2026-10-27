@@ -43,7 +43,12 @@ dotnet run --project tools\workshop-upload -c Release --no-build -- check 382612
 dotnet run --project tools\workshop-upload -c Release --no-build -- upload 3826122523 "<Sea Power>\Sea Power_Data\StreamingAssets\SeaPowerTopo" workshop\changenote.txt workshop\description.bbcode --preview workshop\preview.jpg --screenshots workshop\screenshots
 # only the pictures (main picture and/or page pictures): content, description and change notes stay
 dotnet run --project tools\workshop-upload -c Release --no-build -- pictures 3826122523 --preview workshop\preview.jpg
+# only the description: content, pictures and change notes stay
+dotnet run --project tools\workshop-upload -c Release --no-build -- description 3826122523 workshop\description.bbcode
 ```
+
+Right after an update the Workshop page can answer "hidden or you do not have permission" for a minute even though
+the item is public; it comes back by itself.
 
 `Result: k_EResultOK` = done; the entry shows on the item's Change Notes page. The same tool is in the Pop-Out and Radio
 repos (1.2.0 of this mod went out with an in-game variant of it, 2026-10-25).
