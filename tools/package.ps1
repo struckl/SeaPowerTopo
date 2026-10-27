@@ -17,7 +17,7 @@
 #>
 param(
     [string]$GameDir = $(if ($env:GameDir) { $env:GameDir } else { 'E:\Games\steamapps\common\Sea Power' }),
-    [string]$FlatManagedDir = $(if ($env:FlatManagedDir) { $env:FlatManagedDir } else { 'E:\Project\Mods\_gamerefs\SeaPower-0.8.7-public\Managed' }),
+    [string]$FlatManagedDir = $(if ($env:FlatManagedDir) { $env:FlatManagedDir } else { [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\_gamerefs\SeaPower-0.8.7-public\Managed')) }),
     # The globe build's game assemblies when the installed game isn't the globe version (a saved copy of its Managed).
     [string]$GlobeManagedDir = $env:GlobeManagedDir,
     [switch]$NoFlat,

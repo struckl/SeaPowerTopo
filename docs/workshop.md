@@ -9,7 +9,8 @@ owns the item. No SteamCMD needed.
 the 11 November release) need different code, so the package carries both: `SeaPowerTopo.dll` from this branch and
 `SeaPowerTopoFlat.dll`, the 1.2.0 code with a version check, from the `flat-map` branch. Each stays off on the game the
 other is for. `tools\package.ps1` builds the flat one in a temporary worktree against a copy of 0.8.7's
-`Sea Power_Data\Managed` (default `E:\Project\Mods\_gamerefs\SeaPower-0.8.7-public\Managed`, or `-FlatManagedDir`). With the installed game on
+`Sea Power_Data\Managed` (default `_gamerefs\SeaPower-0.8.7-public\Managed` next to the mod folders in the workspace, or
+`-FlatManagedDir`). With the installed game on
 0.8.7, give the globe build a saved copy of the globe version's assemblies with `-GlobeManagedDir`. Run
 the release checks on both game versions (Steam → Sea Power → Properties → Betas). 1.3.0 went up on 2026-10-27, tested
 on the beta (261026) and on 0.8.7 (261021). Once the globe map is on the default
