@@ -27,6 +27,8 @@ namespace ShotDirector;
 /// load missions/NATO/Trollfjorden.ini   start a mission (from the main menu)
 /// click X Y | move X Y | key tab        mouse / keyboard on the main monitor (screen pixels, key names or hex)
 /// wait SECONDS
+/// waitload                               wait until no load screen runs (start-up or mission)
+/// play                                   leave the mission briefing (its Play button)
 /// mapfull                                map full screen (Tab)
 /// view SOUTH WEST NORTH EAST             map view on these bounds (animated; the view model may undo it)
 /// center LAT LON [ZOOM] | where          map centre and zoom level through the map's view model
@@ -38,7 +40,12 @@ namespace ShotDirector;
 /// tc FACTOR | pause | unpause            time compression
 /// topo SETTING VALUE                     a SeaPowerTopo config entry, e.g. topo LegendOpen true
 /// hud on|off
-/// shot NAME                              screenshot to BepInEx/shots/NAME.png
+/// tree [UP|all]                          the UI tree from UP (6) levels above the map control (all: every view)
+///                                        to shotdirector-tree.txt
+/// press TEXT                             a button, menu item or tab whose text contains TEXT (first visible one)
+/// menu                                   open the map window's menu (the ≡ in its title bar)
+/// mapwin                                 map back to a window (not full screen)
+/// shot NAME                             screenshot to BepInEx/shots/NAME.png
 /// quit
 /// </code>
 /// </summary>
@@ -62,6 +69,7 @@ internal sealed class Director : MonoBehaviour
 
     private readonly Queue<string> queue = new Queue<string>();
     private float nextPoll, waitUntil;
+    private bool waitingForLoad;
     private ObjectBase pinned;
     private float pinnedY;
 
@@ -77,6 +85,13 @@ internal sealed class Director : MonoBehaviour
         Hold();
         if (queue.Count == 0 || Time.unscaledTime < waitUntil)
             return;
+        if (waitingForLoad)
+        {
+            if (!Singleton<LoadScreen>.InstanceExists() || Singleton<LoadScreen>.Instance.LoadText != "Done")
+                return;
+            waitingForLoad = false;
+            Log("waitload done");
+        }
         string line = queue.Dequeue();
         try
         {
@@ -113,8 +128,7 @@ internal sealed class Director : MonoBehaviour
         switch (a[0].ToLowerInvariant())
         {
             case "load":
-                Globals.currentMissionFilePath = Singleton<FileManager>.Instance.GetFile(rest);
-                Log($"load {Globals.currentMissionFilePath}");
+                Log($"load {Globals.OpenMission(Singleton<FileManager>.Instance.GetFile(rest))}");
                 MissionManager.DoLoad();
                 break;
             case "click":
@@ -131,6 +145,14 @@ internal sealed class Director : MonoBehaviour
                 break;
             case "wait":
                 waitUntil = Time.unscaledTime + F(a[1]);
+                break;
+            case "waitload":
+                // The text reads "Done" from the end of one load screen to the start of the next.
+                waitingForLoad = true;
+                waitUntil = Time.unscaledTime + 2f;
+                break;
+            case "play":
+                Play();
                 break;
             case "mapfull":
                 MapFull();
@@ -164,7 +186,7 @@ internal sealed class Director : MonoBehaviour
                 Log($"call {a[1]} -> {Reflect.Call(a[1], a.Skip(2).ToArray())}");
                 break;
             case "theme":
-                Object.FindFirstObjectByType<MapThemeSelector>().Theme =
+                MapThemeSettings.Shared(MapThemeSettings.Tactical).Theme =
                     (ThemeMode)Enum.Parse(typeof(ThemeMode), a[1], ignoreCase: true);
                 Log(line);
                 break;
@@ -200,6 +222,23 @@ internal sealed class Director : MonoBehaviour
                 MainGameViewModel.SetHudVisible(a[1] == "on");
                 Log(line);
                 break;
+            case "tree":
+                if (a.Length > 1 && a[1] == "all")
+                    TreeAll();
+                else
+                    Tree(a.Length > 1 ? I(a[1]) : 6);
+                break;
+            case "press":
+                Press(rest);
+                break;
+            case "menu":
+                OpenMapMenu();
+                break;
+            case "mapwin":
+                if (Globals._mainGameViewModel?.Map?.IsFullscreen == true)
+                    Globals._mainGameViewModel.ToggleMapFullscreen();
+                Log("mapwin");
+                break;
             case "shot":
                 Directory.CreateDirectory(ShotDir);
                 string path = Path.Combine(ShotDir, rest + ".png");
@@ -213,6 +252,44 @@ internal sealed class Director : MonoBehaviour
             default:
                 Log($"unknown command: {line}");
                 break;
+        }
+    }
+
+    private void Play()
+    {
+        foreach (FrameworkElement e in Elements())
+        {
+            if (e.DataContext is MissionBriefViewModel brief && brief.PlayCommand != null)
+            {
+                brief.PlayCommand.Execute(null);
+                Log("play");
+                return;
+            }
+        }
+        Log("play: no briefing open");
+    }
+
+    // Every element of every Noesis view.
+    private static IEnumerable<FrameworkElement> Elements()
+    {
+        foreach (NoesisView view in Object.FindObjectsByType<NoesisView>(FindObjectsSortMode.None))
+        {
+            if (view.Content == null)
+                continue;
+            var stack = new Stack<DependencyObject>();
+            stack.Push(view.Content);
+            int seen = 0;
+            while (stack.Count > 0 && seen++ < 60000)
+            {
+                DependencyObject d = stack.Pop();
+                if (d is FrameworkElement e)
+                    yield return e;
+                if (!(d is Visual v))
+                    continue;
+                int n = VisualTreeHelper.GetChildrenCount(v);
+                for (int i = 0; i < n; i++)
+                    stack.Push(VisualTreeHelper.GetChild(v, i));
+            }
         }
     }
 
@@ -265,6 +342,177 @@ internal sealed class Director : MonoBehaviour
                 for (int i = 0; i < n; i++)
                     stack.Push(VisualTreeHelper.GetChild(v, i));
             }
+        }
+    }
+
+    // The Noesis tree around the largest map control: from UP levels above it down, one line per element with its
+    // type, name, place in the window, data context and (for buttons) command, text and tooltip.
+    private void Tree(int up)
+    {
+        MapBase map = Maps().OrderByDescending(m => m.ActualWidth * m.ActualHeight).FirstOrDefault();
+        if (map == null)
+        {
+            Log("tree: no map control found");
+            return;
+        }
+        Visual top = map;
+        for (int i = 0; i < up && VisualTreeHelper.GetParent(top) is Visual parent; i++)
+            top = parent;
+        Visual window = top;
+        while (VisualTreeHelper.GetParent(window) is Visual parent)
+            window = parent;
+        var lines = new List<string>();
+        Dump(top, window, 0, lines);
+        string file = Path.Combine(Paths.BepInExRootPath, "shotdirector-tree.txt");
+        File.WriteAllLines(file, lines);
+        Log($"tree: {lines.Count} elements from {up} levels above the map to {file}");
+    }
+
+    private void TreeAll()
+    {
+        var lines = new List<string>();
+        foreach (NoesisView view in Object.FindObjectsByType<NoesisView>(FindObjectsSortMode.None))
+        {
+            if (view.Content is Visual content)
+            {
+                lines.Add($"== NoesisView {view.name}");
+                Dump(content, content, 0, lines);
+            }
+        }
+        string file = Path.Combine(Paths.BepInExRootPath, "shotdirector-tree.txt");
+        File.WriteAllLines(file, lines);
+        Log($"tree: {lines.Count} elements of every view to {file}");
+    }
+
+    // The text an element shows: its string content, or the first text block inside it.
+    private static string TextOf(FrameworkElement e)
+    {
+        if (e is HeaderedItemsControl h && h.Header is string header)
+            return header;
+        if (e is ContentControl c && c.Content is string content)
+            return content;
+        var stack = new Stack<DependencyObject>();
+        stack.Push(e);
+        while (stack.Count > 0)
+        {
+            DependencyObject d = stack.Pop();
+            if (d is TextBlock t && !string.IsNullOrEmpty(t.Text))
+                return t.Text;
+            if (d is Visual v)
+            {
+                for (int i = VisualTreeHelper.GetChildrenCount(v) - 1; i >= 0; i--)
+                    stack.Push(VisualTreeHelper.GetChild(v, i));
+            }
+        }
+        return null;
+    }
+
+    private void Press(string text)
+    {
+        foreach (FrameworkElement e in Elements())
+        {
+            if (!(e is ButtonBase || e is MenuItem || e is TabItem) || !e.IsVisible)
+                continue;
+            string shown = TextOf(e);
+            if (shown == null || shown.IndexOf(text, StringComparison.OrdinalIgnoreCase) < 0)
+                continue;
+            switch (e)
+            {
+                case MenuItem item when item.HasItems:
+                    item.IsSubmenuOpen = true;
+                    break;
+                case MenuItem item:
+                    item.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent, item));
+                    if (item.Command != null && item.Command.CanExecute(item.CommandParameter))
+                        item.Command.Execute(item.CommandParameter);
+                    break;
+                case TabItem tab:
+                    tab.IsSelected = true;
+                    break;
+                case ToggleButton toggle when toggle.Command == null:
+                    toggle.IsChecked = toggle.IsChecked != true;
+                    toggle.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent, toggle));
+                    break;
+                case ButtonBase button:
+                    button.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent, button));
+                    if (button.Command != null && button.Command.CanExecute(button.CommandParameter))
+                        button.Command.Execute(button.CommandParameter);
+                    break;
+            }
+            Log($"press '{shown}' ({e.GetType().Name})");
+            return;
+        }
+        Log($"press: nothing visible says '{text}'");
+    }
+
+    private void OpenMapMenu()
+    {
+        MapBase map = Maps().OrderByDescending(m => m.ActualWidth * m.ActualHeight).FirstOrDefault();
+        DependencyObject d = map;
+        while (d != null && d.GetType().Name != "Window")
+            d = VisualTreeHelper.GetParent(d);
+        MenuItem item = d == null ? null : Descendants(d).OfType<MenuItem>().FirstOrDefault();
+        if (item == null)
+        {
+            Log("menu: no menu in the map window");
+            return;
+        }
+        item.IsSubmenuOpen = true;
+        Log($"menu: opened, {item.Items.Count} entries");
+    }
+
+    private static IEnumerable<DependencyObject> Descendants(DependencyObject root)
+    {
+        var stack = new Stack<DependencyObject>();
+        stack.Push(root);
+        while (stack.Count > 0)
+        {
+            DependencyObject d = stack.Pop();
+            yield return d;
+            if (d is Visual v)
+            {
+                for (int i = VisualTreeHelper.GetChildrenCount(v) - 1; i >= 0; i--)
+                    stack.Push(VisualTreeHelper.GetChild(v, i));
+            }
+        }
+    }
+
+    private static void Dump(Visual v, Visual window, int depth, List<string> lines)
+    {
+        if (lines.Count > 20000)
+            return;
+        var e = v as FrameworkElement;
+        string where = "";
+        try
+        {
+            Point p = window.PointFromScreen(v.PointToScreen(new Point(0f, 0f)));
+            where = e != null ? $" @{p.X:0},{p.Y:0} {e.ActualWidth:0}x{e.ActualHeight:0}" : "";
+        }
+        catch (Exception) { }
+        string text = "";
+        if (v is ButtonBase b)
+        {
+            string command = b.GetBindingExpression(ButtonBase.CommandProperty)?.ParentBinding?.Path?.Path;
+            text += $" cmd={command ?? b.Command?.GetType().Name}";
+        }
+        if (v is ContentControl cc && cc.Content is string s)
+            text += $" content=\"{s}\"";
+        if (v is TextBlock tb && !string.IsNullOrEmpty(tb.Text))
+            text += $" text=\"{tb.Text}\"";
+        if (v is HeaderedItemsControl hic && hic.Header is string hs)
+            text += $" header=\"{hs}\"";
+        if (e?.ToolTip is string tip)
+            text += $" tip=\"{tip}\"";
+        if (e != null && e.Visibility != Visibility.Visible)
+            text += $" {e.Visibility}";
+        string context = e?.DataContext != null && (VisualTreeHelper.GetParent(v) as FrameworkElement)?.DataContext != e.DataContext
+            ? $" dc={e.DataContext.GetType().Name}" : "";
+        lines.Add($"{new string(' ', depth * 2)}{v.GetType().Name}{(string.IsNullOrEmpty(e?.Name) ? "" : " #" + e.Name)}{where}{context}{text}");
+        int n = VisualTreeHelper.GetChildrenCount(v);
+        for (int i = 0; i < n; i++)
+        {
+            if (VisualTreeHelper.GetChild(v, i) is Visual child)
+                Dump(child, window, depth + 1, lines);
         }
     }
 

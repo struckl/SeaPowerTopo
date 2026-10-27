@@ -121,19 +121,19 @@ internal static class Settings
 
         Readout = file.Bind("3. Readout and legend", "Height under cursor", ReadoutMode.WithOverlay,
             "Show the terrain height under the mouse pointer on the map: WithOverlay (while the Topography layer " +
-            "is on), Always, or Off.");
+            "is on), Always, or Off. The Cursor height button in the map's title bar switches it off and back on.");
         Legend = file.Bind("3. Readout and legend", "Legend", true,
-            "Show the legend button bottom right of the map (above the scale) while the layer is on; it opens " +
-            "the colour key with the contour interval.");
+            "Show the Legend button in the map's title bar while the layer is on; it opens the colour key with the " +
+            "contour interval.");
         LegendOpen = file.Bind("3. Readout and legend", "Legend open", false,
             "Whether the legend is open. Written by the mod when you click the legend button.");
         Units = file.Bind("3. Readout and legend", "Units", HeightUnits.Both,
             "Height units in the readout and the legend: Both (metres and feet), Metres or Feet.");
 
-        // Turning the layer or the legend on and off is not a reason to redraw the overlay.
+        // Turning the layer, the legend or the readout on and off is not a reason to redraw the overlay.
         file.SettingChanged += (_, e) =>
         {
-            if (e.ChangedSetting != Visible && e.ChangedSetting != LegendOpen)
+            if (e.ChangedSetting != Visible && e.ChangedSetting != LegendOpen && e.ChangedSetting != Readout)
                 Version++;
         };
     }

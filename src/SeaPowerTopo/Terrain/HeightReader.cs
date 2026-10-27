@@ -4,7 +4,6 @@ using SeaPower;
 using SeaPowerTopo.Render;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
-using UnityEngine;
 
 namespace SeaPowerTopo.Terrain;
 
@@ -21,8 +20,8 @@ internal struct HeightSample
 
 /// <summary>
 /// Reads terrain heights straight out of the game's DEM: the 20° × 20° chunks (2400 × 2400 int16 metres, one
-/// sample every 30 arc seconds) the map and the 3D terrain have loaded, and the 3 arc-minute world grid behind the
-/// zoomed-out map for everywhere else. Same data, same sample positions as the stock map draws.
+/// sample every 30 arc seconds) the 3D terrain has loaded or <see cref="DemCache"/> has read, and the 3 arc-minute
+/// world grid (<see cref="LowresGrid"/>) for everywhere else. Same data, same sample positions as the stock map draws.
 /// <para>Main thread only, and only within the frame it was created in: Unity may move a texture's CPU copy when
 /// the game uploads it (which happens on the main thread), so pointers are never kept across frames. Dispose
 /// releases the cache handles that keep the chunks from being evicted meanwhile.</para>
@@ -51,20 +50,13 @@ internal sealed unsafe class HeightReader : IDisposable
 
     public bool HasLowres => low != null;
 
-    /// <param name="lowres">The world grid texture of the map's background (null if not found).</param>
-    /// <param name="missing">Collects the keys of DEM chunks that were needed but not loaded.</param>
-    public HeightReader(Texture2D lowres, HashSet<string> missing = null)
+    /// <param name="missing">Collects the keys of DEM chunks that were needed but not loaded yet (they are being read).</param>
+    public HeightReader(HashSet<string> missing = null)
     {
         this.missing = missing;
         Multiplier = Globals._heightMultiplier > 0f ? Globals._heightMultiplier : 1f;
         DepthFactor = Globals._underWaterDepthFactor > 0f ? Globals._underWaterDepthFactor : 1f;
-        if (lowres != null && lowres.isReadable && lowres.format == TextureFormat.R16 &&
-            lowres.width == LowCols && lowres.height == LowRows)
-        {
-            NativeArray<short> data = lowres.GetRawTextureData<short>();
-            if (data.IsCreated && data.Length >= LowCols * LowRows)
-                low = (short*)NativeArrayUnsafeUtility.GetUnsafeReadOnlyPtr(data);
-        }
+        low = LowresGrid.Pointer;
     }
 
     /// <summary>A raw DEM value as the simulation uses it (land scaled by the multiplier, water by the depth factor).</summary>
@@ -171,6 +163,12 @@ internal sealed unsafe class HeightReader : IDisposable
                     return;
                 }
                 handle.Dispose();
+            }
+            if (DemCache.TryGet(key, out NativeArray<byte> own) && own.Length >= ChunkSize * ChunkSize * 2)
+            {
+                chunks[c] = (short*)NativeArrayUnsafeUtility.GetUnsafeReadOnlyPtr(own);
+                state[c] = 1;
+                return;
             }
         }
         catch (Exception ex)

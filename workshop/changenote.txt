@@ -1,1 +1,1 @@
-1.2.0: new night look Black (grey land, coloured sea). Make your own looks: save the current look as a theme file from the look list and edit it, the map reloads on save. Standard look unchanged.
+1.3.0: for the new 3D globe map (exact on the globe, also near the poles and across the date line). Buttons in the map's title bar: Topography, look, legend, cursor height on/off. Works in the mission editor too.

@@ -6,6 +6,7 @@ using MapControl;
 using SeaPower;
 using SeaPower.LiveMap;
 using SeapowerUI;
+using SeapowerUI.ViewModels;
 using SeaPowerTopo.Render;
 using SeaPowerTopo.Terrain;
 using SeaPowerTopo.Ui;
@@ -15,7 +16,9 @@ namespace SeaPowerTopo;
 
 /// <summary>
 /// Drives the mod: applies the late map hook once NoesisGUI runs, and during a mission keeps the Layers-menu entry,
-/// the toggle key, the overlay, and the legend and cursor readout of every live map in step.
+/// the toggle key, the overlay, and the title bar buttons, legend and cursor readout of every live map in step. Out of
+/// a mission, the mission editor's map gets the overlay (drawn live, as a picture on its flat map) and the same
+/// buttons.
 /// <para>The overlay is several layers. At mission start the mission area (every unit of every side, plus as much
 /// again around it) is drawn once, then two areas four times larger each at a quarter of the detail, then the whole
 /// world. Whichever of them shows the view at about its own scale is all the map needs – zoomed out nothing is
@@ -48,17 +51,29 @@ internal sealed class TopoHost : MonoBehaviour
     private readonly List<MapDecoration> maps = new List<MapDecoration>();
     private readonly HashSet<MapBase> undecoratable = new HashSet<MapBase>();
 
+    // The mission editor's map (a flat map of its own, not the globe).
+    private readonly FlatMapRef editorMap = new FlatMapRef();
+    private readonly OverlayRenderer editorLive;
+    private MapDecoration editorDecoration;
+    private float nextEditorCheck;
+
     private HookState mapHooks;
     private float nextHookCheck, nextPrune, nextAircraftCheck, nextThemePoll;
     private bool missionActive;
     private int errors;
+
+    private ReadoutMode readoutWhenOn = ReadoutMode.WithOverlay;
 
     private string aircraftName;
     private float aircraftAltitude = float.NaN;
     private string submarineName;
     private float submarineDepth = float.NaN;      // metres below the surface
 
-    public TopoHost() => live = new OverlayRenderer(map, "live", -0.05f);
+    public TopoHost()
+    {
+        live = new OverlayRenderer(map, "live", -0.05f);
+        editorLive = new OverlayRenderer(editorMap, "editor", 0f);
+    }
 
     private void Awake() => Instance = this;
 
@@ -87,24 +102,14 @@ internal sealed class TopoHost : MonoBehaviour
                 ApplyMapHooks();
         }
         if (!missionActive)
+        {
+            if (mapHooks == HookState.Applied)
+                TickEditor();
             return;
+        }
 
         layer.EnsureRegistered();
-        if (Time.unscaledTime >= nextThemePoll)
-        {
-            nextThemePoll = Time.unscaledTime + 1.5f;
-            if (ThemeLibrary.Changed())
-                ReloadThemes();
-        }
-        if (Settings.LookKey.Value.IsDown())
-        {
-            CycleLook();                      // Shift+F6 must not also count as F6
-        }
-        else if (Settings.ToggleKey.Value.IsDown())
-        {
-            layer.Toggle();
-            ModLog.Info($"Topography {(layer.Visible ? "on" : "off")}.");
-        }
+        TickShared();
 
         bool on = layer.Visible;
         bool dark = IsDark();
@@ -130,12 +135,115 @@ internal sealed class TopoHost : MonoBehaviour
                 }
             }
         }
-        ReadoutMode mode = Settings.Readout.Value;
-        bool readout = mode == ReadoutMode.Always || (mode == ReadoutMode.WithOverlay && on);
+        bool readout = ReadoutOn(on);
         string highlighted = live.Showing && !float.IsNaN(live.ShownDanger) ? aircraftName : null;
         string submarine = live.Showing && !float.IsNaN(live.ShownKeel) ? submarineName : null;
         foreach (MapDecoration decoration in maps)
             decoration.Update(on, readout, legendSource, highlighted, submarine);
+    }
+
+    // What a mission and the mission editor both need every frame: the world grid and DEM chunks being read, theme
+    // files, the keys.
+    private void TickShared()
+    {
+        LowresGrid.Poll();
+        DemCache.Poll();
+        if (Time.unscaledTime >= nextThemePoll)
+        {
+            nextThemePoll = Time.unscaledTime + 1.5f;
+            if (ThemeLibrary.Changed())
+                ReloadThemes();
+        }
+        if (Settings.LookKey.Value.IsDown())
+        {
+            CycleLook();                      // Shift+F6 must not also count as F6
+        }
+        else if (Settings.ToggleKey.Value.IsDown())
+        {
+            ToggleLayer();
+        }
+    }
+
+    private static bool ReadoutOn(bool layerOn)
+    {
+        ReadoutMode mode = Settings.Readout.Value;
+        return mode == ReadoutMode.Always || (mode == ReadoutMode.WithOverlay && layerOn);
+    }
+
+    /// <summary>
+    /// The mission editor: while its map is on screen, the live layer draws its view and the map gets the buttons and
+    /// the readout. Its map is looked for once a second (the editor's view model holds it; the control showing it is
+    /// found in the UI).
+    /// </summary>
+    private void TickEditor()
+    {
+        if (Time.unscaledTime >= nextEditorCheck)
+        {
+            nextEditorCheck = Time.unscaledTime + 1f;
+            MapBase found = FindEditorMap();
+            if (!ReferenceEquals(found, editorMap.Map))
+            {
+                LeaveEditor();
+                if (found != null)
+                {
+                    editorMap.Use(found);
+                    editorDecoration = MapDecoration.TryAttach(found, Describe);
+                    ModLog.Info("Mission editor map found: Topography drawn there too.");
+                }
+            }
+        }
+        if (editorMap.Map == null)
+            return;
+        TickShared();
+        bool on = layer.Visible;
+        editorLive.Tick(on, on, editorMap.Dark, float.NaN, float.NaN, mayStart: true);
+        editorDecoration?.Update(on, ReadoutOn(on), editorLive, null, null);
+    }
+
+    // The editor's map control, if it is on screen.
+    private MapBase FindEditorMap()
+    {
+        MapViewModel model = MissionEditorViewModel.Instance?.Map?.Map;
+        if (model == null)
+            return null;
+        MapBase known = editorMap.Map;
+        if (known != null && editorMap.ViewModel == model && editorMap.Find() && known.IsVisible)
+            return known;
+        foreach (NoesisView view in FindObjectsByType<NoesisView>(FindObjectsSortMode.None))
+        {
+            if (view.Content == null)
+                continue;
+            var stack = new Stack<Noesis.DependencyObject>();
+            stack.Push(view.Content);
+            for (int seen = 0; stack.Count > 0 && seen < 50000; seen++)
+            {
+                Noesis.DependencyObject d = stack.Pop();
+                if (d is MapBase candidate)
+                {
+                    if (ReferenceEquals(candidate.DataContext, model) && candidate.IsVisible && candidate.ActualWidth > 0f)
+                        return candidate;
+                    continue;
+                }
+                if (d is Noesis.Visual v)
+                {
+                    int n = Noesis.VisualTreeHelper.GetChildrenCount(v);
+                    for (int i = 0; i < n; i++)
+                        stack.Push(Noesis.VisualTreeHelper.GetChild(v, i));
+                }
+            }
+        }
+        return null;
+    }
+
+    private void LeaveEditor()
+    {
+        if (editorMap.Map == null)
+            return;
+        editorLive.Shutdown();
+        editorDecoration?.Detach();
+        editorDecoration = null;
+        editorMap.Forget();
+        ModLog.Info("Mission editor map closed.");
     }
 
     /// <summary>
@@ -145,9 +253,7 @@ internal sealed class TopoHost : MonoBehaviour
     /// </summary>
     private void TickLayers(bool on, bool dark, float danger, float keel)
     {
-        bool haveView = map.TryView(out GeoRect view, out double viewDpp);
-        // Beyond the poles there is nothing to draw.
-        view = new GeoRect(view.West, Math.Max(-90.0, view.South), view.East, Math.Min(90.0, view.North));
+        bool haveView = map.TryView(out GeoRect view, out double viewDpp, out _);
         bool predraw = on && Settings.Predraw.Value;
         OverlayRenderer primary = null;
         var showing = new bool[drawn.Count];
@@ -155,7 +261,8 @@ internal sealed class TopoHost : MonoBehaviour
         {
             OverlayRenderer layer = drawn[i];
             showing[i] = predraw && haveView && layer.HasImage && viewDpp <= layer.AreaDpp * MaxShrink;
-            if (showing[i] && primary == null && layer.Area.Value.Contains(view) && viewDpp >= layer.AreaDpp / MaxStretch)
+            if (showing[i] && primary == null && layer.Area.Value.Contains(view.Near(layer.Area.Value.CentreLon)) &&
+                viewDpp >= layer.AreaDpp / MaxStretch)
                 primary = layer;
         }
 
@@ -192,8 +299,9 @@ internal sealed class TopoHost : MonoBehaviour
             return false;
         var lons = new List<double>();
         var lats = new List<double>();
-        foreach (Taskforce side in new[] { Globals._playerTaskforce, Globals._enemyTaskforce, Globals._alliedTaskforce,
-                                           Globals._neutralTaskforce, Globals._secondEnemyTaskforce })
+        if (!Singleton<TaskforceManager>.InstanceExists())
+            return false;
+        foreach (Taskforce side in Singleton<TaskforceManager>.Instance._taskForces)
         {
             if (side == null)
                 continue;
@@ -268,11 +376,10 @@ internal sealed class TopoHost : MonoBehaviour
         return m;
     }
 
-    private static bool IsDark() =>
-        Singleton<ThemeTracker>.InstanceExists() && Singleton<ThemeTracker>.Instance.CurrentTheme == ThemeMode.Dark;
+    private bool IsDark() => map.Dark;
 
     /// <summary>The theme the map shows now: the user's choice for the map theme (day or night) it is in.</summary>
-    internal static Theme CurrentTheme() => CurrentTheme(IsDark());
+    internal Theme CurrentTheme() => CurrentTheme(IsDark());
 
     private static Theme CurrentTheme(bool dark) => Themes.Get(dark ? Settings.NightLook.Value : Settings.DayLook.Value, dark);
 
@@ -299,6 +406,29 @@ internal sealed class TopoHost : MonoBehaviour
         }
     }
 
+    /// <summary>Topography on or off (the title bar button, the toggle key, the Layers menu entry).</summary>
+    internal void ToggleLayer()
+    {
+        layer.Toggle();
+        ModLog.Info($"Topography {(layer.Visible ? "on" : "off")}.");
+    }
+
+    /// <summary>The cursor readout off, or back on the way it was set before (with the layer on, by default).</summary>
+    internal void ToggleReadout()
+    {
+        ReadoutMode mode = Settings.Readout.Value;
+        if (mode == ReadoutMode.Off)
+        {
+            Settings.Readout.Value = readoutWhenOn;
+        }
+        else
+        {
+            readoutWhenOn = mode;
+            Settings.Readout.Value = ReadoutMode.Off;
+        }
+        ModLog.Info($"Cursor readout {Settings.Readout.Value}.");
+    }
+
     /// <summary>Makes <paramref name="theme"/> the look of its map theme and says so on every map.</summary>
     internal void SetLook(Theme theme)
     {
@@ -317,6 +447,7 @@ internal sealed class TopoHost : MonoBehaviour
     {
         foreach (MapDecoration decoration in maps)
             decoration.ShowNotice(text, seconds);
+        editorDecoration?.ShowNotice(text, seconds);
     }
 
     // A theme file was added, changed or removed.
@@ -386,6 +517,7 @@ internal sealed class TopoHost : MonoBehaviour
     {
         try
         {
+            LeaveEditor();                     // a test run from the editor
             missionActive = true;
             layer.EnsureRegistered();
         }
@@ -407,6 +539,7 @@ internal sealed class TopoHost : MonoBehaviour
             drawnPlanned = false;
             legendSource = null;
             map.Forget();
+            DemCache.Clear();
             foreach (MapDecoration map in maps)
                 map.Detach();
             maps.Clear();
@@ -428,7 +561,10 @@ internal sealed class TopoHost : MonoBehaviour
         try
         {
             MapBase map = rendered.ParentMap;
-            if (!missionActive || map == null || undecoratable.Contains(map))
+            if (!missionActive || map == null)
+                return;
+            this.map.Offer(rendered);
+            if (undecoratable.Contains(map))
                 return;
             foreach (MapDecoration known in maps)
             {
@@ -454,7 +590,7 @@ internal sealed class TopoHost : MonoBehaviour
 
     private HeightSample Sample(double lon, double lat)
     {
-        using (var reader = new HeightReader(map.Find() ? map.Lowres : null))
+        using (var reader = new HeightReader())
             return reader.Sample(lon, lat);
     }
 

@@ -18,7 +18,7 @@ public class Plugin : IAnchorChainMod
 {
     public const string Guid = "dev.sewerlabs.seapowertopo";
     public const string Name = "Sea Power Topographic Map";
-    public const string Version = "1.2.0";
+    public const string Version = "1.3.0";
 
     // Anchor Chain loads assemblies with Assembly.LoadFile, so the same DLL found in two folders would be two
     // separate assemblies with separate statics. The marker lives on the AppDomain so only the first one starts.
@@ -35,6 +35,13 @@ public class Plugin : IAnchorChainMod
 
         try
         {
+            // Built for the globe map (public beta of 26 Oct 2026, the November release): older games lack its types.
+            if (Type.GetType("SeapowerUI.MapDisplayState, Seapower-Scripts") == null)
+            {
+                ModLog.Error($"{Name} {Version} needs the Sea Power version with the 3D globe map (public beta from 26 Oct 2026); " +
+                             "this game is older - mod inactive. Topographic Map 1.2.0 is the one for it.");
+                return;
+            }
             Settings.Init();
             if (!Settings.Enabled.Value)
             {

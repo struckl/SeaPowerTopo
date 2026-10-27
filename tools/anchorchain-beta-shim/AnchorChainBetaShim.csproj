@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--Dev tool, never shipped: a plain BepInEx plugin that starts Anchor Chain on the Sea Power public beta, where its
+      preloader runs before the game has listed the mod folders (seapower-modders/AnchorChain#19). See docs/testing.md.-->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <AssemblyName>AnchorChainBetaShim</AssemblyName>
+    <RootNamespace>AnchorChainBetaShim</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <RestoreAdditionalProjectSources>
+      https://api.nuget.org/v3/index.json;
+      https://nuget.bepinex.dev/v3/index.json
+    </RestoreAdditionalProjectSources>
+    <GameDir Condition="'$(GameDir)' == ''">E:\Games\steamapps\common\Sea Power</GameDir>
+    <ManagedDir>$(GameDir)\Sea Power_Data\Managed</ManagedDir>
+    <ModDeployDir>$(GameDir)\BepInEx\plugins</ModDeployDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BepInEx.Core" Version="5.4.21" IncludeAssets="compile" PrivateAssets="all" />
+    <PackageReference Include="HarmonyX" Version="2.9.0" IncludeAssets="compile" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Seapower-Scripts"><HintPath>$(ManagedDir)\Seapower-Scripts.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine"><HintPath>$(ManagedDir)\UnityEngine.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.CoreModule"><HintPath>$(ManagedDir)\UnityEngine.CoreModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Libraries"><HintPath>$(ManagedDir)\Libraries.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+
+  <Target Name="DeployMod" AfterTargets="Build" Condition="Exists('$(GameDir)') And '$(Deploy)' != 'false'">
+    <Copy SourceFiles="$(OutputPath)$(AssemblyName).dll" DestinationFolder="$(ModDeployDir)" />
+    <Message Importance="high" Text="AnchorChainBetaShim deployed to $(ModDeployDir)" />
+  </Target>
+
+</Project>

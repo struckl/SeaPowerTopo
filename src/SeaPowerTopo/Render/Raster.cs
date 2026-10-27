@@ -10,6 +10,9 @@ internal sealed class SourceGrid
 {
     /// <summary>Centre of cell (0, 0) and the cell size in degrees; rows run south, columns east.</summary>
     public double Lon0, Lat0, Cell;
+    /// <summary>East-west cell size in degrees where it differs from <see cref="Cell"/> (0 = the same).</summary>
+    public double CellX;
+    public double CellLon => CellX > 0 ? CellX : Cell;
     public int Nx, Ny;
     /// <summary>Heights in metres as the simulation uses them (<see cref="Raster.SimHeight"/>); negative = water.</summary>
     public float[] V;
@@ -46,8 +49,15 @@ internal sealed class LayerTiles
 internal sealed class RasterJob
 {
     public int Width, Height;
-    /// <summary>North-west corner of the image and degrees per pixel (square in lon/lat, like the map).</summary>
+    /// <summary>North-west corner of the image and degrees of latitude per pixel.</summary>
     public double West, North, Dpp;
+    /// <summary>
+    /// Degrees of longitude per pixel where they differ (0 = <see cref="Dpp"/>, square in lon/lat): the globe map
+    /// shows a degree of longitude cos(latitude) times as wide as one of latitude, so an image for it can be that
+    /// much narrower.
+    /// </summary>
+    public double DppX;
+    public double DppLon => DppX > 0 ? DppX : Dpp;
 
     public Palette Palette;
     /// <summary>Depth bands of the sea; null leaves the water to the stock map.</summary>
@@ -85,7 +95,7 @@ internal sealed class RasterJob
     public byte[] Mips;
 
     public double South => North - Height * Dpp;
-    public double East => West + Width * Dpp;
+    public double East => West + Width * DppLon;
 }
 
 /// <summary>
@@ -229,7 +239,7 @@ internal static class Raster
         var cf = new float[gw];
         for (int x = 0; x < gw; x++)
         {
-            double u = (job.West + (x - 0.5) * job.Dpp - src.Lon0) / src.Cell;
+            double u = (job.West + (x - 0.5) * job.DppLon - src.Lon0) / src.CellLon;
             int i = (int)Math.Floor(u);
             ci[x] = i;
             cf[x] = (float)(u - i);
@@ -309,12 +319,12 @@ internal static class Raster
         {
             layerCols = new int[w + 1];
             for (int x = -1; x < w; x++)
-                layerCols[x + 1] = LayerTileX(job.West + (x + 0.5) * job.Dpp);
+                layerCols[x + 1] = LayerTileX(job.West + (x + 0.5) * job.DppLon);
             job.LayerI0 = new int[w];
             job.LayerFx = new float[w];
             for (int x = 0; x < w; x++)
             {
-                float s = LayerTileXf(job.West + (x + 0.5) * job.Dpp) - 0.5f;
+                float s = LayerTileXf(job.West + (x + 0.5) * job.DppLon) - 0.5f;
                 int i0 = (int)Math.Floor(s);
                 job.LayerI0[x] = i0;
                 job.LayerFx[x] = s - i0;
@@ -360,7 +370,7 @@ internal static class Raster
         float danger = job.Danger;
         bool hatch = !float.IsNaN(danger);
 
-        float my = (float)(job.Dpp * MetresPerDegree);
+        float my = (float)(job.Dpp * MetresPerDegree), mxEquator = (float)(job.DppLon * MetresPerDegree);
         float z = Exaggeration(my);
         float lr, lg, lb, minorAlpha, majorAlpha;
         if (pal.Dark) { lr = 178; lg = 168; lb = 148; minorAlpha = 0.3f; majorAlpha = 0.6f; }
@@ -380,7 +390,7 @@ internal static class Raster
         for (int y = from; y < to; y++)
         {
             double lat = job.North - (y + 0.5) * job.Dpp;
-            float mx = my * (float)Math.Max(0.02, Math.Cos(lat * Math.PI / 180.0));
+            float mx = mxEquator * (float)Math.Max(0.02, Math.Cos(lat * Math.PI / 180.0));
             float sx = z / (2f * mx), sy = z / (2f * my);
             int row = (y + 1) * gw + 1;
             int o = y * w * 4;

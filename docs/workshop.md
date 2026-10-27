@@ -5,6 +5,12 @@ owns the item. No SteamCMD needed.
 
 ## Before a release
 
+**1.3.0 waits for the globe map's release (11 Nov 2026).** It is built for the 3D globe map of the public beta and
+stays off on 0.8.7, so uploading it earlier would take the mod away from everyone on the default branch. Until then
+the Workshop item stays on 1.2.0. Upload 1.3.0 (with `workshop/description.bbcode` and `workshop/changenote.txt`) once
+the globe map is on the default branch – and check that Anchor Chain starts there by then
+([seapower-modders/AnchorChain#19](https://github.com/seapower-modders/AnchorChain/issues/19)).
+
 1. Bump the version in `src/SeaPowerTopo/Plugin.cs` (`Version`) and `src/SeaPowerTopo/SeaPowerTopo.csproj`
    (`<Version>`), add the entry to [CHANGELOG.md](../CHANGELOG.md).
 2. Check `src/SeaPowerTopo/mod/_info.ini`: Mod Manager name and description, and `[Compatibility]`
@@ -78,7 +84,7 @@ depths), not in-game captures.
 [tools/shot-director](../tools/shot-director) is a dev-only Anchor Chain plugin (never shipped) that takes commands
 from `<Sea Power>\BepInEx\shotdirector.cmd` – load a mission, set the map centre and zoom, select a unit, hold it at
 an altitude or depth, switch the theme, open the legend, move the mouse – and logs to `shotdirector.log`; the full
-command list is at the top of `Director.cs`. Build it with `dotnet build tools/shot-director -c Release` (deploys to
+command list is at the top of `Director.cs` (it also drives in-game tests: `waitload`, `play` to leave the briefing, `press TEXT` for a button or menu entry, `tree` to dump the UI). Build it with `dotnet build tools/shot-director -c Release` (deploys to
 `StreamingAssets\ShotDirector\`), start the game, write commands into the file, and grab the main monitor at full
 resolution (the game's own `ScreenCapture` fails while the pop-out monitor is active). The current set was taken in
 the mission *Trollfjorden* (NATO): Falk P995 selected for the plain map shots, F-4E 23rd TFS 'Fighting Hawks'-1

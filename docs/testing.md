@@ -186,3 +186,46 @@ cover reading, writing, inheriting, saving, reloading and the broken-file cases;
 
 Worth reporting: a notice that is cut off or hides the buttons, the picker staying open after a click, the folder not
 opening, a file change that is not noticed, a redraw that flickers or shows the old colours.
+
+## 3D globe map, title bar buttons, mission editor (1.3.0, 2026-10-27)
+
+Needs Sea Power on the **public beta** with the globe map (Steam → Sea Power → Properties → Betas → "stable – Public
+Beta", build 261026 or later).
+
+**Anchor Chain on the beta.** Anchor Chain 1.1.0 doesn't start there: its preloader looks for the mod folders before
+the game lists them, the log ends with `Could not find AnchorChain chainloader`, and no Anchor Chain mod loads
+([seapower-modders/AnchorChain#19](https://github.com/seapower-modders/AnchorChain/issues/19)). It also loops forever
+(the game freezes) once any mod's entry point throws, which some mods do on the beta. Until it is fixed, test with the
+dev shim: `dotnet build tools/anchorchain-beta-shim -c Release` puts `AnchorChainBetaShim.dll` into
+`<Sea Power>\BepInEx\plugins`; it starts Anchor Chain once the start-up load screen is done and ends the stuck loop. To
+test this mod alone, `<Sea Power>\BepInEx\config\dev.sewerlabs.anchorchainbetashim.only.txt` with the lines
+`SeaPowerTopo` and `ShotDirector` limits Anchor Chain to those folders. Delete the DLL (and that file) to go back.
+If the game was killed during a start, the next start asks whether to disable all mods: answer **Ignore**.
+
+1. Start the game. Log: `Sea Power Topographic Map 1.3.0 loaded.`, `Map hook in place …`. On the old game (0.8.7) the
+   log says instead that 1.3.0 needs the globe map, and nothing else happens.
+2. Start a mission (Trollfjorden), open the map. Log: `Map layer 'Topography (heights and depths)' added …`,
+   `Topography buttons placed in the map's title bar.`, `World height grid read from …lowres.raw`, `Pre-drawn layer …`.
+3. Title bar, left of ≡: **Topography** (lit), the look's name, **Legend**, **Cursor height** (lit). Topography turns the
+   layer off and on (so does F6 and the Layers menu entry; all three stay in step). The look button opens the list of
+   looks below it; Legend opens the key below the look button, clear of the time controls of a full-screen map.
+   Cursor height switches the readout next to the pointer off and back on.
+4. Zoom in on a coast (Tromsø, 69.65° N 18.95° E, to a few km across) and toggle the layer: the coastline, islands and
+   fjords of the overlay sit exactly on the stock map's. Pan and zoom: the overlay turns with the globe, sharpens a
+   moment after you stop.
+5. Zoom out until the whole globe shows: the overlay covers the side facing you only – nothing mirrored or doubled,
+   nothing from the far side shining through at the edge. Turn the globe: the overlay follows without gaps.
+6. Across the date line (52° N 175° E, Aleutians) and over the North Pole: the overlay is continuous, no seam or gap
+   along 180° or around the pole.
+7. Mouse over land and sea: "Terrain …" / "Sea, … deep"; off the edge of the globe: nothing.
+8. Select an aircraft in the air: terrain at or above its altitude hatched red, the readout gives the clearance.
+   Select a submarine: thermal layer tint and stripes, shallow water hatched red, layer depth and water under the keel
+   in the readout.
+9. Main menu → Mission Editor: the editor's map shows the layer (Standard look), the four buttons at its top right, the
+   legend below them; north is up (Split's mainland north of its islands), the readout works. Zoom in: the view sharpens
+   to DEM detail (the chunks are read in the background, a moment after the first coarse picture). Back to the menu:
+   log `Mission editor map closed.`
+
+Worth reporting: any `[Error  :SeaPowerTopo]` line, the overlay off the coastline by more than a pixel when zoomed in,
+anything on the far side of the globe, a button row that overlaps the game's own buttons, a drop-down hidden behind
+something, stutter while turning the zoomed-out globe.

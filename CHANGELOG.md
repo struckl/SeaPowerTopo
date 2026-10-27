@@ -1,6 +1,28 @@
 # Changelog
 
-## 1.2.0 – unreleased
+## 1.3.0 – unreleased (for the 3D globe map)
+
+For the Sea Power version with the new 3D globe map: the public beta of 26 Oct 2026 (build 261026), due in the
+11 November release. On the older game it stays off with a line in the log; 1.2.0 is the one for 0.8.7. On the beta,
+1.2.0 stops at the first mission (`Update failed: MissingMethodException: … GizmoLayerManager.get_Instance()`) and
+shows nothing.
+
+- **On the globe**: the overlay lies on the new spherical map, cut along the stock map's own 1° grid and drawn in the
+  planes of its triangles, so it sits exactly on the stock tiles at every zoom, at high latitudes, across the date
+  line and over the poles. Only the side of the globe facing the camera is drawn.
+- **Fewer pixels at high latitudes**: the globe shows a degree of longitude cos(latitude) times as wide as one of
+  latitude, and the images are now that much narrower – a third of the pixels at 70° N for the same sharpness.
+- **Buttons in the map's title bar**, left of the map menu (≡): **Topography** (on/off), the **look** (opens the list of
+  looks), **Legend**, **Cursor height** (the readout next to the pointer, on/off). The look list, the legend and the
+  notices drop down below them. They replace the legend and look buttons at the bottom right.
+- **Mission editor**: the editor's map gets the layer too, with the same buttons, legend and cursor readout.
+- The globe map keeps its terrain on the graphics card only, so the mod reads what it needs itself: the 3′ world grid
+  once (52 MB) and the 20° DEM chunks of the view the 3D terrain hasn't loaded (the last six, 11.5 MB each), from the
+  files the game uses – a mod's replacements included.
+- The cursor readout shows nothing off the edge of the globe.
+- The readout and legend switches no longer make the overlay redraw.
+
+## 1.2.0 – 2026-10-25 (Workshop)
 
 - New night look **Black**: dark-grey relief on black with neutral grey contour lines (every fifth bold), a thin light
   coastline, and a sea in colour that fades to black in the deep. Themes can now also grade their land contour lines

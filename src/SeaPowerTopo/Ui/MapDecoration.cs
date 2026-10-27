@@ -9,11 +9,13 @@ using SeaPowerTopo.Terrain;
 namespace SeaPowerTopo.Ui;
 
 /// <summary>
-/// Legend and cursor readout on one map control. Both sit in a grid laid over the map inside the map template's
-/// root grid, so they go wherever the map window goes (maximised, resized, popped out). The grid lets clicks
-/// through; only the legend button and the open legend take them.
-/// <para>The legend button sits bottom right, right-aligned with the map scale just above it, and opens the colour
-/// key above itself; a click on the key closes it again.</para>
+/// The mod's controls on one map control: a row of buttons in the map window's title bar – Topography on/off, the
+/// look, the legend, the cursor readout on/off – the look list, the legend and short notices dropping down below it
+/// at the top right of the map, and the readout next to the pointer.
+/// <para>The buttons go into the title bar's button row, left of the window menu (≡), like the game's own map
+/// controls. A map without such a title bar (the mission editor, a map in another window) gets the same row at its
+/// own top right instead. Everything else sits in a grid laid over the map inside the map template's root grid, so it
+/// goes wherever the map goes; the grid lets clicks through, only the buttons and the open lists take them.</para>
 /// <para>The readout listens on that root grid: preview events tunnel through it before they reach the map, so it
 /// sees every mouse move even when the game's map input handling marks the move as handled.</para>
 /// </summary>
@@ -23,8 +25,9 @@ internal sealed class MapDecoration
     public delegate string Describe(GeoPosition position, out bool warning);
 
     private const float Inset = 10f, Gap = 6f;
-    private const float NoScaleBottom = 40f;          // above the map's bottom edge when there is no scale to go by
-    private const float ScaleSearchSeconds = 2f;
+    private const float HeaderSearchSeconds = 1f;
+    private const int HeaderSearches = 20;
+    private const float BarFontSize = 11f;
 
     public readonly MapBase Map;
 
@@ -32,12 +35,12 @@ internal sealed class MapDecoration
     private readonly Grid root;
     private readonly Border readout;
     private readonly TextBlock readoutText;
-    private readonly StackPanel dock;
-    private readonly Button button;
+    private readonly StackPanel dock, bar;
+    private readonly ToggleButton topoToggle, readoutToggle;
+    private readonly Button legendButton, lookButton;
     private readonly Border notice, picker;
     private readonly TextBlock noticeText, lookText;
     private readonly StackPanel pickerList;
-    private readonly Button lookButton;
     private float noticeUntil;
     private bool pickerOpen;
     private string lookShown;
@@ -48,12 +51,13 @@ internal sealed class MapDecoration
     private readonly MouseEventHandler moveHandler, leaveHandler;
     private readonly SolidColorBrush panelBrush, textBrush, warningBrush, dangerBrush;
 
+    // Where the button row is: the title bar's button row (and the window menu's place in it), or the dock.
+    private Panel header;
+    private float nextHeaderSearch;
+    private int headerSearches;
+
     private bool readoutAllowed;
     private bool loggedFailure;
-
-    private MapScale scale;
-    private float nextScaleSearch;
-    private Thickness dockMargin;
     private bool? shownOpen;
 
     private bool legendBuilt;
@@ -96,7 +100,7 @@ internal sealed class MapDecoration
             Background = panelBrush,
             CornerRadius = new CornerRadius(3),
             Padding = new Thickness(8, 6, 8, 6),
-            Margin = new Thickness(0, 0, 0, Gap),
+            Margin = new Thickness(0, Gap, 0, 0),
             HorizontalAlignment = HorizontalAlignment.Right,
             Child = legendBody,
             Visibility = Visibility.Collapsed,
@@ -107,27 +111,32 @@ internal sealed class MapDecoration
             Settings.LegendOpen.Value = false;
         };
 
-        button = new Button
+        // The title bar's buttons are 20 px high: text only, small.
+        topoToggle = new ToggleButton
         {
             Focusable = false,
-            Padding = new Thickness(6, 2, 7, 2),
-            HorizontalAlignment = HorizontalAlignment.Right,
-            Content = ButtonContent(),
+            Padding = new Thickness(6, 0, 6, 0),
+            Margin = new Thickness(0, 0, 2, 0),
+            VerticalAlignment = VerticalAlignment.Stretch,
+            Content = BarContent("Topography", swatches: true),
+            ToolTip = $"Topography: land heights and sea depths on the map ({Settings.ToggleKey.Value}). Also in the map menu under Map Layers.",
         };
-        button.Click += (sender, args) =>
+        topoToggle.Click += (sender, args) =>
         {
             args.Handled = true;
-            Settings.LegendOpen.Value = !Settings.LegendOpen.Value;
+            TopoHost.Instance?.ToggleLayer();
         };
 
         // The look button names the theme on the map; a click opens the list of themes of the map's current theme.
-        lookText = new TextBlock { FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
+        lookText = new TextBlock { FontSize = BarFontSize, VerticalAlignment = VerticalAlignment.Center };
         lookButton = new Button
         {
             Focusable = false,
-            Padding = new Thickness(6, 2, 7, 2),
-            Margin = new Thickness(0, 0, 4, 0),
+            Padding = new Thickness(6, 0, 6, 0),
+            Margin = new Thickness(0, 0, 2, 0),
+            VerticalAlignment = VerticalAlignment.Stretch,
             Content = lookText,
+            Visibility = Visibility.Collapsed,
         };
         lookButton.Click += (sender, args) =>
         {
@@ -136,13 +145,54 @@ internal sealed class MapDecoration
             picker.Visibility = pickerOpen ? Visibility.Visible : Visibility.Collapsed;
         };
 
+        legendButton = new Button
+        {
+            Focusable = false,
+            Padding = new Thickness(6, 0, 6, 0),
+            Margin = new Thickness(0, 0, 2, 0),
+            VerticalAlignment = VerticalAlignment.Stretch,
+            Content = BarContent("Legend", swatches: false),
+            Visibility = Visibility.Collapsed,
+        };
+        legendButton.Click += (sender, args) =>
+        {
+            args.Handled = true;
+            Settings.LegendOpen.Value = !Settings.LegendOpen.Value;
+        };
+
+        readoutToggle = new ToggleButton
+        {
+            Focusable = false,
+            Padding = new Thickness(6, 0, 6, 0),
+            Margin = new Thickness(0, 0, 6, 0),
+            VerticalAlignment = VerticalAlignment.Stretch,
+            Content = BarContent("Cursor height", swatches: false),
+            ToolTip = "Terrain height or sea depth next to the mouse pointer, on or off",
+        };
+        readoutToggle.Click += (sender, args) =>
+        {
+            args.Handled = true;
+            TopoHost.Instance?.ToggleReadout();
+        };
+
+        bar = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Stretch,
+        };
+        bar.Children.Add(topoToggle);
+        bar.Children.Add(lookButton);
+        bar.Children.Add(legendButton);
+        bar.Children.Add(readoutToggle);
+
         pickerList = new StackPanel { Orientation = Orientation.Vertical };
         picker = new Border
         {
             Background = panelBrush,
             CornerRadius = new CornerRadius(3),
             Padding = new Thickness(6, 6, 6, 5),
-            Margin = new Thickness(0, 0, 0, Gap),
+            Margin = new Thickness(0, Gap, 0, 0),
             HorizontalAlignment = HorizontalAlignment.Right,
             Child = pickerList,
             Visibility = Visibility.Collapsed,
@@ -154,30 +204,24 @@ internal sealed class MapDecoration
             Background = panelBrush,
             CornerRadius = new CornerRadius(3),
             Padding = new Thickness(7, 3, 7, 3),
-            Margin = new Thickness(0, 0, 0, Gap),
+            Margin = new Thickness(0, Gap, 0, 0),
             HorizontalAlignment = HorizontalAlignment.Right,
             Child = noticeText,
             Visibility = Visibility.Collapsed,
             IsHitTestVisible = false,
         };
 
-        var buttonRow = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
-        buttonRow.Children.Add(lookButton);
-        buttonRow.Children.Add(button);
-
-        dockMargin = new Thickness(0, 0, Inset, NoScaleBottom);
+        // Top right, below the title bar: what the buttons open, newest notice first.
         dock = new StackPanel
         {
             Orientation = Orientation.Vertical,
             HorizontalAlignment = HorizontalAlignment.Right,
-            VerticalAlignment = VerticalAlignment.Bottom,
-            Margin = dockMargin,
-            Visibility = Visibility.Collapsed,
+            VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(0, 0, Inset, 0),
         };
         dock.Children.Add(notice);
         dock.Children.Add(picker);
         dock.Children.Add(legend);
-        dock.Children.Add(buttonRow);
 
         // No background: hit tests fall through it to the map everywhere but on the dock.
         root = new Grid();
@@ -189,6 +233,7 @@ internal sealed class MapDecoration
         leaveHandler = OnMouseLeave;
         host.PreviewMouseMove += moveHandler;
         host.MouseLeave += leaveHandler;
+        PlaceBar();
     }
 
     /// <summary>False once the map has left the visual tree (window closed, mission over).</summary>
@@ -201,6 +246,8 @@ internal sealed class MapDecoration
             host.PreviewMouseMove -= moveHandler;
             host.MouseLeave -= leaveHandler;
             host.Children.Remove(root);
+            header?.Children.Remove(bar);
+            header = null;
         }
         catch (Exception ex)
         {
@@ -208,40 +255,139 @@ internal sealed class MapDecoration
         }
     }
 
-    /// <param name="overlayOn">The Topography layer is on (the legend button shows only then).</param>
+    /// <param name="overlayOn">The Topography layer is on (the look and legend buttons show only then).</param>
     /// <param name="readoutOn">The cursor readout may show.</param>
     /// <param name="aircraft">Name of the selected aircraft whose altitude is highlighted, or null.</param>
     /// <param name="submarine">Name of the selected submarine the thermal layer is shown for, or null.</param>
     public void Update(bool overlayOn, bool readoutOn, OverlayRenderer overlay, string aircraft, string submarine)
     {
+        if (header == null && headerSearches < HeaderSearches && UnityEngine.Time.unscaledTime >= nextHeaderSearch)
+            PlaceBar();
+
         readoutAllowed = readoutOn;
         if (!readoutOn && readout.Visibility == Visibility.Visible)
             readout.Visibility = Visibility.Collapsed;
+        SetChecked(topoToggle, overlayOn);
+        SetChecked(readoutToggle, Settings.Readout.Value != ReadoutMode.Off);
 
-        bool showButton = overlayOn && Settings.Legend.Value && overlay.Palette != null && overlay.HasImage;
-        dock.Visibility = showButton ? Visibility.Visible : Visibility.Collapsed;
-        if (!showButton)
+        bool drawn = overlayOn && overlay != null && overlay.Palette != null && overlay.HasImage;
+        SetVisible(lookButton, drawn);
+        SetVisible(legendButton, drawn && Settings.Legend.Value);
+        if (notice.Visibility == Visibility.Visible && UnityEngine.Time.unscaledTime > noticeUntil)
+            notice.Visibility = Visibility.Collapsed;
+        if (!drawn)
+        {
+            SetVisible(picker, false);
+            SetVisible(legend, false);
+            pickerOpen = false;
+            shownOpen = null;
             return;
-        PlaceDock();
+        }
 
         Theme theme = overlay.Theme;
         if (theme != null)
             RefreshLookButton(theme);
-        if (notice.Visibility == Visibility.Visible && UnityEngine.Time.unscaledTime > noticeUntil)
-            notice.Visibility = Visibility.Collapsed;
+        SetVisible(picker, pickerOpen);
+        if (header != null)
+            HangDockFromLookButton();
 
-        bool open = Settings.LegendOpen.Value;
+        bool open = Settings.LegendOpen.Value && Settings.Legend.Value;
         if (shownOpen != open)
         {
             shownOpen = open;
             legend.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
-            button.ToolTip = open ? "Hide the legend" : "Show the legend: height and depth colours, contour step";
+            legendButton.ToolTip = open ? "Hide the legend" : "Show the legend: height and depth colours, contour step";
         }
         if (open)
             RefreshLegend(overlay, aircraft, submarine);
     }
 
-    /// <summary>A line of text above the buttons for a few seconds (the theme that was just chosen).</summary>
+    // In the title bar, what the buttons open hangs below the look button, right edges in line: clear of the game's
+    // own controls in the map's top right corner (the time controls over a full-screen map).
+    private void HangDockFromLookButton()
+    {
+        if (lookButton.ActualWidth <= 0f || root.ActualWidth <= 0f)
+            return;
+        Point edge = root.PointFromScreen(lookButton.PointToScreen(new Point(lookButton.ActualWidth, 0f)));
+        float right = Math.Max(Inset, root.ActualWidth - edge.X);
+        if (right < root.ActualWidth - 60f && Math.Abs(right - dock.Margin.Right) > 0.5f)
+            dock.Margin = new Thickness(0f, 0f, right, 0f);
+    }
+
+    private static void SetChecked(ToggleButton button, bool on)
+    {
+        if (button.IsChecked != on)
+            button.IsChecked = on;
+    }
+
+    private static void SetVisible(UIElement element, bool visible)
+    {
+        Visibility v = visible ? Visibility.Visible : Visibility.Collapsed;
+        if (element.Visibility != v)
+            element.Visibility = v;
+    }
+
+    // The buttons into the map window's title bar, left of its menu (≡); until that is found (the window's template
+    // may not be applied yet), and for good where there is none, at the top of the dock.
+    private void PlaceBar()
+    {
+        nextHeaderSearch = UnityEngine.Time.unscaledTime + HeaderSearchSeconds;
+        headerSearches++;
+        Panel row = FindHeaderRow(out int menuIndex);
+        if (row == null)
+        {
+            if (VisualTreeHelper.GetParent(bar) == null)
+            {
+                bar.Margin = new Thickness(0, Gap, 0, 0);
+                bar.Height = 22;
+                dock.Children.Insert(0, bar);
+            }
+            if (headerSearches == HeaderSearches)
+                ModLog.Info("No title bar on this map: the Topography buttons sit at its top right.");
+            return;
+        }
+        if (VisualTreeHelper.GetParent(bar) is Panel old)
+            old.Children.Remove(bar);
+        bar.Margin = new Thickness(0);
+        bar.Height = float.NaN;
+        row.Children.Insert(menuIndex, bar);
+        header = row;
+        ModLog.Info("Topography buttons placed in the map's title bar.");
+    }
+
+    // The panel holding the map window's menu (≡) and its window buttons: in the window round the map, outside the
+    // map itself.
+    private Panel FindHeaderRow(out int menuIndex)
+    {
+        menuIndex = 0;
+        DependencyObject window = Map;
+        for (int up = 0; up < 40 && window != null && window.GetType().Name != "Window"; up++)
+            window = VisualTreeHelper.GetParent(window);
+        if (window == null || window.GetType().Name != "Window")
+            return null;
+        var queue = new Queue<DependencyObject>();
+        queue.Enqueue(window);
+        for (int seen = 0; queue.Count > 0 && seen < 3000; seen++)
+        {
+            DependencyObject d = queue.Dequeue();
+            if (ReferenceEquals(d, Map))
+                continue;
+            if (d is Menu menu && VisualTreeHelper.GetParent(menu) is Panel row && !ReferenceEquals(row, dock))
+            {
+                menuIndex = row.Children.IndexOf(menu);
+                return menuIndex >= 0 ? row : null;
+            }
+            if (d is Visual v)
+            {
+                int n = VisualTreeHelper.GetChildrenCount(v);
+                for (int i = 0; i < n; i++)
+                    queue.Enqueue(VisualTreeHelper.GetChild(v, i));
+            }
+        }
+        return null;
+    }
+
+    /// <summary>A line of text below the buttons for a few seconds (the theme that was just chosen).</summary>
     public void ShowNotice(string text, float seconds = 2.5f)
     {
         noticeText.Text = text;
@@ -376,18 +522,18 @@ internal sealed class MapDecoration
             return;
         try
         {
-            if (dock.IsMouseOver)
+            if (dock.IsMouseOver || bar.IsMouseOver)
             {
                 Hide();
                 return;
             }
             Point p = e.GetPosition(Map);
-            if (p.X < 0 || p.Y < 0 || p.X > Map.ActualWidth || p.Y > Map.ActualHeight)
+            if (p.X < 0 || p.Y < 0 || p.X > Map.ActualWidth || p.Y > Map.ActualHeight || !TryGeo(p, out GeoPosition at))
             {
                 Hide();
                 return;
             }
-            string text = describe(Map.ViewToGeoPosition(p), out bool warning);
+            string text = describe(at, out bool warning);
             if (text == null)
             {
                 Hide();
@@ -418,65 +564,26 @@ internal sealed class MapDecoration
         }
     }
 
+    // The map position under a point of the map control; false off the globe (its edge is in view when zoomed out).
+    private bool TryGeo(Point p, out GeoPosition at)
+    {
+        MapProjection projection = Map.MapProjection;
+        ViewTransform transform = Map.ViewTransform;
+        if (projection == null || transform == null)
+        {
+            at = Map.ViewToGeoPosition(p);
+            return true;
+        }
+        Point m = transform.ViewToMap(p);
+        return projection.TryMapToGeoPosition(m.X, m.Y, out at);
+    }
+
     private void OnMouseLeave(object sender, MouseEventArgs e) => Hide();
 
     private void Hide()
     {
         if (readout.Visibility != Visibility.Collapsed)
             readout.Visibility = Visibility.Collapsed;
-    }
-
-    // Bottom right: right edge in line with the map scale's, just above it. Without a scale (not found, hidden,
-    // not in the bottom right), a fixed distance above the map's bottom edge.
-    private void PlaceDock()
-    {
-        if (scale != null && VisualTreeHelper.GetParent(scale) == null)
-            scale = null;
-        if (scale == null && UnityEngine.Time.unscaledTime >= nextScaleSearch)
-        {
-            nextScaleSearch = UnityEngine.Time.unscaledTime + ScaleSearchSeconds;
-            scale = FindScale();
-        }
-
-        float right = Inset, bottom = NoScaleBottom;
-        float width = root.ActualWidth, height = root.ActualHeight;
-        if (scale != null && scale.Visibility == Visibility.Visible && scale.ActualHeight > 0f && height > 0f)
-        {
-            Point top = root.PointFromScreen(scale.PointToScreen(new Point(0f, 0f)));
-            float scaleRight = width - (top.X + scale.ActualWidth);
-            if (top.Y > height / 2f && scaleRight >= 0f && scaleRight < width / 2f)
-            {
-                right = scaleRight;
-                bottom = height - top.Y + Gap;
-            }
-        }
-        if (Math.Abs(right - dockMargin.Right) > 0.5f || Math.Abs(bottom - dockMargin.Bottom) > 0.5f)
-        {
-            dockMargin = new Thickness(0f, 0f, right, bottom);
-            dock.Margin = dockMargin;
-        }
-    }
-
-    // The stock map scale in the map's template, breadth first (it sits near the top of the tree).
-    private MapScale FindScale()
-    {
-        var queue = new Queue<Visual>();
-        queue.Enqueue(host);
-        for (int visited = 0; queue.Count > 0 && visited < 4000; visited++)
-        {
-            Visual v = queue.Dequeue();
-            if (v is MapScale found)
-                return found;
-            if (ReferenceEquals(v, root))
-                continue;
-            int n = VisualTreeHelper.GetChildrenCount(v);
-            for (int i = 0; i < n; i++)
-            {
-                if (VisualTreeHelper.GetChild(v, i) is Visual child)
-                    queue.Enqueue(child);
-            }
-        }
-        return null;
     }
 
     private void RefreshLegend(OverlayRenderer overlay, string aircraft, string submarine)
@@ -660,20 +767,24 @@ internal sealed class MapDecoration
         return row;
     }
 
-    // Three little swatches (lowland, hills, sea) and the word; text colour comes from the game's button style.
-    private static UIElement ButtonContent()
+    // The word, after three little swatches (lowland, hills, sea) for the Topography button; the text colour comes
+    // from the game's button style.
+    private static UIElement BarContent(string text, bool swatches)
     {
-        var swatches = new StackPanel
+        var content = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        if (swatches)
         {
-            Orientation = Orientation.Horizontal,
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(0, 0, 5, 0),
-        };
-        foreach (Color c in new[] { Color.FromArgb(255, 118, 170, 84), Color.FromArgb(255, 206, 120, 64), Color.FromArgb(255, 66, 92, 130) })
-            swatches.Children.Add(new Rectangle { Width = 4, Height = 10, Fill = new SolidColorBrush(c) });
-        var content = new StackPanel { Orientation = Orientation.Horizontal };
-        content.Children.Add(swatches);
-        content.Children.Add(new TextBlock { Text = "Legend", FontSize = 12, VerticalAlignment = VerticalAlignment.Center });
+            var colours = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 5, 0),
+            };
+            foreach (Color c in new[] { Color.FromArgb(255, 118, 170, 84), Color.FromArgb(255, 206, 120, 64), Color.FromArgb(255, 66, 92, 130) })
+                colours.Children.Add(new Rectangle { Width = 4, Height = 10, Fill = new SolidColorBrush(c) });
+            content.Children.Add(colours);
+        }
+        content.Children.Add(new TextBlock { Text = text, FontSize = BarFontSize, VerticalAlignment = VerticalAlignment.Center });
         return content;
     }
 }
