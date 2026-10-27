@@ -62,8 +62,6 @@ internal sealed class TopoHost : MonoBehaviour
     private bool missionActive;
     private int errors;
 
-    private ReadoutMode readoutWhenOn = ReadoutMode.WithOverlay;
-
     private string aircraftName;
     private float aircraftAltitude = float.NaN;
     private string submarineName;
@@ -261,8 +259,7 @@ internal sealed class TopoHost : MonoBehaviour
         {
             OverlayRenderer layer = drawn[i];
             showing[i] = predraw && haveView && layer.HasImage && viewDpp <= layer.AreaDpp * MaxShrink;
-            if (showing[i] && primary == null && layer.Area.Value.Contains(view.Near(layer.Area.Value.CentreLon)) &&
-                viewDpp >= layer.AreaDpp / MaxStretch)
+            if (showing[i] && primary == null && layer.Area.Value.Holds(view) && viewDpp >= layer.AreaDpp / MaxStretch)
                 primary = layer;
         }
 
@@ -413,19 +410,14 @@ internal sealed class TopoHost : MonoBehaviour
         ModLog.Info($"Topography {(layer.Visible ? "on" : "off")}.");
     }
 
-    /// <summary>The cursor readout off, or back on the way it was set before (with the layer on, by default).</summary>
+    /// <summary>
+    /// The cursor readout off if it shows now, else on: with the layer (as by default) while the layer is on, always
+    /// while it is off – the readout appears either way.
+    /// </summary>
     internal void ToggleReadout()
     {
-        ReadoutMode mode = Settings.Readout.Value;
-        if (mode == ReadoutMode.Off)
-        {
-            Settings.Readout.Value = readoutWhenOn;
-        }
-        else
-        {
-            readoutWhenOn = mode;
-            Settings.Readout.Value = ReadoutMode.Off;
-        }
+        bool layerOn = layer.Visible;
+        Settings.Readout.Value = ReadoutOn(layerOn) ? ReadoutMode.Off : layerOn ? ReadoutMode.WithOverlay : ReadoutMode.Always;
         ModLog.Info($"Cursor readout {Settings.Readout.Value}.");
     }
 

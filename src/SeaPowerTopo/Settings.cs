@@ -121,7 +121,8 @@ internal static class Settings
 
         Readout = file.Bind("3. Readout and legend", "Height under cursor", ReadoutMode.WithOverlay,
             "Show the terrain height under the mouse pointer on the map: WithOverlay (while the Topography layer " +
-            "is on), Always, or Off. The Cursor height button in the map's title bar switches it off and back on.");
+            "is on), Always, or Off. The Cursor height button in the map's title bar is lit while the readout shows and " +
+            "switches it: off, or on (WithOverlay while the layer is on, Always while it is off).");
         Legend = file.Bind("3. Readout and legend", "Legend", true,
             "Show the Legend button in the map's title bar while the layer is on; it opens the colour key with the " +
             "contour interval.");

@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Runtime.CompilerServices;
 using AnchorChain;
 using BepInEx;
 using HarmonyLib;
@@ -26,6 +27,20 @@ public class Plugin : IAnchorChainMod
 
     public void TriggerEntryPoint()
     {
+        // Built for the 3D globe map (public beta of 26 Oct 2026, the 11 November release). On an older game the
+        // flat-map build next to it (SeaPowerTopoFlat.dll, the 1.2.0 code) runs instead.
+        if (Type.GetType("SeapowerUI.MapDisplayState, Seapower-Scripts") == null)
+        {
+            ModLog.Info("This game has the flat map: the flat-map build runs, the globe build stays off.");
+            return;
+        }
+        Start();
+    }
+
+    // Apart from the check above, so nothing in here is compiled on a game it isn't for.
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void Start()
+    {
         if (AppDomain.CurrentDomain.GetData(LoadedMarker) != null)
         {
             ModLog.Warn("Already loaded from another folder; skipping this copy.");
@@ -35,13 +50,6 @@ public class Plugin : IAnchorChainMod
 
         try
         {
-            // Built for the globe map (public beta of 26 Oct 2026, the November release): older games lack its types.
-            if (Type.GetType("SeapowerUI.MapDisplayState, Seapower-Scripts") == null)
-            {
-                ModLog.Error($"{Name} {Version} needs the Sea Power version with the 3D globe map (public beta from 26 Oct 2026); " +
-                             "this game is older - mod inactive. Topographic Map 1.2.0 is the one for it.");
-                return;
-            }
             Settings.Init();
             if (!Settings.Enabled.Value)
             {

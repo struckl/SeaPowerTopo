@@ -1,11 +1,13 @@
 # Changelog
 
-## 1.3.0 – unreleased (for the 3D globe map)
+## 1.3.0 – unreleased (for both maps: 0.8.7 and the 3D globe)
 
-For the Sea Power version with the new 3D globe map: the public beta of 26 Oct 2026 (build 261026), due in the
-11 November release. On the older game it stays off with a line in the log; 1.2.0 is the one for 0.8.7. On the beta,
-1.2.0 stops at the first mission (`Update failed: MissingMethodException: … GizmoLayerManager.get_Instance()`) and
-shows nothing.
+For the Sea Power version with the new 3D globe map – the public beta of 26 Oct 2026 (build 261026), due in the
+11 November release – and still for 0.8.7. The package carries two builds: `SeaPowerTopo.dll` for the globe map and
+`SeaPowerTopoFlat.dll` (the 1.2.0 code, from the `flat-map` branch) for the flat map of 0.8.7. Each stays off on the
+game the other is for (one line in the log says which runs), so the Workshop item works on both and switches over by
+itself when the globe map reaches the default branch. On the beta, 1.2.0 stops at the first mission
+(`Update failed: MissingMethodException: … GizmoLayerManager.get_Instance()`) and shows nothing.
 
 - **On the globe**: the overlay lies on the new spherical map, cut along the stock map's own 1° grid and drawn in the
   planes of its triangles, so it sits exactly on the stock tiles at every zoom, at high latitudes, across the date
@@ -16,6 +18,11 @@ shows nothing.
   looks), **Legend**, **Cursor height** (the readout next to the pointer, on/off). The look list, the legend and the
   notices drop down below them. They replace the legend and look buttons at the bottom right.
 - **Mission editor**: the editor's map gets the layer too, with the same buttons, legend and cursor readout.
+- The **Cursor height** button is lit only while the readout really shows, and a click turns it on even with the layer
+  off (setting *Always*) or off – before, it could look on while the readout was hidden with the layer.
+- No double colours along the date line when the view reaches past it (a Pacific mission, the whole globe): a layer's
+  hole for the one in front is cut a turn east and west as well.
+- With the whole globe in view the pre-drawn world layer is enough – no live redraw of the whole globe.
 - The globe map keeps its terrain on the graphics card only, so the mod reads what it needs itself: the 3′ world grid
   once (52 MB) and the 20° DEM chunks of the view the 3D terrain hasn't loaded (the last six, 11.5 MB each), from the
   files the game uses – a mod's replacements included.

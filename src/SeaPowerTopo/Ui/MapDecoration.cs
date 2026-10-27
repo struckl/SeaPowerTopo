@@ -167,7 +167,7 @@ internal sealed class MapDecoration
             Margin = new Thickness(0, 0, 6, 0),
             VerticalAlignment = VerticalAlignment.Stretch,
             Content = BarContent("Cursor height", swatches: false),
-            ToolTip = "Terrain height or sea depth next to the mouse pointer, on or off",
+            ToolTip = "Terrain height or sea depth next to the mouse pointer: lit while it shows; click to switch it off or on (also with Topography off)",
         };
         readoutToggle.Click += (sender, args) =>
         {
@@ -268,7 +268,7 @@ internal sealed class MapDecoration
         if (!readoutOn && readout.Visibility == Visibility.Visible)
             readout.Visibility = Visibility.Collapsed;
         SetChecked(topoToggle, overlayOn);
-        SetChecked(readoutToggle, Settings.Readout.Value != ReadoutMode.Off);
+        SetChecked(readoutToggle, readoutOn);
 
         bool drawn = overlayOn && overlay != null && overlay.Palette != null && overlay.HasImage;
         SetVisible(lookButton, drawn);

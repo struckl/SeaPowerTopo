@@ -5,11 +5,13 @@ owns the item. No SteamCMD needed.
 
 ## Before a release
 
-**1.3.0 waits for the globe map's release (11 Nov 2026).** It is built for the 3D globe map of the public beta and
-stays off on 0.8.7, so uploading it earlier would take the mod away from everyone on the default branch. Until then
-the Workshop item stays on 1.2.0. Upload 1.3.0 (with `workshop/description.bbcode` and `workshop/changenote.txt`) once
-the globe map is on the default branch – and check that Anchor Chain starts there by then
-([seapower-modders/AnchorChain#19](https://github.com/seapower-modders/AnchorChain/issues/19)).
+**Two builds in one package (1.3.0 on).** Sea Power 0.8.7 (flat map) and the globe map (public beta from 26 Oct 2026,
+the 11 November release) need different code, so the package carries both: `SeaPowerTopo.dll` from this branch and
+`SeaPowerTopoFlat.dll`, the 1.2.0 code with a version check, from the `flat-map` branch. Each stays off on the game the
+other is for. `tools\package.ps1` builds the flat one in a temporary worktree against a copy of 0.8.7's
+`Sea Power_Data\Managed` (default `E:\Project\Mods\_gamerefs\SeaPower-0.8.7-public\Managed`, or `-FlatManagedDir`). Run
+the release checks on both game versions (Steam → Sea Power → Properties → Betas). Once the globe map is on the default
+branch the flat-map build can go (`-NoFlat`).
 
 1. Bump the version in `src/SeaPowerTopo/Plugin.cs` (`Version`) and `src/SeaPowerTopo/SeaPowerTopo.csproj`
    (`<Version>`), add the entry to [CHANGELOG.md](../CHANGELOG.md).
@@ -35,8 +37,8 @@ the item (the tool refuses any other).
 dotnet build tools\workshop-upload -c Release
 # read-only: shows the item's title, owner, visibility and last update
 dotnet run --project tools\workshop-upload -c Release --no-build -- check 3826122523
-# content folder + change note (+ optional new description); title, tags, visibility and preview stay as they are
-dotnet run --project tools\workshop-upload -c Release --no-build -- upload 3826122523 "<Sea Power>\Sea Power_Data\StreamingAssets\SeaPowerTopo" workshop\changenote.txt workshop\description.bbcode
+# content folder + change note (+ optional new description, main picture, page pictures); title, tags, visibility stay
+dotnet run --project tools\workshop-upload -c Release --no-build -- upload 3826122523 "<Sea Power>\Sea Power_Data\StreamingAssets\SeaPowerTopo" workshop\changenote.txt workshop\description.bbcode --preview workshop\preview.jpg --screenshots workshop\screenshots
 ```
 
 `Result: k_EResultOK` = done; the entry shows on the item's Change Notes page. The same tool is in the Pop-Out and Radio
@@ -65,14 +67,18 @@ owner (Steam client or browser) → right column **Owner Controls** → **Add/ed
 
 | Image | Shows |
 | --- | --- |
-| 01-relief | the Lyngen Alps and the fjords around Tromsø: height tint, hill shading, contours, cursor readout |
-| 02-sea-depth | the shelf edge and the Lofoten Basin, legend open with heights and depths |
-| 03-aircraft-clearance | an F-4E at 1,200 m: terrain above it hatched red, readout "90 m above F-4E …" |
-| 04-submarine-layer | a Kobben at 100 m: thermal-layer tiles, water too shallow hatched red, keel readout |
-| 05-overview | zoomed out over Scandinavia and the North Atlantic (the pre-drawn world layer) |
-| 06-night-theme | the fjords in the map's night theme |
-| 07-close-up | a fjord close in: 50 m contours, depth lines |
-| 08-layers-menu | the Topography entry in the map's Layers menu |
+| 01-overview-standard | the whole globe in Standard, the mission's play area over the Norwegian Sea |
+| 02-overview-combat | the same in Combat display (night map), depth readout over the Black Sea shelf |
+| 03-closeup-standard | the Lyngen Alps and the fjords around Tromsø, readout "Terrain 1,090 m" |
+| 04-closeup-combat | Lofoten and the shelf edge in Combat display, legend open, depth readout |
+| 05-aircraft | an F-4E held at 1,200 m: terrain above it hatched red, readout "88 m above F-4E …" |
+| 06-submarine | a Kobben held at 100 m: thermal layer, shallow water hatched red, layer and keel readout |
+| 07-controls | the title bar buttons with the night map's look list open (top right, full resolution) |
+| 08-editor | the mission editor's map over the Adriatic in Standard, depth readout |
+
+All from the globe beta (build 261026) with `tools/shot-director` (`watermark off` hides the beta's version text,
+`symbols off` the unit symbols for the preview); `preview.jpg` is the globe at minimum zoom in Standard, cut out of
+the map with everything outside it black.
 
 `screenshots/midnight-renders/` has five 2560x1440 pictures of the Midnight look (the night default of 1.1.0): fjords,
 shelf edge, aircraft clearance, submarine layer, overview. They are renders from `tools/topo-preview` (the mod's own

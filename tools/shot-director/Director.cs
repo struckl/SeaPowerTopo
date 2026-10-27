@@ -40,10 +40,14 @@ namespace ShotDirector;
 /// tc FACTOR | pause | unpause            time compression
 /// topo SETTING VALUE                     a SeaPowerTopo config entry, e.g. topo LegendOpen true
 /// hud on|off
+/// watermark off                          hide the beta's version watermark (for screenshots)
+/// symbols off|on                       hide the map's unit symbols, labels and drawn areas (on screen only, not saved)
+/// hide TITLE                             collapse the game window whose title contains TITLE (e.g. Formation Manager)
 /// tree [UP|all]                          the UI tree from UP (6) levels above the map control (all: every view)
 ///                                        to shotdirector-tree.txt
 /// press TEXT                             a button, menu item or tab whose text contains TEXT (first visible one)
-/// menu                                   open the map window's menu (the ≡ in its title bar)
+/// menu [close]                           open (or close) the map window's menu (the ≡ in its title bar)
+/// geo X Y                                map position under a screen point (physical pixels), the game's way and the float way
 /// mapwin                                 map back to a window (not full screen)
 /// shot NAME                             screenshot to BepInEx/shots/NAME.png
 /// quit
@@ -222,6 +226,17 @@ internal sealed class Director : MonoBehaviour
                 MainGameViewModel.SetHudVisible(a[1] == "on");
                 Log(line);
                 break;
+            case "watermark":
+                if (Singleton<VersionWatermark>.InstanceExists())
+                    Singleton<VersionWatermark>.Instance.gameObject.SetActive(a.Length > 1 && a[1] == "on");
+                Log(line);
+                break;
+            case "hide":
+                HideWindow(rest);
+                break;
+            case "symbols":
+                Symbols(a[1] == "on");
+                break;
             case "tree":
                 if (a.Length > 1 && a[1] == "all")
                     TreeAll();
@@ -231,8 +246,11 @@ internal sealed class Director : MonoBehaviour
             case "press":
                 Press(rest);
                 break;
+            case "geo":
+                Geo(F(a[1]), F(a[2]));
+                break;
             case "menu":
-                OpenMapMenu();
+                OpenMapMenu(open: !(a.Length > 1 && a[1] == "close"));
                 break;
             case "mapwin":
                 if (Globals._mainGameViewModel?.Map?.IsFullscreen == true)
@@ -445,7 +463,62 @@ internal sealed class Director : MonoBehaviour
         Log($"press: nothing visible says '{text}'");
     }
 
-    private void OpenMapMenu()
+    private void Symbols(bool on)
+    {
+        MapBase map = Maps().OrderByDescending(m => m.ActualWidth * m.ActualHeight).FirstOrDefault();
+        if (map == null)
+        {
+            Log("symbols: no map");
+            return;
+        }
+        int n = 0;
+        foreach (DependencyObject d in Descendants(map))
+        {
+            if (d is FrameworkElement e && (e.GetType().Name == "GizmoLayer" || e.GetType().Name == "MapLabelLayer" || e.GetType().Name == "MapGeometryLayer"))
+            {
+                e.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
+                n++;
+            }
+        }
+        Log($"symbols {(on ? "on" : "off")}: {n} layers");
+    }
+
+    // The game's windows are elements of a type named Window with their title as the first text inside.
+    private void HideWindow(string title)
+    {
+        foreach (FrameworkElement e in Elements())
+        {
+            if (e.GetType().Name != "Window" || !e.IsVisible)
+                continue;
+            string shown = TextOf(e);
+            if (shown == null || shown.IndexOf(title, StringComparison.OrdinalIgnoreCase) < 0)
+                continue;
+            e.Visibility = Visibility.Collapsed;
+            Log($"hide '{shown}'");
+            return;
+        }
+        Log($"hide: no window '{title}'");
+    }
+
+    private void Geo(float x, float y)
+    {
+        MapBase map = Maps().OrderByDescending(m => m.ActualWidth * m.ActualHeight).FirstOrDefault();
+        if (map == null)
+        {
+            Log("geo: no map");
+            return;
+        }
+        Point p = map.PointFromScreen(new Point(x, y));
+        bool on = map.TryViewToGeoPosition(p, out GeoPosition precise);
+        Point m = map.ViewTransform.ViewToMap(p);
+        bool on2 = map.MapProjection.TryMapToGeoPosition(m.X, m.Y, out GeoPosition viaFloat);
+        GeoPosition plain = map.ViewToGeoPosition(p);
+        Log($"geo screen {x},{y} -> map {p.X:0.0},{p.Y:0.0} of {map.ActualWidth:0}x{map.ActualHeight:0}: " +
+            $"precise {precise.Latitude:0.0000},{precise.Longitude:0.0000} ({on}), float {viaFloat.Latitude:0.0000},{viaFloat.Longitude:0.0000} ({on2}), " +
+            $"plain {plain.Latitude:0.0000},{plain.Longitude:0.0000}; centre {map.Center}");
+    }
+
+    private void OpenMapMenu(bool open)
     {
         MapBase map = Maps().OrderByDescending(m => m.ActualWidth * m.ActualHeight).FirstOrDefault();
         DependencyObject d = map;
@@ -457,8 +530,8 @@ internal sealed class Director : MonoBehaviour
             Log("menu: no menu in the map window");
             return;
         }
-        item.IsSubmenuOpen = true;
-        Log($"menu: opened, {item.Items.Count} entries");
+        item.IsSubmenuOpen = open;
+        Log($"menu: {(open ? "opened" : "closed")}, {item.Items.Count} entries");
     }
 
     private static IEnumerable<DependencyObject> Descendants(DependencyObject root)

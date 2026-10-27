@@ -33,6 +33,10 @@ internal readonly struct GeoRect : IEquatable<GeoRect>
 
     public bool Contains(GeoRect r) => r.West >= West && r.East <= East && r.South >= South && r.North <= North;
 
+    /// <summary>Holds <paramref name="r"/> in any turn of longitude; a rectangle all the way round holds any longitudes.</summary>
+    public bool Holds(GeoRect r) => r.South >= South && r.North <= North &&
+                                    (Width >= 360.0 - 1e-9 || Contains(r.Near(CentreLon)));
+
     /// <summary>The same rectangle a whole number of turns east or west, nearest <paramref name="lon"/>.</summary>
     public GeoRect Near(double lon)
     {
@@ -540,10 +544,16 @@ internal sealed class OverlayRenderer
         var cut = new List<UnitRect>(holes.Count);
         foreach (GeoRect hole in holes)
         {
-            // A hole may be given a turn east or west of the image (both cross the date line in their own way).
-            GeoRect h = hole.Near(r.CentreLon);
-            cut.Add(new UnitRect(Unit(h.West, r.West, r.Width), Unit(h.South, r.South, r.Height),
-                                 Unit(h.East, r.West, r.Width), Unit(h.North, r.South, r.Height)));
+            // Each layer counts its longitudes in its own turn: a hole past the date line of this image (the world's
+            // -180..180 under a view across 180°) lies partly a turn east or west of it, so it is cut in all three.
+            for (int turn = -1; turn <= 1; turn++)
+            {
+                double west = hole.West + turn * 360.0, east = hole.East + turn * 360.0;
+                if (east <= r.West || west >= r.East)
+                    continue;
+                cut.Add(new UnitRect(Unit(west, r.West, r.Width), Unit(hole.South, r.South, r.Height),
+                                     Unit(east, r.West, r.Width), Unit(hole.North, r.South, r.Height)));
+            }
         }
         var parts = new List<GeoRect>();
         foreach (UnitRect part in Cutout.Rects(cut))

@@ -3,8 +3,8 @@
 **[Get it on the Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3826122523)** – requires
 [Anchor Chain](https://steamcommunity.com/sharedfiles/filedetails/?id=3380210757).
 
-> **Version 1.3.0 (this branch) is for Sea Power's new 3D globe map** – the public beta of 26 Oct 2026, due in the
-> 11 November release. The Workshop item stays on 1.2.0 (for 0.8.7) until that release; see [Compatibility](#compatibility).
+> **Version 1.3.0 works on both maps**: Sea Power 0.8.7 and the new 3D globe map (public beta of 26 Oct 2026, the
+> 11 November release) – see [Compatibility](#compatibility).
 
 A mod for [Sea Power: Naval Combat in the Missile Age](https://store.steampowered.com/app/1286220/) that makes land
 heights and sea depths readable on the tactical map – for low-level flying, terrain masking and radar horizons, and
@@ -88,13 +88,14 @@ redraw):
 | Thermal layer for selected submarine | The thermal layer, shallow-water hatching and keel readout |
 | Resolution | Overlay resolution relative to the map's (lower = faster) |
 | Pre-draw mission area | Draw the mission area and the world once at mission start (less drawing while playing) |
-| Height under cursor, Legend, Units | Readout with the layer / always / off (also the Cursor height button), legend button, metres / feet / both |
+| Height under cursor, Legend, Units | Readout with the layer / always / off (the Cursor height button is lit while it shows and switches it), legend button, metres / feet / both |
 
 ## Compatibility
 
-- **1.3.0: Sea Power with the 3D globe map** – the public beta of 26 Oct 2026 (build 261026) and the 11 November
-  release. On an older game it stays off and says so in the log. **1.2.0** is the version for 0.8.7 (the flat map); on
-  the globe beta it stops at the first mission (`MissingMethodException … GizmoLayerManager.get_Instance()`).
+- **Both maps in one package**: `SeaPowerTopo.dll` is the build for the 3D globe map (public beta of 26 Oct 2026,
+  build 261026, and the 11 November release), `SeaPowerTopoFlat.dll` the one for 0.8.7's flat map (the 1.2.0 code, kept
+  on the `flat-map` branch). Each stays off on the game the other is for; the log says which runs. They share the
+  config file and theme files. (1.2.0 alone stops on the globe beta at the first mission.)
 - **Anchor Chain on the beta:** Anchor Chain 1.1.0 doesn't start on the globe beta – its preloader looks for the mod
   folders before the game has listed them, so *no* Anchor Chain mod loads
   ([seapower-modders/AnchorChain#19](https://github.com/seapower-modders/AnchorChain/issues/19)). Until Anchor Chain is
@@ -118,7 +119,8 @@ dotnet build src/SeaPowerTopo/SeaPowerTopo.csproj -c Release -p:GameDir="C:\Prog
 ```
 
 The build copies the mod into `<Sea Power>\Sea Power_Data\StreamingAssets\SeaPowerTopo\` (`-p:Deploy=false` to
-skip). `GameDir` can also be set as an environment variable. Release packaging and the Workshop upload are described
+skip). The release package (`tools/package.ps1`) adds the flat-map build from the `flat-map` branch, compiled against
+a copy of 0.8.7's `Sea Power_Data\Managed` (`-FlatManagedDir`). `GameDir` can also be set as an environment variable. Release packaging and the Workshop upload are described
 in [docs/workshop.md](docs/workshop.md); in-game test checklists are in [docs/testing.md](docs/testing.md).
 
 Offline preview with the plugin's own colouring code and the game's terrain files – handy for tuning colours:

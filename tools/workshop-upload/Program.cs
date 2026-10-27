@@ -1,19 +1,25 @@
 // Updates the mod's Steam Workshop item through the running Steam client – the same calls the game's
 // Mods > Create Mod makes for an existing item (CreateModMenuViewModel.SubmitToWorkshop), minus everything this
-// update doesn't touch: title, description, tags, preview, visibility, dependencies and the compatibility metadata
-// stay as they are on the item. Needs Steam running, signed in with the account that owns the item; no password.
+// update doesn't touch: title, tags, visibility, dependencies and the compatibility metadata stay as they are on the
+// item. Needs Steam running, signed in with the account that owns the item; no password.
 //
 //   dotnet run --project tools/workshop-upload -- check  <item id>
 //   dotnet run --project tools/workshop-upload -- upload <item id> <content folder> <change note file> [description file]
+//                                                        [--preview <image>] [--screenshots <folder>]
 //
 // With a description file (BBCode, UTF-8) the item's description is replaced too; without one it stays as it is.
+// --preview replaces the item's main picture (JPG/PNG under 1 MB). --screenshots replaces the pictures on the item's
+// page: the ones there are removed and every .jpg/.png of the folder added, in file name order.
 using Steamworks;
 
 const uint SeaPowerAppId = 1286220;
 
+string preview = Option("--preview"), screenshots = Option("--screenshots");
+args = args.Where(a => a != "--preview" && a != "--screenshots" && a != preview && a != screenshots).ToArray();
 if (args.Length < 2 || (args[0] == "upload" && args.Length < 4) || !ulong.TryParse(args[1], out ulong itemId))
 {
-    Console.Error.WriteLine("usage: check <item id> | upload <item id> <content folder> <change note file> [description file]");
+    Console.Error.WriteLine("usage: check <item id> | upload <item id> <content folder> <change note file> [description file] " +
+                            "[--preview <image>] [--screenshots <folder>]");
     return 2;
 }
 
@@ -29,10 +35,10 @@ if (!SteamAPI.Init())
 try
 {
     var item = new PublishedFileId_t(itemId);
-    if (!Details(item, out SteamUGCDetails_t details))
+    if (!Details(item, out SteamUGCDetails_t details, out uint pictures))
         return 1;
     Console.WriteLine($"Item {itemId}: \"{details.m_rgchTitle}\", owner {details.m_ulSteamIDOwner}, " +
-                      $"visibility {details.m_eVisibility}, updated {DateTimeOffset.FromUnixTimeSeconds(details.m_rtimeUpdated):u}");
+                      $"visibility {details.m_eVisibility}, {pictures} pictures, updated {DateTimeOffset.FromUnixTimeSeconds(details.m_rtimeUpdated):u}");
     ulong me = SteamUser.GetSteamID().m_SteamID;
     if (details.m_ulSteamIDOwner != me)
     {
@@ -62,6 +68,39 @@ try
         SteamUGC.SetItemDescription(update, description);
         Console.WriteLine($"New description: {description.Length} characters.");
     }
+    if (preview != null)
+    {
+        string file = Path.GetFullPath(preview);
+        if (new FileInfo(file).Length >= 1024 * 1024 || !SteamUGC.SetItemPreview(update, file.Replace("\\", "/")))
+        {
+            Console.Error.WriteLine($"Preview {file} refused (Steam takes JPG/PNG under 1 MB).");
+            return 1;
+        }
+        Console.WriteLine($"New preview: {file}");
+    }
+    if (screenshots != null)
+    {
+        string[] files = Directory.GetFiles(Path.GetFullPath(screenshots))
+            .Where(f => f.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+            .OrderBy(f => Path.GetFileName(f), StringComparer.Ordinal).ToArray();
+        if (files.Length == 0)
+        {
+            Console.Error.WriteLine($"No .jpg or .png in {screenshots}.");
+            return 1;
+        }
+        // From the last down, so the indices of the ones still to go stay put.
+        for (uint i = pictures; i-- > 0;)
+            SteamUGC.RemoveItemPreview(update, i);
+        foreach (string file in files)
+        {
+            if (!SteamUGC.AddItemPreviewFile(update, file.Replace("\\", "/"), EItemPreviewType.k_EItemPreviewType_Image))
+            {
+                Console.Error.WriteLine($"Picture {file} refused.");
+                return 1;
+            }
+        }
+        Console.WriteLine($"Pictures: {pictures} removed, {files.Length} added ({string.Join(", ", files.Select(Path.GetFileName))}).");
+    }
     SubmitItemUpdateResult_t result = default;
     bool done = false, ioFailure = false;
     var call = CallResult<SubmitItemUpdateResult_t>.Create((r, failed) => { result = r; ioFailure = failed; done = true; });
@@ -82,8 +121,8 @@ try
     Console.WriteLine($"Result: {result.m_eResult}{(ioFailure ? " (I/O failure)" : "")}");
     if (result.m_bUserNeedsToAcceptWorkshopLegalAgreement)
         Console.WriteLine("Steam wants the Workshop legal agreement accepted on the item page before it goes live.");
-    if (Details(item, out details))
-        Console.WriteLine($"Item now updated {DateTimeOffset.FromUnixTimeSeconds(details.m_rtimeUpdated):u}");
+    if (Details(item, out details, out pictures))
+        Console.WriteLine($"Item now updated {DateTimeOffset.FromUnixTimeSeconds(details.m_rtimeUpdated):u}, {pictures} pictures");
     return result.m_eResult == EResult.k_EResultOK && !ioFailure ? 0 : 1;
 }
 finally
@@ -91,10 +130,19 @@ finally
     SteamAPI.Shutdown();
 }
 
-static bool Details(PublishedFileId_t item, out SteamUGCDetails_t details)
+// The value after an option such as --preview, or null.
+string Option(string name)
+{
+    int i = Array.IndexOf(args, name);
+    return i >= 0 && i + 1 < args.Length ? args[i + 1] : null;
+}
+
+static bool Details(PublishedFileId_t item, out SteamUGCDetails_t details, out uint pictures)
 {
     details = default;
+    pictures = 0;
     UGCQueryHandle_t query = SteamUGC.CreateQueryUGCDetailsRequest(new[] { item }, 1);
+    SteamUGC.SetReturnAdditionalPreviews(query, true);
     SteamUGCQueryCompleted_t completed = default;
     bool done = false, failed = false;
     var call = CallResult<SteamUGCQueryCompleted_t>.Create((r, f) => { completed = r; failed = f; done = true; });
@@ -107,6 +155,8 @@ static bool Details(PublishedFileId_t item, out SteamUGCDetails_t details)
     }
     bool ok = done && !failed && completed.m_eResult == EResult.k_EResultOK && completed.m_unNumResultsReturned > 0
               && SteamUGC.GetQueryUGCResult(query, 0, out details) && details.m_eResult == EResult.k_EResultOK;
+    if (ok)
+        pictures = SteamUGC.GetQueryUGCNumAdditionalPreviews(query, 0);
     SteamUGC.ReleaseQueryUGCRequest(query);
     if (!ok)
         Console.Error.WriteLine($"Could not read item {item.m_PublishedFileId} ({(done ? completed.m_eResult.ToString() : "timeout")}).");

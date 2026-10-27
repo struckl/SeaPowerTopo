@@ -229,3 +229,15 @@ If the game was killed during a start, the next start asks whether to disable al
 Worth reporting: any `[Error  :SeaPowerTopo]` line, the overlay off the coastline by more than a pixel when zoomed in,
 anything on the far side of the globe, a button row that overlaps the game's own buttons, a drop-down hidden behind
 something, stutter while turning the zoomed-out globe.
+
+### The combined package (1.3.0)
+
+`powershell -ExecutionPolicy Bypass -File tools\package.ps1 -Install` puts both builds into
+`StreamingAssets\SeaPowerTopo` (`SeaPowerTopo.dll`, `SeaPowerTopoFlat.dll`). Start the game on each branch:
+
+- **Globe beta:** the log has `Sea Power Topographic Map 1.3.0 loaded.` and `This game has the 3D globe map: the globe
+  build runs, the flat-map build stays off.`; Anchor Chain lists both plugins (`dev.sewerlabs.seapowertopo` and
+  `…seapowertopo.flatmap`). The checklist above applies.
+- **0.8.7 (default branch):** `This game has the flat map: the flat-map build runs, the globe build stays off.` and
+  `Sea Power Topographic Map (flat map) 1.3.0 loaded.`; a mission shows the 1.2.0 overlay, legend and look buttons at
+  the bottom right, no `[Error  :SeaPowerTopo]` line.
