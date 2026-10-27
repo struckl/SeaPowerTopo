@@ -41,6 +41,8 @@ dotnet build tools\workshop-upload -c Release
 dotnet run --project tools\workshop-upload -c Release --no-build -- check 3826122523
 # content folder + change note (+ optional new description, main picture, page pictures); title, tags, visibility stay
 dotnet run --project tools\workshop-upload -c Release --no-build -- upload 3826122523 "<Sea Power>\Sea Power_Data\StreamingAssets\SeaPowerTopo" workshop\changenote.txt workshop\description.bbcode --preview workshop\preview.jpg --screenshots workshop\screenshots
+# only the pictures (main picture and/or page pictures): content, description and change notes stay
+dotnet run --project tools\workshop-upload -c Release --no-build -- pictures 3826122523 --preview workshop\preview.jpg
 ```
 
 `Result: k_EResultOK` = done; the entry shows on the item's Change Notes page. The same tool is in the Pop-Out and Radio
@@ -80,7 +82,9 @@ owner (Steam client or browser) → right column **Owner Controls** → **Add/ed
 
 All from the globe beta (build 261026) with `tools/shot-director` (`watermark off` hides the beta's version text,
 `symbols off` the unit symbols for the preview); `preview.jpg` is the globe at minimum zoom in Standard, cut out of
-the map with everything outside it black.
+the map onto black, with the title band of the other Sea Power mods (Pop-Out Windows, Radio) over its bottom:
+`python tools/shot-director/make_preview.py GRAB.png` (a full-screen 4K grab after `symbols off` and
+`center 58 -18 3.55`).
 
 `screenshots/midnight-renders/` has five 2560x1440 pictures of the Midnight look (the night default of 1.1.0): fjords,
 shelf edge, aircraft clearance, submarine layer, overview. They are renders from `tools/topo-preview` (the mod's own
@@ -98,6 +102,20 @@ resolution (the game's own `ScreenCapture` fails while the pop-out monitor is ac
 the mission *Trollfjorden* (NATO): Falk P995 selected for the plain map shots, F-4E 23rd TFS 'Fighting Hawks'-1
 held at 1,200 m, S315 Kaura held at 100 m, map centres e.g. `center 69.45 19.45 9.15` (relief), `center 69.6 14.5
 7.4` (sea), `center 66 8 5.3` (overview). Remove `StreamingAssets\ShotDirector\` afterwards.
+
+## Posts for Reddit and Discord
+
+[workshop/promotion.md](../workshop/promotion.md) has the 1.3.0 posts – Reddit gallery with captions, the Steam
+modding forum, BuOrd's `#sp-mods` and the MicroProse Discord – and which pictures go with each. The pictures in
+`workshop/reddit/` and `workshop/discord/` come from the 4K grabs of the screenshots above and of the looks on the
+whole globe (the preview's view, one grab per look):
+
+```powershell
+python tools/shot-director/make_post_pictures.py <folder with the 4K grabs> <folder with the globe grabs>
+```
+
+It paints the game's FPS/CPU/GPU overlay out of the title bar, numbers the title bar buttons, lays out the looks
+grid, and cuts the aircraft and submarine shots from the 4K grab at full size so the readout stays legible.
 
 ## Testing the Workshop copy
 
