@@ -19,7 +19,7 @@ public class Plugin : IAnchorChainMod
 {
     public const string Guid = "dev.sewerlabs.seapowertopo";
     public const string Name = "Sea Power Topographic Map";
-    public const string Version = "1.3.0";
+    public const string Version = "1.3.1";
 
     // Anchor Chain loads assemblies with Assembly.LoadFile, so the same DLL found in two folders would be two
     // separate assemblies with separate statics. The marker lives on the AppDomain so only the first one starts.

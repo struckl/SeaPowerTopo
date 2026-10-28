@@ -13,7 +13,10 @@ internal static class GameApi
 {
     private const BindingFlags Any = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static;
 
-    private static readonly Func<MapPalette, bool> PaletteDark = Getter<MapPalette, bool>("IsDark");
+    // Held as a plain Delegate on purpose: Unity's ECS start-up loads every type of every loaded assembly, and a field of
+    // type Func<MapPalette, bool> makes this class unloadable on 0.8.7 (no MapPalette there) - ECS then fails and no
+    // mission loads, although this globe DLL stays off on 0.8.7. tools/compat-check --classload guards this.
+    private static readonly Delegate PaletteDark = Getter<MapPalette, bool>("IsDark");
 
     private static readonly Type LayerEntry = typeof(GizmoLayerManager).GetNestedType("Entry", BindingFlags.NonPublic);
 
@@ -21,7 +24,7 @@ internal static class GameApi
         typeof(MapLayer).GetConstructor(Any, null, new[] { typeof(MapDisplayState), LayerEntry.MakeByRefType(), typeof(bool) }, null);
 
     /// <summary>Whether a map shows its night colours (in Auto: at the centre of the view).</summary>
-    public static bool IsDark(MapPalette palette) => palette != null && PaletteDark != null && PaletteDark(palette);
+    public static bool IsDark(MapPalette palette) => palette != null && PaletteDark != null && ((Func<MapPalette, bool>)PaletteDark)(palette);
 
     /// <summary>A new entry for a map's Layers menu; null if the game's layer type has changed.</summary>
     public static MapLayer NewLayer(MapDisplayState owner, int number, string name, bool visible)

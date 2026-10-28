@@ -5,7 +5,7 @@
     <AssemblyName>SeaPowerTopo</AssemblyName>
     <RootNamespace>SeaPowerTopo</RootNamespace>
     <Product>Terrain heights on Sea Power's tactical map.</Product>
-    <Version>1.3.0</Version>
+    <Version>1.3.1</Version>
     <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
     <!--Terrain heights are read straight from the game's DEM buffers.-->

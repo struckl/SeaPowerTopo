@@ -53,6 +53,25 @@ if (-not $NoFlat) {
         git -C $root worktree remove --force $flat | Out-Null
     }
 }
+# Each DLL against both games' assemblies (the workspace's compat-check): nothing missing on its own game, and on the other
+# game its entry point and every type's base/interfaces/fields (--classload: Unity's ECS start-up loads every type of every
+# loaded assembly, so one field of a type the other game lacks stops all missions from loading there although the DLL
+# stays off - found 2026-10-28).
+$tool = Join-Path $root '..\tools\compat-check'
+if (Test-Path $tool) {
+    dotnet build $tool -c Release -v q | Out-Null
+    $globeManaged = if ($GlobeManagedDir) { $GlobeManagedDir } else { Join-Path $GameDir 'Sea Power_Data\Managed' }
+    $gates = @('--gate', 'SeaPowerTopo.Plugin::TriggerEntryPoint', '--gate', 'SeaPowerTopo.Plugin::.ctor')
+    foreach ($b in @(@('SeaPowerTopo.dll', $globeManaged, $FlatManagedDir), @('SeaPowerTopoFlat.dll', $FlatManagedDir, $globeManaged))) {
+        $dll = Join-Path $dist $b[0]
+        if (-not (Test-Path $dll)) { continue }
+        dotnet run --project $tool -c Release --no-build -- $dll --against $b[1] --quiet
+        if ($LASTEXITCODE -ne 0) { throw "$($b[0]) references things its own game does not have." }
+        dotnet run --project $tool -c Release --no-build -- $dll --against $b[2] --quiet --classload @gates
+        if ($LASTEXITCODE -ne 0) { throw "$($b[0]): the entry point or a type's fields would fail on the other game." }
+    }
+}
+else { Write-Warning 'tools\compat-check not found (the workspace next to this repo) - the DLLs were not checked against both games.' }
 Copy-Item (Join-Path $root 'src\SeaPowerTopo\mod\_info.ini') $dist
 Copy-Item (Join-Path $root 'LICENSE') (Join-Path $dist 'LICENSE.txt')
 Copy-Item (Join-Path $root 'workshop\preview.jpg') $dist

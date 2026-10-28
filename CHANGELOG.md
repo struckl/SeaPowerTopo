@@ -1,6 +1,21 @@
 # Changelog
 
+## 1.3.1 – 2026-10-28 – fix: 1.3.0 could stop every mission from loading on 0.8.7
+
+**1.3.0 must not be used on 0.8.7.** Its globe DLL stays off there, but Unity's ECS start-up loads every type of every loaded
+assembly, and two types of the globe DLL had a field of a type that exists only in the globe game (`GameApi`:
+`Func<MapPalette, bool>`; the closure of `DemCache.TryGet`: `FileLayerSnapshot`). On 0.8.7 that throws a `TypeLoadException` at
+start-up, ECS fails, and every mission fails to load. Seen in the game with the identical `GameApi` field of the Radio mod's
+globe DLL (2026-10-28); the new check `tools/compat-check --classload` (run by `tools/package.ps1`) finds both fields in the 1.3.0
+globe DLL and nothing in the flat DLL. Fixed: the first is a plain `Delegate`, the second is captured as `object`. The globe
+DLL passes the check on both games now. **Run in the game on 0.8.7 (2026-10-28, Dangerous Straits 1985, with the Radio and Cities and
+Borders mods in the same folder set):** the mission loads, the flat-map build runs and the globe build stays off, the layer
+entry (#600) and the overlay in day and night colours are there, and the Standard/Legend buttons show (not clicked). The globe build is not re-run with
+this change yet. The flat DLL is the unchanged 1.3.0 build and still logs 1.3.0.
+
 ## 1.3.0 – 2026-10-27 (Workshop; for both maps: 0.8.7 and the 3D globe)
+
+**Known problem: on 0.8.7 missions may not load with this version - use 1.3.1.**
 
 For the Sea Power version with the new 3D globe map – the public beta of 26 Oct 2026 (build 261026), due in the
 11 November release – and still for 0.8.7. The package carries two builds: `SeaPowerTopo.dll` for the globe map and
