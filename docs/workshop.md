@@ -13,7 +13,8 @@ other is for. `tools\package.ps1` builds the flat one in a temporary worktree ag
 `-FlatManagedDir`). With the installed game on
 0.8.7, give the globe build a saved copy of the globe version's assemblies with `-GlobeManagedDir`. Run
 the release checks on both game versions (Steam → Sea Power → Properties → Betas). 1.3.0 went up on 2026-10-27, tested
-on the beta (261026) and on 0.8.7 (261021). Once the globe map is on the default
+on the beta (261026) and on 0.8.7 (261021); on 0.8.7 it could stop every mission from loading (a field of a globe-only
+type in the globe DLL, see CHANGELOG), and 1.3.1 (2026-10-28, run in the game on 0.8.7) replaced it. Once the globe map is on the default
 branch the flat-map build can go (`-NoFlat`).
 
 1. Bump the version in `src/SeaPowerTopo/Plugin.cs` (`Version`) and `src/SeaPowerTopo/SeaPowerTopo.csproj`
