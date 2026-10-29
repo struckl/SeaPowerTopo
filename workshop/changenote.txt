@@ -1,1 +1,1 @@
-1.3.0: ready for the new 3D globe map (public beta, 11 Nov release) - the right build switches on by itself, 0.8.7 keeps working as before. Buttons in the map's title bar: Topography, look, legend, cursor height on/off. Also in the mission editor.
+1.4.0: 0.8.7 (the flat map) gets everything the globe version has - buttons in the map's title bar (Topography, look, legend, cursor height) and the layer in the mission editor. The globe version is unchanged.
