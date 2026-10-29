@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.4.0 – 2026-10-30 – the flat map of 0.8.7 gets every feature of the globe build
+
+Until now `SeaPowerTopoFlat.dll` (Sea Power 0.8.7) was the 1.2.0 code. It is built from the same source as the globe build
+now (`-p:GameBuild=Flat`, `FLATMAP` defined; only the map drawing and a few game members differ), so on 0.8.7 there are:
+
+- **the buttons in the map's title bar**: Topography on/off, the look (opens the list), Legend, Cursor height – instead of
+  the legend and look buttons at the bottom right; where a map window has no title bar they sit at its top right;
+- **Cursor height** button: the readout next to the pointer on/off, also with the layer off;
+- **the mission editor**: its map gets the layer, the buttons, the legend and the readout. It has no map scene on 0.8.7 and
+  the game loads no DEM for it, so the mod reads the world grid (`lowres.raw`) itself and asks the game's loader for the 20°
+  chunks the view needs (the last six kept) – **not run in the game yet**;
+- the readout and legend switches no longer make the overlay redraw; the aircraft highlight, the submarine layer, the 18 looks
+  and theme files work as before.
+
+The live map of a mission is drawn as in 1.2.0 (a quad in the map's scene), with the 1.3 fixes of the layer code. The globe
+build is unchanged apart from the shared refactoring. Checked offline with `tools/compat-check` (own game: nothing missing;
+other game: entry point and class load fine, `--classload`); the in-game steps are in `docs/testing.md`.
+
 ## 1.3.1 – 2026-10-28 – fix: 1.3.0 could stop every mission from loading on 0.8.7
 
 **1.3.0 must not be used on 0.8.7.** Its globe DLL stays off there, but Unity's ECS start-up loads every type of every loaded

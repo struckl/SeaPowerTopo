@@ -3,6 +3,9 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using SeaPower;
+using UnityEngine;
+using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 
 namespace SeaPowerTopo.Terrain;
 
@@ -14,13 +17,56 @@ namespace SeaPowerTopo.Terrain;
 /// </summary>
 internal static unsafe class LowresGrid
 {
+#if FLATMAP
+    /// <summary>The file is read only where it is needed (the mission editor).</summary>
+    public static bool Active;
+#endif
     private static string path;
     private static Task<short[]> loading;
     private static short[] data;
     private static GCHandle pin;
 
+#if FLATMAP
+    /// <summary>
+    /// The live map's own copy of the grid on 0.8.7 (the background quads' heightmap texture), where there is a map
+    /// scene; it is read through the texture in the frame asked for, never kept. The mission editor has no scene,
+    /// so the grid is read from the file the game's own loader reads.
+    /// </summary>
+    public static Texture2D Scene;
+
+    /// <summary>The grid, or null while it loads (or if the file is missing).</summary>
+    public static short* Pointer
+    {
+        get
+        {
+            Texture2D t = Scene;
+            if (t != null && t.isReadable && t.format == TextureFormat.R16 &&
+                t.width == HeightReader.LowCols && t.height == HeightReader.LowRows)
+            {
+                NativeArray<short> raw = t.GetRawTextureData<short>();
+                if (raw.IsCreated && raw.Length >= HeightReader.LowCols * HeightReader.LowRows)
+                    return (short*)NativeArrayUnsafeUtility.GetUnsafeReadOnlyPtr(raw);
+            }
+            return data == null ? null : (short*)pin.AddrOfPinnedObject();
+        }
+    }
+
+    // The terrain folder the game reads its heights from (a mod's user/ folder when it has a terrain).
+    private static string TerrainFile(string name)
+    {
+        string dir = Singleton<TerrainManager>.InstanceExists() ? Singleton<TerrainManager>.Instance.WorldPath : null;
+        if (string.IsNullOrEmpty(dir))
+            dir = Application.streamingAssetsPath + (File.Exists(Application.streamingAssetsPath + "/user/terrain/data/y1_x01.lz4")
+                ? "/user/terrain/data/" : "/original/terrain/data/");
+        string file = Path.Combine(dir, name);
+        return File.Exists(file) ? file : null;
+    }
+#else
     /// <summary>The grid, or null while it loads (or if the file is missing).</summary>
     public static short* Pointer => data == null ? null : (short*)pin.AddrOfPinnedObject();
+
+    private static string TerrainFile(string name) => Singleton<FileManager>.InstanceExists() ? Singleton<FileManager>.Instance.Layers?.GetTerrainFile(name) : null;
+#endif
 
     /// <summary>Main thread: starts loading the grid the game uses now, or picks up a finished load.</summary>
     public static void Poll()
@@ -43,9 +89,11 @@ internal static unsafe class LowresGrid
             ModLog.Info($"World height grid read from {path}");
             return;
         }
-        if (!Singleton<FileManager>.InstanceExists())
-            return;
-        string now = Singleton<FileManager>.Instance.Layers?.GetTerrainFile("lowres.raw");
+#if FLATMAP
+        if (!Active || Scene != null)
+            return;                                   // a mission's map scene has the grid
+#endif
+        string now = TerrainFile("lowres.raw");
         if (now == null || string.Equals(now, path, StringComparison.OrdinalIgnoreCase))
             return;
         path = now;
@@ -69,6 +117,17 @@ internal static unsafe class LowresGrid
         }
         return grid;
     }
+
+#if FLATMAP
+    /// <summary>The editor's map is left: the file's copy of the grid goes.</summary>
+    public static void Clear()
+    {
+        Active = false;
+        loading = null;
+        path = null;
+        Release();
+    }
+#endif
 
     private static void Release()
     {

@@ -4,10 +4,10 @@
 
 .DESCRIPTION
     Release builds without the automatic deploy, then dist\SeaPowerTopo\ with exactly what players get:
-    SeaPowerTopo.dll (the globe build, this branch), SeaPowerTopoFlat.dll (the flat-map build for Sea Power 0.8.7,
-    from the flat-map branch), _info.ini, LICENSE.txt and preview.jpg – the Workshop preview, which the game's upload
+    SeaPowerTopo.dll (the globe build), SeaPowerTopoFlat.dll (the flat-map build for Sea Power 0.8.7, the same source
+    with FLATMAP defined), _info.ini, LICENSE.txt and preview.jpg – the Workshop preview, which the game's upload
     screen only lets you pick from inside StreamingAssets. Each build stays off on the game version the other is for.
-    The flat-map build is compiled in a temporary worktree of the flat-map branch against the 0.8.7 assemblies in
+    The flat-map build is compiled against the 0.8.7 assemblies in
     -FlatManagedDir (a copy of 0.8.7's Sea Power_Data\Managed); -NoFlat leaves it out.
     With -Install the staged folder also replaces <GameDir>\Sea Power_Data\StreamingAssets\SeaPowerTopo\, the folder
     to pick in the game's Create Mod screen. Sea Power must be closed for that.
@@ -41,17 +41,10 @@ Copy-Item (Join-Path $out 'SeaPowerTopo.dll') $dist
 
 if (-not $NoFlat) {
     if (-not (Test-Path (Join-Path $FlatManagedDir 'Seapower-Scripts.dll'))) { throw "No 0.8.7 assemblies in $FlatManagedDir (or pass -NoFlat)." }
-    $flat = Join-Path ([System.IO.Path]::GetTempPath()) "seapowertopo-flat-$PID"
-    git -C $root worktree add --detach $flat flat-map | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw 'No flat-map branch.' }
-    try {
-        dotnet build (Join-Path $flat 'src\SeaPowerTopo\SeaPowerTopo.csproj') -c Release -p:Deploy=false -p:GameDir="$GameDir" -p:ManagedDir="$FlatManagedDir"
-        if ($LASTEXITCODE -ne 0) { throw 'Flat-map build failed.' }
-        Copy-Item (Join-Path $flat 'src\SeaPowerTopo\bin\Release\netstandard2.1\SeaPowerTopoFlat.dll') $dist
-    }
-    finally {
-        git -C $root worktree remove --force $flat | Out-Null
-    }
+    # The same source with FLATMAP defined, against 0.8.7's assemblies, under its own assembly name (SeaPowerTopoFlat.dll) next to the globe one.
+    dotnet build $project -c Release -p:Deploy=false -p:GameDir="$GameDir" -p:GameBuild=Flat -p:FlatManagedDir="$FlatManagedDir" --no-incremental
+    if ($LASTEXITCODE -ne 0) { throw 'Flat-map build failed.' }
+    Copy-Item (Join-Path $out 'SeaPowerTopoFlat.dll') $dist
 }
 # Each DLL against both games' assemblies (the workspace's compat-check): nothing missing on its own game, and on the other
 # game its entry point and every type's base/interfaces/fields (--classload: Unity's ECS start-up loads every type of every

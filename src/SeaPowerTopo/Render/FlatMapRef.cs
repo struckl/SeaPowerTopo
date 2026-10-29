@@ -1,6 +1,8 @@
 using System;
 using MapControl;
 using Noesis;
+using SeaPower;
+using SeaPower.LiveMap;
 using SeapowerUI;
 using MapPanel = MapControl.MapPanel;
 using GeoPosition = SeaPower.GeoPosition;
@@ -73,7 +75,11 @@ internal sealed class FlatMapRef : OverlayTarget
         return true;
     }
 
+#if FLATMAP
+    public override bool Dark => Singleton<ThemeTracker>.InstanceExists() && Singleton<ThemeTracker>.Instance.CurrentTheme == ThemeMode.Dark;
+#else
     public override bool Dark => GameApi.IsDark(ViewModel?.Palette);
+#endif
 
     /// <summary>A new picture on the map, hidden until it has an image and a place.</summary>
     public Image AddImage()

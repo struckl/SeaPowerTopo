@@ -14,12 +14,22 @@ namespace SeaPowerTopo;
 /// every mod folder — Steam Workshop items and <c>StreamingAssets/&lt;folder&gt;</c> — for classes implementing
 /// <see cref="IAnchorChainMod"/>.
 /// </summary>
+#if FLATMAP
+[ACPlugin(PluginGuid, Name, Version)]
+#else
 [ACPlugin(Guid, Name, Version)]
+#endif
 public class Plugin : IAnchorChainMod
 {
     public const string Guid = "dev.sewerlabs.seapowertopo";
+#if FLATMAP
+    // Anchor Chain skips a plugin whose id it has already seen, so the flat-map build has an id of its own.
+    public const string PluginGuid = Guid + ".flatmap";
+    public const string Name = "Sea Power Topographic Map (flat map)";
+#else
     public const string Name = "Sea Power Topographic Map";
-    public const string Version = "1.3.1";
+#endif
+    public const string Version = "1.4.0";
 
     // Anchor Chain loads assemblies with Assembly.LoadFile, so the same DLL found in two folders would be two
     // separate assemblies with separate statics. The marker lives on the AppDomain so only the first one starts.
@@ -27,13 +37,22 @@ public class Plugin : IAnchorChainMod
 
     public void TriggerEntryPoint()
     {
-        // Built for the 3D globe map (public beta of 26 Oct 2026, the 11 November release). On an older game the
-        // flat-map build next to it (SeaPowerTopoFlat.dll, the 1.2.0 code) runs instead.
-        if (Type.GetType("SeapowerUI.MapDisplayState, Seapower-Scripts") == null)
+        // The 3D globe map (public beta of 26 Oct 2026, the 11 November release) is the globe build's, the flat map
+        // of 0.8.7 the flat-map build's (SeaPowerTopoFlat.dll, the same source with FLATMAP defined).
+        bool globe = Type.GetType("SeapowerUI.MapDisplayState, Seapower-Scripts") != null;
+#if FLATMAP
+        if (globe)
+        {
+            ModLog.Info("This game has the 3D globe map: the globe build runs, the flat-map build stays off.");
+            return;
+        }
+#else
+        if (!globe)
         {
             ModLog.Info("This game has the flat map: the flat-map build runs, the globe build stays off.");
             return;
         }
+#endif
         Start();
     }
 

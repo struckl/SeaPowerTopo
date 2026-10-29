@@ -53,6 +53,80 @@ internal readonly struct GeoRect : IEquatable<GeoRect>
     public override string ToString() => $"{South:0.0}..{North:0.0}°N {West:0.0}..{East:0.0}°E";
 }
 
+#if FLATMAP
+/// <summary>
+/// The live map the overlay draws into on 0.8.7: the map scene (<c>MapScene</c>), a Unity scene of lon/lat quads on
+/// layer 19 that the map camera renders into the texture the map window shows. Shared by every overlay layer.
+/// </summary>
+internal sealed class MapSceneRef : OverlayTarget
+{
+    private float nextLookup;
+
+    public MapScene Scene { get; private set; }
+    /// <summary>The 3 arc-minute world grid behind the zoomed-out map (null if not found).</summary>
+    public Texture2D Lowres { get; private set; }
+
+    /// <summary>The globe build's map hook offers its maps here; the flat map's scene is looked up by itself.</summary>
+    public void Offer(RenderedLayer rendered)
+    {
+    }
+
+    public override bool Find()
+    {
+        if (Scene != null)
+            return true;
+        if (Time.unscaledTime < nextLookup)
+            return false;
+        nextLookup = Time.unscaledTime + 1f;
+        Scene = Object.FindFirstObjectByType<MapScene>();
+        if (Scene == null)
+            return false;
+
+        // The background quads covering the whole world carry the 3 arc-minute grid as their heightmap.
+        Lowres = null;
+        foreach (MapRect rect in Scene.GetComponentsInChildren<MapRect>(true))
+        {
+            if (rect.Width >= 359f && rect.heightmap != null && rect.heightmap.width == HeightReader.LowCols)
+            {
+                Lowres = rect.heightmap;
+                break;
+            }
+        }
+        if (Lowres == null)
+            ModLog.Warn("World height grid of the map not found; zoomed-out areas without loaded DEM stay uncoloured.");
+        LowresGrid.Scene = Lowres;
+        Generation++;
+        return true;
+    }
+
+    /// <summary>What the map shows, and its scale in degrees per pixel of the map texture.</summary>
+    public override bool TryView(out GeoRect view, out double viewDpp, out GlobeCap cap)
+    {
+        view = default;
+        viewDpp = 0;
+        cap = default;
+        if (!Find())
+            return false;
+        BoundingBox box = Scene.Viewport;
+        RenderTexture target = Scene.Camera != null ? Scene.Camera.MapTexture : null;
+        if (box == null || target == null || target.height < 2 || box.Height <= 0)
+            return false;
+        view = new GeoRect(box.West, Math.Max(-90.0, box.South), box.East, Math.Min(90.0, box.North));
+        viewDpp = box.Height / target.height;
+        return true;
+    }
+
+    public override bool Dark => Singleton<ThemeTracker>.InstanceExists() && Singleton<ThemeTracker>.Instance.CurrentTheme == ThemeMode.Dark;
+
+    public override void Forget()
+    {
+        Scene = null;
+        Lowres = null;
+        LowresGrid.Scene = null;
+    }
+}
+
+#else
 /// <summary>
 /// The live map the overlay draws into: a map control (<c>MapBase</c>) whose <c>RenderedLayer</c> shows the picture
 /// of a map camera (<c>MapCamera</c>), which renders the globe of its map scene (<c>MapScene</c>). Shared by every
@@ -202,6 +276,8 @@ internal sealed class MapSceneRef : OverlayTarget
     }
 }
 
+#endif
+
 /// <summary>
 /// One overlay layer. The stock map is a Unity scene – a unit globe of lon/lat tiles – that the map camera renders
 /// into the texture the map window shows; one more mesh in that scene, laid exactly on the stock tiles
@@ -230,6 +306,15 @@ internal sealed class OverlayRenderer
     private const double MinCosLat = 0.05;           // a pixel is at most 20 times wider (in degrees) than high
 
     private enum Phase { Idle, Filling, Shading }
+
+    // On the globe a degree of longitude is cos(latitude) as wide as one of latitude, so the images are that much
+    // narrower; the flat map (0.8.7) shows both alike.
+    private static double LonStretch(GeoRect rect) =>
+#if FLATMAP
+        1.0;
+#else
+        1.0 / Math.Max(MinCosLat, rect.MaxCosLat);
+#endif
 
     private sealed class Plan
     {
@@ -344,7 +429,7 @@ internal sealed class OverlayRenderer
     {
         area = rect;
         areaDpp = dpp;
-        areaDppX = dpp / Math.Max(MinCosLat, rect.MaxCosLat);
+        areaDppX = dpp * LonStretch(rect);
         areaDem = dem;
     }
 
@@ -516,7 +601,8 @@ internal sealed class OverlayRenderer
                 material.mainTexture = texture;
         }
 
-        // The globe is centred on the scene's origin with radius 1: the mesh needs no transform of its own.
+        // The globe is centred on the scene's origin with radius 1: the mesh needs no transform of its own. The flat
+        // map's scene is a lon/lat plane: the unit quad is placed and scaled over the image's rectangle.
         quad = new GameObject($"SeaPowerTopo {name}") { layer = MapLayer };
         quad.transform.SetParent(((MapSceneRef)map).Scene.transform, false);
         mesh = new Mesh { name = $"SeaPowerTopo {name}" };
@@ -528,9 +614,61 @@ internal sealed class OverlayRenderer
         quadRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         quadRenderer.receiveShadows = false;
         quadRenderer.enabled = false;
+#if FLATMAP
+        if (shown != null)
+            Place(shown);
+#endif
         return true;
     }
 
+#if FLATMAP
+    /// <summary>The image minus the holes (see <see cref="Cutout"/>), in the unit square the quad's transform scales.</summary>
+    private void BuildMesh(GlobeCap cap)
+    {
+        meshDirty = false;
+        if (mesh == null || shownPlan == null)
+            return;
+        GeoRect r = shownPlan.Rect;
+        var cut = new List<UnitRect>(holes.Count);
+        foreach (GeoRect h in holes)
+            cut.Add(new UnitRect(Unit(h.West, r.West, r.Width), Unit(h.South, r.South, r.Height),
+                                 Unit(h.East, r.West, r.Width), Unit(h.North, r.South, r.Height)));
+        meshVertices.Clear();
+        meshUvs.Clear();
+        meshTriangles.Clear();
+        foreach (UnitRect part in Cutout.Rects(cut))
+            AddRect(meshVertices, meshUvs, meshTriangles, part.X0, part.Y0, part.X1, part.Y1);
+        ApplyMesh();
+    }
+
+    private static void AddRect(List<Vector3> vertices, List<Vector2> uvs, List<int> triangles, float x0, float y0, float x1, float y1)
+    {
+        int b = vertices.Count;
+        vertices.Add(new Vector3(x0, y0, 0));
+        vertices.Add(new Vector3(x1, y0, 0));
+        vertices.Add(new Vector3(x0, y1, 0));
+        vertices.Add(new Vector3(x1, y1, 0));
+        // Image row 0 is the north edge, and a texture's first row is v = 0, so v runs north to south.
+        uvs.Add(new Vector2(x0, 1f - y0));
+        uvs.Add(new Vector2(x1, 1f - y0));
+        uvs.Add(new Vector2(x0, 1f - y1));
+        uvs.Add(new Vector2(x1, 1f - y1));
+        triangles.Add(b);
+        triangles.Add(b + 2);
+        triangles.Add(b + 1);
+        triangles.Add(b + 2);
+        triangles.Add(b + 3);
+        triangles.Add(b + 1);
+    }
+
+    private void Place(RasterJob job)
+    {
+        if (quad == null)
+            return;
+        quad.transform.localPosition = new Vector3((float)job.West, (float)job.South, zOffset);
+        quad.transform.localScale = new Vector3((float)(job.Width * job.DppLon), (float)(job.Height * job.Dpp), 1f);
+    }
+#else
     /// <summary>
     /// The image minus the holes (see <see cref="Cutout"/>), on the part of the globe in view with a margin as wide
     /// as the view again (at least 2°), so a pan only makes it again once it has gone that far.
@@ -563,7 +701,13 @@ internal sealed class OverlayRenderer
         meshCap = cap;
         meshRadius = Math.Min(90.0, cap.Radius * 2.0 + 2.0);
         GlobeMesh.Build(r, parts, cap.Centre, meshRadius, meshVertices, meshUvs, meshTriangles);
+        ApplyMesh();
+    }
+#endif
 
+    // Hands the vertices, uvs and triangles built to the quad's mesh.
+    private void ApplyMesh()
+    {
         mesh.Clear();
         mesh.indexFormat = meshVertices.Count > 65000 ? UnityEngine.Rendering.IndexFormat.UInt32 : UnityEngine.Rendering.IndexFormat.UInt16;
         mesh.SetVertices(meshVertices);
@@ -582,8 +726,12 @@ internal sealed class OverlayRenderer
     // leaves out only the last degrees at the globe's edge, where they are squeezed into a pixel or two.
     private bool LeftCap(GlobeCap cap)
     {
+#if FLATMAP
+        return false;
+#else
         double apart = Math.Acos(Math.Max(-1.0, Math.Min(1.0, Vector3.Dot(cap.Centre, meshCap.Centre)))) * 180.0 / Math.PI;
         return apart + Math.Min(cap.Radius, 85.0) > meshRadius || cap.Radius * 6.0 + 4.0 < meshRadius;
+#endif
     }
 
     private static float Unit(double v, double origin, double size) =>
@@ -749,7 +897,7 @@ internal sealed class OverlayRenderer
     {
         // On the globe a degree of longitude is cos(latitude) as wide as one of latitude: pixels that many degrees
         // wider (where the view is widest) are as wide on screen as high.
-        double dpp = viewDpp / Settings.Resolution.Value, stretch = 1.0 / Math.Max(MinCosLat, view.MaxCosLat);
+        double dpp = viewDpp / Settings.Resolution.Value, stretch = LonStretch(view);
         double spanLon = Math.Min(360.0, view.Width), spanLat = view.Height;
         double margin = (Math.Sqrt(MaxPixels / (spanLon / (dpp * stretch) * (spanLat / dpp))) - 1.0) / 2.0;
         margin = Math.Min(margin, (MaxSide * dpp / Math.Max(spanLon / stretch, spanLat) - 1.0) / 2.0);
@@ -1065,6 +1213,9 @@ internal sealed class OverlayRenderer
         meshDirty = true;
         if (image != null)
             FlatMapRef.Place(image, shownPlan.Rect);
+#if FLATMAP
+        Place(job);
+#endif
         ModLog.Debug($"Overlay {name} {job.Width}x{job.Height} (margin {shownPlan.Margin:0.00}), {(shownPlan.Dem ? "DEM" : "world grid")}, " +
                      $"{shownPlan.Dpp * HeightReader.DemPerDegree:0.00} DEM cells/px, contours {shownPlan.Interval:0} m, " +
                      $"{shownMissing.Count} chunk(s) missing, {timer.ElapsedMilliseconds} ms");

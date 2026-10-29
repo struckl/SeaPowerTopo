@@ -29,7 +29,11 @@ internal sealed class TopoLayer
             return;
         try
         {
+#if FLATMAP
+            GizmoLayerManager state = GizmoLayerManager.Instance;
+#else
             MapDisplayState state = MapDisplayState.Tactical;
+#endif
             if (state.LayersByName.TryGetValue(Name, out MapLayer existing))
             {
                 Adopt(existing);
@@ -41,6 +45,12 @@ internal sealed class TopoLayer
 
             // MapLayer looks its menu text up in the language table; give it ours first.
             Singleton<LanguageResourceHandler>.Instance.LanguageDictionary[("MapLayers" + Name).ToLowerInvariant()] = DisplayName;
+#if FLATMAP
+            var created = new MapLayer(number, Name, true);
+            state.Layers.Add(created);
+            state.LayersByName[Name] = created;
+            state.LayersById[number] = created;
+#else
             MapLayer created = GameApi.NewLayer(state, number, Name, Settings.Visible.Value);
             if (created == null || !(state.LayersByName is IDictionary<string, MapLayer> byName) ||
                 !(state.LayersById is IDictionary<int, MapLayer> byId))
@@ -52,6 +62,7 @@ internal sealed class TopoLayer
             state.Layers.Add(created);
             byName[Name] = created;
             byId[number] = created;
+#endif
             Adopt(created);
             ModLog.Info($"Map layer '{DisplayName}' added to the Layers menu (#{number}), {(created.Visible ? "on" : "off")}.");
         }

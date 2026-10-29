@@ -5,7 +5,7 @@
     <AssemblyName>SeaPowerTopo</AssemblyName>
     <RootNamespace>SeaPowerTopo</RootNamespace>
     <Product>Terrain heights on Sea Power's tactical map.</Product>
-    <Version>1.3.1</Version>
+    <Version>1.4.0</Version>
     <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
     <!--Terrain heights are read straight from the game's DEM buffers.-->
@@ -20,9 +20,21 @@
     <GameDir Condition="'$(GameDir)' == ''">E:\Games\steamapps\common\Sea Power</GameDir>
     <!--Anchor Chain lives in the Steam Workshop folder of the library that holds the game.-->
     <AnchorChainDir Condition="'$(AnchorChainDir)' == ''">$(GameDir)\..\..\workshop\content\1286220\3380210757</AnchorChainDir>
-    <ManagedDir>$(GameDir)\Sea Power_Data\Managed</ManagedDir>
+    <ManagedDir Condition="'$(ManagedDir)' == ''">$(GameDir)\Sea Power_Data\Managed</ManagedDir>
     <!--Local mod folder: Anchor Chain scans every StreamingAssets sub folder for plugin DLLs.-->
     <ModDeployDir>$(GameDir)\Sea Power_Data\StreamingAssets\SeaPowerTopo</ModDeployDir>
+  </PropertyGroup>
+
+  <!--The flat-map build for Sea Power 0.8.7: the same source with FLATMAP defined, built against 0.8.7's assemblies (a copy of
+      its Sea Power_Data\Managed; default: the workspace's _gamerefs) as SeaPowerTopoFlat.dll. It stays off on the globe game and
+      the globe build stays off on 0.8.7.
+        dotnet build -p:GameBuild=Flat [-p:FlatManagedDir="D:
+efs\Sea Power 0.8.7\Managed"]-->
+  <PropertyGroup Condition="'$(GameBuild)' == 'Flat'">
+    <AssemblyName>SeaPowerTopoFlat</AssemblyName>
+    <DefineConstants>$(DefineConstants);FLATMAP</DefineConstants>
+    <FlatManagedDir Condition="'$(FlatManagedDir)' == ''">$(MSBuildThisFileDirectory)..\..\..\_gamerefs\SeaPower-0.8.7-public\Managed</FlatManagedDir>
+    <ManagedDir>$(FlatManagedDir)</ManagedDir>
   </PropertyGroup>
 
   <ItemGroup>

@@ -5,6 +5,7 @@ using SeapowerUI;
 
 namespace SeaPowerTopo;
 
+#if !FLATMAP
 /// <summary>
 /// The few game members the mod needs that the game keeps internal, looked up once by reflection. Each lookup that
 /// fails is logged once and its feature falls back (see the callers).
@@ -46,3 +47,4 @@ internal static class GameApi
         return (Func<T, TResult>)Delegate.CreateDelegate(typeof(Func<T, TResult>), get);
     }
 }
+#endif

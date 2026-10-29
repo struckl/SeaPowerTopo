@@ -567,6 +567,10 @@ internal sealed class MapDecoration
     // The map position under a point of the map control; false off the globe (its edge is in view when zoomed out).
     private bool TryGeo(Point p, out GeoPosition at)
     {
+#if FLATMAP
+        at = Map.ViewToGeoPosition(p);                 // the flat map has no edge
+        return true;
+#else
         MapProjection projection = Map.MapProjection;
         ViewTransform transform = Map.ViewTransform;
         if (projection == null || transform == null)
@@ -576,6 +580,7 @@ internal sealed class MapDecoration
         }
         Point m = transform.ViewToMap(p);
         return projection.TryMapToGeoPosition(m.X, m.Y, out at);
+#endif
     }
 
     private void OnMouseLeave(object sender, MouseEventArgs e) => Hide();

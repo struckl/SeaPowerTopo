@@ -3,7 +3,7 @@
 **[Get it on the Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3826122523)** – requires
 [Anchor Chain](https://steamcommunity.com/sharedfiles/filedetails/?id=3380210757).
 
-> **Version 1.3.0 works on both maps**: Sea Power 0.8.7 and the new 3D globe map (public beta of 26 Oct 2026, the
+> **Version 1.4.0 works on both maps with the same features**: Sea Power 0.8.7 and the new 3D globe map (public beta of 26 Oct 2026, the
 > 11 November release) – see [Compatibility](#compatibility).
 
 A mod for [Sea Power: Naval Combat in the Missile Age](https://store.steampowered.com/app/1286220/) that makes land
@@ -94,8 +94,9 @@ redraw):
 ## Compatibility
 
 - **Both maps in one package**: `SeaPowerTopo.dll` is the build for the 3D globe map (public beta of 26 Oct 2026,
-  build 261026, and the 11 November release), `SeaPowerTopoFlat.dll` the one for 0.8.7's flat map (the 1.2.0 code, kept
-  on the `flat-map` branch). Each stays off on the game the other is for; the log says which runs. They share the
+  build 261026, and the 11 November release), `SeaPowerTopoFlat.dll` the one for 0.8.7's flat map (the same source with `FLATMAP`
+  defined; since 1.4.0 it has everything the globe build has – the title bar buttons, the cursor height button, the mission
+  editor, the look list, theme files). Each stays off on the game the other is for; the log says which runs. They share the
   config file and theme files. (1.2.0 alone stops on the globe beta at the first mission.)
 - **Anchor Chain on the beta:** Anchor Chain 1.1.0 doesn't start on the globe beta – its preloader looks for the mod
   folders before the game has listed them, so *no* Anchor Chain mod loads
@@ -120,7 +121,7 @@ dotnet build src/SeaPowerTopo/SeaPowerTopo.csproj -c Release -p:GameDir="C:\Prog
 ```
 
 The build copies the mod into `<Sea Power>\Sea Power_Data\StreamingAssets\SeaPowerTopo\` (`-p:Deploy=false` to
-skip). The release package (`tools/package.ps1`) adds the flat-map build from the `flat-map` branch, compiled against
+skip). The release package (`tools/package.ps1`) adds the flat-map build (`-p:GameBuild=Flat`, `FLATMAP`), compiled against
 a copy of 0.8.7's `Sea Power_Data\Managed` (`-FlatManagedDir`). `GameDir` can also be set as an environment variable. Release packaging and the Workshop upload are described
 in [docs/workshop.md](docs/workshop.md); in-game test checklists are in [docs/testing.md](docs/testing.md).
 

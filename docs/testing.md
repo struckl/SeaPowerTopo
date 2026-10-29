@@ -239,5 +239,10 @@ something, stutter while turning the zoomed-out globe.
   build runs, the flat-map build stays off.`; Anchor Chain lists both plugins (`dev.sewerlabs.seapowertopo` and
   `…seapowertopo.flatmap`). The checklist above applies.
 - **0.8.7 (default branch):** `This game has the flat map: the flat-map build runs, the globe build stays off.` and
-  `Sea Power Topographic Map (flat map) 1.3.0 loaded.`; a mission shows the 1.2.0 overlay, legend and look buttons at
-  the bottom right, no `[Error  :SeaPowerTopo]` line.
+  `Sea Power Topographic Map (flat map) 1.4.0 loaded.`; a mission shows the overlay and the Topography / look / Legend /
+  Cursor height buttons in the map's title bar (or, without one, at the map's top right: `No title bar on this map`), the
+  cursor readout toggles with its button, no `[Error  :SeaPowerTopo]` line. Then the checklist above (looks, legend,
+  aircraft highlight, submarine layer). **Mission editor** (new on 0.8.7 in 1.4.0, not run in the game yet): open a
+  mission in the editor – `Mission editor map found` in the log, the layer on the map, the same buttons; zoom in past the
+  stock tiles' detail and check the heights are drawn (the editor loads no DEM itself: the mod asks the game's loader for
+  the chunks, up to six); leave the editor and start a mission: `Mission editor map closed`.

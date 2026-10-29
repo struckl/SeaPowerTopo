@@ -185,6 +185,10 @@ internal sealed class TopoHost : MonoBehaviour
                 if (found != null)
                 {
                     editorMap.Use(found);
+#if FLATMAP
+                    // On 0.8.7 the editor's map has no map scene and the game loads no DEM for it: the mod reads its own.
+                    LowresGrid.Active = DemCache.Active = true;
+#endif
                     editorDecoration = MapDecoration.TryAttach(found, Describe);
                     ModLog.Info("Mission editor map found: Topography drawn there too.");
                 }
@@ -241,6 +245,11 @@ internal sealed class TopoHost : MonoBehaviour
         editorDecoration?.Detach();
         editorDecoration = null;
         editorMap.Forget();
+#if FLATMAP
+        DemCache.Active = false;
+        DemCache.Clear();
+        LowresGrid.Clear();
+#endif
         ModLog.Info("Mission editor map closed.");
     }
 
@@ -296,9 +305,14 @@ internal sealed class TopoHost : MonoBehaviour
             return false;
         var lons = new List<double>();
         var lats = new List<double>();
+#if FLATMAP
+        foreach (Taskforce side in new[] { Globals._playerTaskforce, Globals._enemyTaskforce, Globals._alliedTaskforce,
+                                           Globals._neutralTaskforce, Globals._secondEnemyTaskforce })
+#else
         if (!Singleton<TaskforceManager>.InstanceExists())
             return false;
         foreach (Taskforce side in Singleton<TaskforceManager>.Instance._taskForces)
+#endif
         {
             if (side == null)
                 continue;
