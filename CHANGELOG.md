@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.4.1 – 2026-10-30 – fix: the mission editor on 0.8.7 drew only the coarse world grid
+
+1.4.0 gave the flat map of 0.8.7 the mission editor layer, but the editor has no terrain manager on 0.8.7, so the mod's
+request for the 20° DEM chunks went nowhere and the editor stayed on the 3 arc-minute world grid however far you zoomed in.
+The mod now reads the chunks itself from the terrain files the game uses (`y?_x??.lz4`, inflated by the game's own LZ4; the
+last six are kept) and redraws when they are in. **Run in the game on 0.8.7 (2026-10-30, with the Radio, Borders, Pop-Out
+and other Workshop mods in the same folder set):** a mission (Trollfjorden) – the title bar buttons, the layer, the
+live, mission and world layers drawn from the DEM, Topography and Cursor height buttons switch; the mission editor – map
+found, world grid read from `lowres.raw`, the chunks read as the view zooms in (Tromsø, Lofoten, the Alps) and drawn
+with contour lines at 500 / 200 / 1000 m, the buttons there too. Only the globe build was not run (the installed game
+is 0.8.7); it is unchanged apart from the shared refactoring.
+
 ## 1.4.0 – 2026-10-30 – the flat map of 0.8.7 gets every feature of the globe build
 
 Until now `SeaPowerTopoFlat.dll` (Sea Power 0.8.7) was the 1.2.0 code. It is built from the same source as the globe build

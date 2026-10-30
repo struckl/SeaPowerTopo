@@ -5,7 +5,7 @@
     <AssemblyName>SeaPowerTopo</AssemblyName>
     <RootNamespace>SeaPowerTopo</RootNamespace>
     <Product>Terrain heights on Sea Power's tactical map.</Product>
-    <Version>1.4.0</Version>
+    <Version>1.4.1</Version>
     <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
     <!--Terrain heights are read straight from the game's DEM buffers.-->
@@ -44,6 +44,8 @@ efs\Sea Power 0.8.7\Managed"]-->
 
   <ItemGroup>
     <Reference Include="Seapower-Scripts"><HintPath>$(ManagedDir)\Seapower-Scripts.dll</HintPath><Private>false</Private></Reference>
+    <!--The game's LZ4 (DEM chunks the editor's map needs) lives here; only the flat-map build uses it.-->
+    <Reference Include="Assets" Condition="'$(GameBuild)' == 'Flat'"><HintPath>$(ManagedDir)\Assets.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Noesis.NoesisGUI"><HintPath>$(ManagedDir)\Noesis.NoesisGUI.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine"><HintPath>$(ManagedDir)\UnityEngine.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine.CoreModule"><HintPath>$(ManagedDir)\UnityEngine.CoreModule.dll</HintPath><Private>false</Private></Reference>

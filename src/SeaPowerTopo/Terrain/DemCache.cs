@@ -1,26 +1,28 @@
 #if FLATMAP
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading.Tasks;
-using SeaPower;
 using Unity.Collections;
+using UnityEngine;
 
 namespace SeaPowerTopo.Terrain;
 
 /// <summary>
 /// 20° DEM chunks for a map the game loads none for: on 0.8.7 the live map and the 3D terrain load their own, the
-/// mission editor's flat map none. Where <see cref="Active"/> (the editor), the missing chunks are asked of the game's
-/// own loader (<c>TerrainLoader.LoadDEMAsync</c>, which sees a mod's replacement terrain) and the last few kept,
-/// as handles on the game's cache. Main thread only.
+/// mission editor's flat map none (and there is no terrain manager there to ask). Where <see cref="Active"/> (the
+/// editor), the missing chunks are read here from the terrain files the game uses (<c>y?_x??.lz4</c>, or the raw file)
+/// on a worker thread and the last few kept. Main thread only, apart from the reads.
 /// </summary>
 internal static class DemCache
 {
     private const int MaxChunks = 6;                  // 11.5 MB each
+    private const int ChunkBytes = HeightReader.ChunkSize * HeightReader.ChunkSize * 2;
 
     private sealed class Entry
     {
-        public Task<DEMHandle> Load;
-        public DEMHandle Handle;
+        public Task<NativeArray<byte>> Load;
+        public NativeArray<byte> Heights;
         public int LastUse;
         public bool Failed;                           // not asked for again until the editor map is left
     }
@@ -34,24 +36,26 @@ internal static class DemCache
     public static bool TryGet(string key, out NativeArray<byte> heights)
     {
         heights = default;
-        if (!Active || !Singleton<TerrainManager>.InstanceExists())
+        if (!Active)
             return false;
         if (!entries.TryGetValue(key, out Entry e))
         {
-            string world = Singleton<TerrainManager>.Instance.WorldPath;
-            entries[key] = e = new Entry { Load = TerrainLoader.LoadDEMAsync(world, key, false) };
+            string dir = LowresGrid.TerrainDir();
+            if (dir == null)
+                return false;
+            entries[key] = e = new Entry { Load = Task.Run(() => Read(dir, key)) };
         }
-        e.LastUse = UnityEngine.Time.frameCount;
-        if (e.Handle == null)
+        e.LastUse = Time.frameCount;
+        if (!e.Heights.IsCreated)
             return false;
-        heights = e.Handle.Chunk._data;
-        return heights.IsCreated;
+        heights = e.Heights;
+        return true;
     }
 
     /// <summary>True once a chunk asked for has been read.</summary>
-    public static bool Has(string key) => entries.TryGetValue(key, out Entry e) && e.Handle != null;
+    public static bool Has(string key) => entries.TryGetValue(key, out Entry e) && e.Heights.IsCreated;
 
-    /// <summary>Start of a frame: takes finished reads, lets go of the least used chunks beyond the budget.</summary>
+    /// <summary>Start of a frame: takes finished reads, drops the least used chunks beyond the budget.</summary>
     public static void Poll()
     {
         foreach (KeyValuePair<string, Entry> kv in entries)
@@ -59,14 +63,14 @@ internal static class DemCache
             Entry e = kv.Value;
             if (e.Load == null || !e.Load.IsCompleted)
                 continue;
-            if (e.Load.IsFaulted || e.Load.Result == null)
+            if (e.Load.IsFaulted || !e.Load.Result.IsCreated)
             {
                 ModLog.Debug($"DEM chunk {kv.Key} not readable: {e.Load.Exception?.GetBaseException().Message}");
                 e.Failed = true;
             }
             else
             {
-                e.Handle = e.Load.Result;
+                e.Heights = e.Load.Result;
             }
             e.Load = null;
         }
@@ -77,7 +81,7 @@ internal static class DemCache
             int use = int.MaxValue;
             foreach (KeyValuePair<string, Entry> kv in entries)
             {
-                if (kv.Value.Handle != null && kv.Value.LastUse < use)
+                if (kv.Value.Heights.IsCreated && kv.Value.LastUse < use)
                 {
                     use = kv.Value.LastUse;
                     oldest = kv.Key;
@@ -85,20 +89,20 @@ internal static class DemCache
             }
             if (oldest == null)
                 break;
-            entries[oldest].Handle.Dispose();
+            entries[oldest].Heights.Dispose();
             entries.Remove(oldest);
         }
     }
 
-    /// <summary>Mission or editor map over: lets go of every chunk (reads still running let go of theirs when they finish).</summary>
+    /// <summary>Editor map over: frees every chunk (reads still running free theirs when they finish).</summary>
     public static void Clear()
     {
         foreach (Entry e in entries.Values)
         {
-            if (e.Handle != null)
-                e.Handle.Dispose();
+            if (e.Heights.IsCreated)
+                e.Heights.Dispose();
             else
-                e.Load?.ContinueWith(t => { if (t.Status == TaskStatus.RanToCompletion) t.Result?.Dispose(); });
+                e.Load?.ContinueWith(t => { if (t.Status == TaskStatus.RanToCompletion && t.Result.IsCreated) t.Result.Dispose(); });
         }
         entries.Clear();
     }
@@ -108,10 +112,59 @@ internal static class DemCache
         int n = 0;
         foreach (Entry e in entries.Values)
         {
-            if (e.Handle != null)
+            if (e.Heights.IsCreated)
                 n++;
         }
         return n;
+    }
+
+    // The heights as the game's loader reads them: the compressed file inflated by the game's own LZ4, else the raw file.
+    private static NativeArray<byte> Read(string dir, string key)
+    {
+        string lz4 = Path.Combine(dir, key + ".lz4"), raw = Path.Combine(dir, key + ".raw");
+        var heights = new NativeArray<byte>(ChunkBytes, Allocator.Persistent);
+        try
+        {
+            if (File.Exists(lz4))
+            {
+                byte[] packed = File.ReadAllBytes(lz4);
+                var inBuffer = new NativeArray<byte>(packed, Allocator.Persistent);
+                try
+                {
+                    LZ4.decompressBufferFixed(inBuffer, heights);
+                }
+                finally
+                {
+                    inBuffer.Dispose();
+                }
+            }
+            else if (File.Exists(raw))
+            {
+                using (FileStream stream = File.OpenRead(raw))
+                {
+                    int read = 0;
+                    Span<byte> span = heights.AsSpan();
+                    while (read < ChunkBytes)
+                    {
+                        int n = stream.Read(span.Slice(read));
+                        if (n == 0)
+                            throw new IOException("short file");
+                        read += n;
+                    }
+                }
+            }
+            else
+            {
+                heights.Dispose();
+                return default;
+            }
+        }
+        catch
+        {
+            heights.Dispose();
+            throw;
+        }
+        return heights;
     }
 }
 #else

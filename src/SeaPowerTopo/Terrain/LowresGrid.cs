@@ -52,12 +52,20 @@ internal static unsafe class LowresGrid
     }
 
     // The terrain folder the game reads its heights from (a mod's user/ folder when it has a terrain).
-    private static string TerrainFile(string name)
+    internal static string TerrainDir()
     {
         string dir = Singleton<TerrainManager>.InstanceExists() ? Singleton<TerrainManager>.Instance.WorldPath : null;
         if (string.IsNullOrEmpty(dir))
             dir = Application.streamingAssetsPath + (File.Exists(Application.streamingAssetsPath + "/user/terrain/data/y1_x01.lz4")
                 ? "/user/terrain/data/" : "/original/terrain/data/");
+        return Directory.Exists(dir) ? dir : null;
+    }
+
+    private static string TerrainFile(string name)
+    {
+        string dir = TerrainDir();
+        if (dir == null)
+            return null;
         string file = Path.Combine(dir, name);
         return File.Exists(file) ? file : null;
     }
