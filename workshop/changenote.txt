@@ -1,1 +1,1 @@
-1.4.0: 0.8.7 (the flat map) gets everything the globe version has - buttons in the map's title bar (Topography, look, legend, cursor height) and the layer in the mission editor. The globe version is unchanged.
+1.4.1: the mission editor on 0.8.7 now draws the full terrain detail when you zoom in (1.4.0 stayed on the coarse world grid there). 1.4.0: 0.8.7 (the flat map) has everything the globe version has - buttons in the map's title bar (Topography, look, legend, cursor height) and the layer in the mission editor.
