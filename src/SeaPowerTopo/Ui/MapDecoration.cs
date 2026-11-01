@@ -9,8 +9,8 @@ using SeaPowerTopo.Terrain;
 namespace SeaPowerTopo.Ui;
 
 /// <summary>
-/// The mod's controls on one map control: a row of buttons in the map window's title bar – Topography on/off, the
-/// look, the legend, the cursor readout on/off – the look list, the legend and short notices dropping down below it
+/// The mod's controls on one map control: a framed group of icon buttons in the map window's title bar – Topography
+/// on/off, the look, the legend, the cursor readout on/off – the look list, the legend and short notices dropping down below it
 /// at the top right of the map, and the readout next to the pointer.
 /// <para>The buttons go into the title bar's button row, left of the window menu (≡), like the game's own map
 /// controls. A map without such a title bar (the mission editor, a map in another window) gets the same row at its
@@ -27,7 +27,18 @@ internal sealed class MapDecoration
     private const float Inset = 10f, Gap = 6f;
     private const float HeaderSearchSeconds = 1f;
     private const int HeaderSearches = 20;
-    private const float BarFontSize = 11f;
+    private const float IconSize = 14f;
+
+    // The button group's colours, matched to the game's title bar (#393D3F) and its orange.
+    private static readonly Color GroupFill = Color.FromArgb(255, 46, 49, 51);
+    private static readonly Color GroupEdge = Color.FromArgb(255, 86, 91, 95);
+    private static readonly Color ActiveFill = Color.FromArgb(255, 72, 77, 81);
+    private static readonly Color IconIdle = Color.FromArgb(255, 160, 166, 172);
+    private static readonly Color IconActive = Color.FromArgb(255, 222, 172, 110);
+
+    // Flat segment look shared by the group's buttons (null if the XAML can't be parsed: then the game's style stays).
+    private static ControlTemplate segmentTemplate;
+    private static bool segmentTemplateTried;
 
     public readonly MapBase Map;
 
@@ -35,12 +46,14 @@ internal sealed class MapDecoration
     private readonly Grid root;
     private readonly Border readout;
     private readonly TextBlock readoutText;
-    private readonly StackPanel dock, bar;
-    private readonly ToggleButton topoToggle, readoutToggle;
-    private readonly Button legendButton, lookButton;
+    private readonly StackPanel dock, segments;
+    private readonly Border bar;
+    private readonly Button topoToggle, readoutToggle, legendButton, lookButton;
     private readonly Border notice, picker;
-    private readonly TextBlock noticeText, lookText;
+    private readonly TextBlock noticeText;
+    private readonly Border lookSwatches;
     private readonly StackPanel pickerList;
+    private readonly SolidColorBrush idleBrush, activeBrush, activeFillBrush, clearBrush;
     private float noticeUntil;
     private bool pickerOpen;
     private string lookShown;
@@ -111,33 +124,31 @@ internal sealed class MapDecoration
             Settings.LegendOpen.Value = false;
         };
 
-        // The title bar's buttons are 20 px high: text only, small.
-        topoToggle = new ToggleButton
-        {
-            Focusable = false,
-            Padding = new Thickness(6, 0, 6, 0),
-            Margin = new Thickness(0, 0, 2, 0),
-            VerticalAlignment = VerticalAlignment.Stretch,
-            Content = BarContent("Topography", swatches: true),
-            ToolTip = $"Topography: land heights and sea depths on the map ({Settings.ToggleKey.Value}). Also in the map menu under Map Layers.",
-        };
+        idleBrush = new SolidColorBrush(IconIdle);
+        activeBrush = new SolidColorBrush(IconActive);
+        activeFillBrush = new SolidColorBrush(ActiveFill);
+        clearBrush = new SolidColorBrush(Color.FromArgb(0, 0, 0, 0));
+
+        // One framed group of icon buttons in the title bar (20 px high); the words are in the tooltips. A lit button
+        // has a lighter face and an orange icon.
+        topoToggle = Segment(Icon(("M0.5,12.5 L5,4 L7.5,8 L9.5,5.5 L13.5,12.5 Z", 1.2f), ("M3.2,9.3 H10.9", 1f)), first: true);
+        topoToggle.ToolTip = $"Topography: land heights and sea depths on the map ({Settings.ToggleKey.Value}). Also in the map menu under Map Layers.";
         topoToggle.Click += (sender, args) =>
         {
             args.Handled = true;
             TopoHost.Instance?.ToggleLayer();
         };
 
-        // The look button names the theme on the map; a click opens the list of themes of the map's current theme.
-        lookText = new TextBlock { FontSize = BarFontSize, VerticalAlignment = VerticalAlignment.Center };
-        lookButton = new Button
-        {
-            Focusable = false,
-            Padding = new Thickness(6, 0, 6, 0),
-            Margin = new Thickness(0, 0, 2, 0),
-            VerticalAlignment = VerticalAlignment.Stretch,
-            Content = lookText,
-            Visibility = Visibility.Collapsed,
-        };
+        // The look button shows the theme on the map as three swatches; a click opens the list of themes.
+        lookSwatches = new Border { VerticalAlignment = VerticalAlignment.Center };
+        var lookContent = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        lookContent.Children.Add(lookSwatches);
+        Grid chevron = Icon(("M0.5,5.5 L3.5,8.5 L6.5,5.5", 1.2f));
+        chevron.Width = 7f;
+        chevron.Margin = new Thickness(4, 0, 0, 0);
+        lookContent.Children.Add(chevron);
+        lookButton = Segment(lookContent, first: false);
+        lookButton.Visibility = Visibility.Collapsed;
         lookButton.Click += (sender, args) =>
         {
             args.Handled = true;
@@ -145,46 +156,39 @@ internal sealed class MapDecoration
             picker.Visibility = pickerOpen ? Visibility.Visible : Visibility.Collapsed;
         };
 
-        legendButton = new Button
-        {
-            Focusable = false,
-            Padding = new Thickness(6, 0, 6, 0),
-            Margin = new Thickness(0, 0, 2, 0),
-            VerticalAlignment = VerticalAlignment.Stretch,
-            Content = BarContent("Legend", swatches: false),
-            Visibility = Visibility.Collapsed,
-        };
+        legendButton = Segment(Icon(("M1,2.5 H3.8 M1,7 H3.8 M1,11.5 H3.8", 2.4f), ("M5.8,2.5 H13 M5.8,7 H13 M5.8,11.5 H11", 1.2f)), first: false);
+        legendButton.Visibility = Visibility.Collapsed;
         legendButton.Click += (sender, args) =>
         {
             args.Handled = true;
             Settings.LegendOpen.Value = !Settings.LegendOpen.Value;
         };
 
-        readoutToggle = new ToggleButton
-        {
-            Focusable = false,
-            Padding = new Thickness(6, 0, 6, 0),
-            Margin = new Thickness(0, 0, 6, 0),
-            VerticalAlignment = VerticalAlignment.Stretch,
-            Content = BarContent("Cursor height", swatches: false),
-            ToolTip = "Terrain height or sea depth next to the mouse pointer: lit while it shows; click to switch it off or on (also with Topography off)",
-        };
+        var crosshair = Icon(("M7,0.5 V4 M7,10 V13.5 M0.5,7 H4 M10,7 H13.5", 1.2f));
+        crosshair.Children.Add(new Ellipse { Width = 6, Height = 6, Stroke = idleBrush, StrokeThickness = 1.2f });
+        readoutToggle = Segment(crosshair, first: false);
+        readoutToggle.ToolTip = "Cursor height: terrain height or sea depth next to the mouse pointer; lit while it shows, click to switch it off or on (also with Topography off)";
         readoutToggle.Click += (sender, args) =>
         {
             args.Handled = true;
             TopoHost.Instance?.ToggleReadout();
         };
 
-        bar = new StackPanel
+        segments = new StackPanel { Orientation = Orientation.Horizontal };
+        segments.Children.Add(topoToggle);
+        segments.Children.Add(lookButton);
+        segments.Children.Add(legendButton);
+        segments.Children.Add(readoutToggle);
+        bar = new Border
         {
-            Orientation = Orientation.Horizontal,
+            Background = new SolidColorBrush(GroupFill),
+            BorderBrush = new SolidColorBrush(GroupEdge),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(2),
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Stretch,
+            Child = segments,
         };
-        bar.Children.Add(topoToggle);
-        bar.Children.Add(lookButton);
-        bar.Children.Add(legendButton);
-        bar.Children.Add(readoutToggle);
 
         pickerList = new StackPanel { Orientation = Orientation.Vertical };
         picker = new Border
@@ -267,12 +271,14 @@ internal sealed class MapDecoration
         readoutAllowed = readoutOn;
         if (!readoutOn && readout.Visibility == Visibility.Visible)
             readout.Visibility = Visibility.Collapsed;
-        SetChecked(topoToggle, overlayOn);
-        SetChecked(readoutToggle, readoutOn);
+        SetLit(topoToggle, overlayOn);
+        SetLit(readoutToggle, readoutOn);
 
         bool drawn = overlayOn && overlay != null && overlay.Palette != null && overlay.HasImage;
         SetVisible(lookButton, drawn);
         SetVisible(legendButton, drawn && Settings.Legend.Value);
+        SetLit(lookButton, drawn && pickerOpen);
+        SetLit(legendButton, drawn && Settings.LegendOpen.Value);
         if (notice.Visibility == Visibility.Visible && UnityEngine.Time.unscaledTime > noticeUntil)
             notice.Visibility = Visibility.Collapsed;
         if (!drawn)
@@ -314,10 +320,89 @@ internal sealed class MapDecoration
             dock.Margin = new Thickness(0f, 0f, right, 0f);
     }
 
-    private static void SetChecked(ToggleButton button, bool on)
+    // A lit button: lighter face, orange icon (every Shape in its content).
+    private void SetLit(Button button, bool on)
     {
-        if (button.IsChecked != on)
-            button.IsChecked = on;
+        Brush fill = on ? activeFillBrush : clearBrush;
+        if (ReferenceEquals(button.Background, fill))
+            return;
+        button.Background = fill;
+        Brush ink = on ? activeBrush : idleBrush;
+        Recolour(button.Content as DependencyObject, ink);
+    }
+
+    private static void Recolour(DependencyObject d, Brush ink)
+    {
+        if (d is Shape shape && shape.Stroke != null)
+            shape.Stroke = ink;
+        if (d is Panel panel)
+            foreach (UIElement child in panel.Children)
+                Recolour(child, ink);
+    }
+
+    // A button of the group: flat, a divider on its left (not the first), the icon centred.
+    private Button Segment(UIElement content, bool first)
+    {
+        var button = new Button
+        {
+            Focusable = false,
+            Padding = new Thickness(6, 0, 6, 0),
+            MinWidth = 26,
+            VerticalAlignment = VerticalAlignment.Stretch,
+            Background = clearBrush,                       // transparent, not null: the whole face takes clicks
+            BorderBrush = new SolidColorBrush(GroupEdge),
+            BorderThickness = new Thickness(first ? 0 : 1, 0, 0, 0),
+            Content = content,
+        };
+        ControlTemplate template = SegmentTemplate();
+        if (template != null)
+            button.Template = template;
+        return button;
+    }
+
+    // A 14 px icon of stroked paths (path markup in a 14 x 14 box), in the idle colour.
+    private Grid Icon(params (string data, float thickness)[] strokes)
+    {
+        var icon = new Grid { Width = IconSize, Height = IconSize, VerticalAlignment = VerticalAlignment.Center };
+        foreach ((string data, float thickness) in strokes)
+        {
+            if (Noesis.GUI.ParseXaml($"<Path xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\" Data=\"{data}\"/>") is not Path path)
+                continue;
+            path.Stroke = idleBrush;
+            path.StrokeThickness = thickness;
+            path.StrokeLineJoin = PenLineJoin.Round;
+            path.StrokeStartLineCap = PenLineCap.Round;
+            path.StrokeEndLineCap = PenLineCap.Round;
+            icon.Children.Add(path);
+        }
+        return icon;
+    }
+
+    private static ControlTemplate SegmentTemplate()
+    {
+        if (segmentTemplateTried)
+            return segmentTemplate;
+        segmentTemplateTried = true;
+        try
+        {
+            segmentTemplate = Noesis.GUI.ParseXaml(
+                "<ControlTemplate xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\" " +
+                "xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\" TargetType=\"Button\">" +
+                "<Border x:Name=\"Face\" Background=\"{TemplateBinding Background}\" BorderBrush=\"{TemplateBinding BorderBrush}\" " +
+                "BorderThickness=\"{TemplateBinding BorderThickness}\" Padding=\"{TemplateBinding Padding}\">" +
+                "<ContentPresenter HorizontalAlignment=\"Center\" VerticalAlignment=\"Center\"/></Border>" +
+                "<ControlTemplate.Triggers>" +
+                "<Trigger Property=\"IsMouseOver\" Value=\"True\"><Setter TargetName=\"Face\" Property=\"Background\" Value=\"#FF52575B\"/></Trigger>" +
+                "<Trigger Property=\"IsPressed\" Value=\"True\"><Setter TargetName=\"Face\" Property=\"Background\" Value=\"#FF26292B\"/></Trigger>" +
+                "</ControlTemplate.Triggers></ControlTemplate>") as ControlTemplate;
+        }
+        catch (Exception ex)
+        {
+            ModLog.Error($"Title bar button look: {ex.Message}");
+        }
+        if (segmentTemplate == null)
+            ModLog.Info("Title bar button look not available: the game's button style stays.");
+        return segmentTemplate;
     }
 
     private static void SetVisible(UIElement element, bool visible)
@@ -348,7 +433,7 @@ internal sealed class MapDecoration
         }
         if (VisualTreeHelper.GetParent(bar) is Panel old)
             old.Children.Remove(bar);
-        bar.Margin = new Thickness(0);
+        bar.Margin = new Thickness(0, 1, 6, 1);
         bar.Height = float.NaN;
         row.Children.Insert(menuIndex, bar);
         header = row;
@@ -402,7 +487,7 @@ internal sealed class MapDecoration
             return;
         lookShown = theme.Id;
         lookRevision = Themes.Revision;
-        lookText.Text = theme.Name;
+        lookSwatches.Child = Swatches(theme, 4, 11, 0);
         lookButton.ToolTip = $"Map look: {theme.Name} ({theme.Note}). Click to choose another; {Settings.LookKey.Value} switches to the next.";
 
         pickerList.Children.Clear();
@@ -418,7 +503,7 @@ internal sealed class MapDecoration
         {
             Theme choice = t;
             var content = new StackPanel { Orientation = Orientation.Horizontal };
-            content.Children.Add(Swatches(choice));
+            content.Children.Add(Swatches(choice, 6, 12, 6));
             content.Children.Add(new TextBlock
             {
                 Text = choice.Name,
@@ -493,7 +578,7 @@ internal sealed class MapDecoration
     }
 
     // Three little swatches of a theme: lowland, high ground, sea.
-    private static UIElement Swatches(Theme t)
+    private static UIElement Swatches(Theme t, float width, float height, float gap)
     {
         // Lowland, high ground and sea at fixed places along the key colours (a file's themes have any number of them).
         int[] low = t.LandFlat ?? Dim(At(t.LandKeys, 2 / 12f), t.LandBright);
@@ -503,10 +588,10 @@ internal sealed class MapDecoration
         {
             Orientation = Orientation.Horizontal,
             VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(0, 0, 6, 0),
+            Margin = new Thickness(0, 0, gap, 0),
         };
         foreach (int[] c in new[] { low, high, sea })
-            swatches.Children.Add(new Rectangle { Width = 6, Height = 12, Fill = Solid(c) });
+            swatches.Children.Add(new Rectangle { Width = width, Height = height, Fill = Solid(c) });
         return swatches;
     }
 
@@ -770,26 +855,5 @@ internal sealed class MapDecoration
             VerticalAlignment = VerticalAlignment.Center,
         });
         return row;
-    }
-
-    // The word, after three little swatches (lowland, hills, sea) for the Topography button; the text colour comes
-    // from the game's button style.
-    private static UIElement BarContent(string text, bool swatches)
-    {
-        var content = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        if (swatches)
-        {
-            var colours = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 5, 0),
-            };
-            foreach (Color c in new[] { Color.FromArgb(255, 118, 170, 84), Color.FromArgb(255, 206, 120, 64), Color.FromArgb(255, 66, 92, 130) })
-                colours.Children.Add(new Rectangle { Width = 4, Height = 10, Fill = new SolidColorBrush(c) });
-            content.Children.Add(colours);
-        }
-        content.Children.Add(new TextBlock { Text = text, FontSize = BarFontSize, VerticalAlignment = VerticalAlignment.Center });
-        return content;
     }
 }

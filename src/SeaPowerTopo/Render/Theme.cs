@@ -197,7 +197,7 @@ internal static class Themes
         {
             Id = "paper-chart", Name = "Paper sea chart", Note = "Admiralty / NOAA style chart",
             LandFlat = C(250, 232, 176), Shade = 0f,
-            LandLine = C(150, 110, 50), LandMinor = 0.55f, LandMajor = 0.95f,
+            LandLine = C(150, 110, 50), LandMinor = 0.35f, LandMajor = 0.85f,
             Coast = C(30, 30, 30), CoastAmt = 1f,
             Zones = K(C(150, 205, 238), C(192, 224, 244), C(226, 241, 250), C(255, 255, 255)),
             SeaShade = 0f, SeaLine = C(110, 150, 190), SeaLineAmt = 0.9f, SafetyLine = C(30, 80, 170),
@@ -207,7 +207,7 @@ internal static class Themes
         {
             Id = "ecdis-day", Name = "ECDIS day", Note = "civil ship chart, IHO S-52",
             LandFlat = C(201, 185, 122), Shade = 0f,
-            LandLine = C(139, 102, 31), LandMinor = 0.5f, LandMajor = 0.9f,
+            LandLine = C(139, 102, 31), LandMinor = 0.35f, LandMajor = 0.8f,
             Coast = C(82, 90, 92), CoastAmt = 1f,
             Zones = K(C(115, 182, 239), C(152, 197, 242), C(186, 213, 225), C(212, 234, 238)),
             SeaShade = 0f, SeaLine = C(125, 137, 140), SeaLineAmt = 0.9f, SafetyLine = C(82, 90, 92),
@@ -221,12 +221,13 @@ internal static class Themes
             Shade = 0.95f, ShadowTint = C(92, 58, 26), ShadowAmt = 0.6f, HighlightTint = C(255, 246, 214), HighlightAmt = 0.5f,
             LandLine = C(84, 54, 26), LandMinor = 0.22f, LandMajor = 0.5f,
             Coast = C(64, 40, 18), CoastAmt = 1f,
-            SeaKeys = K(C(208, 214, 190), C(196, 206, 184), C(184, 198, 178), C(172, 188, 170), C(160, 178, 164), C(148, 168, 158),
-                        C(136, 158, 152), C(124, 148, 146), C(112, 138, 140), C(100, 126, 132), C(88, 114, 124), C(76, 102, 114)),
-            SeaShade = 0.45f, SeaLine = C(70, 56, 36), SeaLineAmt = 0.4f,
+            // Faded ink blue-green water, lighter than the land at the coast so the shore reads.
+            SeaKeys = K(C(212, 220, 200), C(196, 210, 194), C(180, 200, 190), C(166, 190, 186), C(152, 180, 182), C(138, 170, 178),
+                        C(124, 158, 172), C(110, 146, 164), C(98, 134, 156), C(86, 120, 146), C(74, 106, 134), C(62, 92, 122)),
+            SeaShade = 0.4f, SeaLine = C(70, 56, 36), SeaLineAmt = 0.35f,
         });
 
-        Light.Add(new Theme
+        Theme glacier = new Theme
         {
             Id = "glacier", Name = "Glacier", Note = "snow over turquoise water",
             LandKeys = K(C(240, 246, 252), C(236, 244, 251), C(232, 242, 250), C(228, 240, 250), C(224, 238, 249), C(220, 236, 248),
@@ -237,7 +238,9 @@ internal static class Themes
             SeaKeys = K(C(178, 236, 232), C(150, 224, 226), C(120, 208, 222), C(92, 190, 216), C(70, 168, 208), C(52, 146, 200),
                         C(38, 122, 186), C(28, 100, 170), C(20, 80, 150), C(14, 62, 128), C(10, 46, 104), C(6, 34, 82)),
             SeaShade = 0.6f, SeaLine = C(255, 255, 255), SeaLineAmt = 0.5f, ShelfBoost = 1.3f,
-        });
+        };
+        glacier.SeaKeys = Grade(glacier.SeaKeys, 0.97f, 0.72f, null, 0f);   // calmer water: the snow is the subject
+        Light.Add(glacier);
 
         // -------------------------------------------------------------------------------------------------- dark
         Dark.Add(new Theme
@@ -276,8 +279,8 @@ internal static class Themes
         Dark.Add(new Theme
         {
             Id = "black", Name = "Black", Note = "black, grey relief and lines, a coloured sea", Dark = true,
-            LandKeys = K(C(6, 6, 6), C(9, 9, 9), C(12, 12, 12), C(16, 16, 16), C(21, 21, 21), C(28, 28, 28),
-                         C(36, 36, 36), C(46, 46, 46), C(58, 58, 58), C(72, 72, 72), C(88, 88, 88), C(108, 108, 108), C(130, 130, 130)),
+            LandKeys = K(C(17, 18, 19), C(19, 20, 21), C(22, 22, 23), C(25, 25, 26), C(29, 29, 30), C(34, 34, 35),
+                         C(41, 41, 42), C(50, 50, 51), C(61, 61, 62), C(74, 74, 75), C(90, 90, 91), C(108, 108, 110), C(130, 130, 132)),
             Shade = 0.9f, ShadowTint = C(0, 0, 0), ShadowAmt = 0.8f, HighlightTint = C(200, 200, 210), HighlightAmt = 0.25f,
             LandLine = C(125, 125, 132), LandMinor = 0.45f, LandMajor = 0.95f, LandHalo = 0.08f,
             Coast = C(235, 235, 240), CoastAmt = 0.9f,
@@ -291,10 +294,10 @@ internal static class Themes
         // The atlas at twilight: the same pastel hues at half the light, warm highlights, indigo shadows.
         Theme dusk = atlas.Clone();
         dusk.Id = "atlas-dusk"; dusk.Name = "Atlas dusk"; dusk.Note = "the atlas at twilight"; dusk.Dark = true;
-        dusk.LandKeys = Grade(atlas.LandKeys, 0.50f, 1.15f, null, 0f);
+        dusk.LandKeys = Grade(atlas.LandKeys, 0.38f, 1.05f, null, 0f);
         dusk.SeaKeys = Grade(atlas.SeaKeys, 0.40f, 1.10f, null, 0f);
         dusk.ShadowTint = C(18, 20, 66); dusk.ShadowAmt = 0.65f;
-        dusk.HighlightTint = C(255, 212, 160); dusk.HighlightAmt = 0.5f;
+        dusk.HighlightTint = C(255, 212, 160); dusk.HighlightAmt = 0.35f;
         dusk.LandLine = C(232, 216, 190); dusk.LandMinor = 0.2f; dusk.LandMajor = 0.45f;
         dusk.Coast = C(150, 182, 224); dusk.CoastAmt = 0.8f;
         dusk.SeaLine = C(205, 226, 255); dusk.SeaLineAmt = 0.45f; dusk.SeaShade = 0.6f;
@@ -329,7 +332,7 @@ internal static class Themes
             LandKeys = K(C(4, 22, 8), C(6, 30, 12), C(8, 38, 14), C(10, 46, 18), C(12, 56, 22), C(16, 68, 26),
                          C(20, 82, 32), C(26, 98, 38), C(34, 118, 46), C(46, 144, 58), C(64, 176, 74), C(96, 214, 100), C(170, 255, 170)),
             Shade = 0.8f, ShadowTint = C(0, 6, 0), ShadowAmt = 0.6f, HighlightTint = C(120, 255, 140), HighlightAmt = 0.25f,
-            LandLine = C(40, 170, 70), LandMinor = 0.35f, LandMajor = 0.7f, LandHalo = 0.12f, LandIntervalScale = 0.8f,
+            LandLine = C(40, 170, 70), LandMinor = 0.22f, LandMajor = 0.6f, LandHalo = 0.1f,
             Coast = C(150, 255, 160), CoastAmt = 1f,
             SeaKeys = K(C(2, 12, 6), C(2, 10, 5), C(2, 9, 4), C(1, 8, 4), C(1, 7, 3), C(1, 6, 3),
                         C(1, 5, 2), C(1, 5, 2), C(0, 4, 2), C(0, 3, 1), C(0, 3, 1), C(0, 2, 1)),
@@ -367,11 +370,11 @@ internal static class Themes
             LandKeys = K(C(14, 8, 34), C(16, 10, 38), C(18, 10, 42), C(20, 12, 46), C(24, 14, 52), C(28, 16, 58),
                          C(32, 18, 64), C(38, 20, 72), C(44, 22, 80), C(52, 24, 90), C(62, 28, 100), C(74, 32, 112), C(100, 40, 140)),
             Shade = 0.55f, ShadowTint = C(2, 0, 14), ShadowAmt = 0.5f,
-            LandLine = C(255, 60, 200), LandMinor = 0.55f, LandMajor = 1f, LandHalo = 0.4f, LandIntervalScale = 0.4f,
+            LandLine = C(255, 60, 200), LandMinor = 0.3f, LandMajor = 0.9f, LandHalo = 0.25f, LandIntervalScale = 0.8f,
             Coast = C(255, 210, 255), CoastAmt = 0.9f,
             SeaKeys = K(C(4, 6, 26), C(4, 5, 22), C(3, 5, 20), C(3, 4, 18), C(3, 4, 16), C(2, 3, 14),
                         C(2, 3, 13), C(2, 2, 12), C(1, 2, 10), C(1, 2, 9), C(1, 1, 8), C(1, 1, 7)),
-            SeaShade = 0.4f, SeaLine = C(40, 230, 255), SeaLineAmt = 0.85f, SeaLineHalo = 0.35f, ShelfLine = C(180, 255, 255), ShelfBoost = 1.4f,
+            SeaShade = 0.4f, SeaLine = C(40, 230, 255), SeaLineAmt = 0.55f, SeaLineHalo = 0.2f, ShelfLine = C(180, 255, 255), ShelfBoost = 1.4f,
         });
     }
 }

@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased – title bar icons, refined looks
+
+- **Title bar buttons** are one small framed group of icons instead of four wide text buttons with the game's full orange
+  fill: a mountain (Topography), the look's three colour swatches with ▾ (opens the list), a list (Legend), a crosshair
+  (Cursor height). A lit button has a lighter face and an orange icon; hover and press shade the face; the names are in
+  the tooltips. The group takes about a quarter of the old width. Drawn by the mod's own button template (parsed XAML);
+  if that ever fails to load, the game's button style stays.
+- **Looks refined** (the Standard looks are unchanged): Neon has fewer and softer contour lines (it was a tangle at the
+  default interval); Phosphor green's lines are quieter; Atlas dusk is darker and fits the night map; Black's lowland is a
+  dark grey instead of pure black; Glacier's water is calmer; Parchment's sea is a faded blue-green ink instead of grey
+  mud; Paper sea chart and ECDIS day have lighter minor land contours.
+- **Not run in the game yet** on either game version; built for both and the both-versions check passes.
+
 ## 1.4.1 – 2026-10-30 – fix: the mission editor on 0.8.7 drew only the coarse world grid
 
 1.4.0 gave the flat map of 0.8.7 the mission editor layer, but the editor has no terrain manager on 0.8.7, so the mod's

@@ -39,8 +39,9 @@ flat colour: high ground is hard to judge and the seabed can't be seen at all. T
 - **No drawing while zoomed out** – at mission start the area around all units and the whole world are drawn once
   in the background. Zoomed out they are simply shown; closer in the view is drawn live, and the pre-drawn colours
   fill the edges while it catches up with a pan.
-- **Buttons in the map's title bar**, left of the map menu (≡): **Topography** on/off, the look, **Legend**, **Cursor
-  height** on/off. The look list and the legend drop down below them.
+- **Buttons in the map's title bar**, one small icon group left of the map menu (≡): **Topography** on/off (mountain),
+  the look (its colours, ▾), **Legend** (list), **Cursor height** on/off (crosshair); a lit button has an orange icon, the
+  names are in the tooltips. The look list and the legend drop down below them.
 - **In the mission editor** too: its map gets the layer, the buttons, the legend and the cursor readout.
 - **On the 3D globe map**: the overlay lies exactly on the stock map's globe at every zoom, at high latitudes, across
   the date line and over the poles.
@@ -63,9 +64,9 @@ on top; the stock coastline is untouched. The map's night theme gets its own loo
    copy its preloader into the game folder).
 2. Subscribe to **[Sea Power Topographic Map](https://steamcommunity.com/sharedfiles/filedetails/?id=3826122523)** on the Steam Workshop.
 3. Start the game. In a mission, open the map: the layer is on. Its buttons sit in the map's title bar, left of the map
-   menu (≡): **Topography** turns it on and off (also the map menu → Map Layers → **Topography**, or **F6**); the look
-   button names the look and opens the list of looks (**Shift+F6** goes to the next one); **Legend** opens the colour
-   key; **Cursor height** switches the readout next to the pointer. In the mission editor the same buttons sit at the
+   menu (≡): the mountain (**Topography**) turns it on and off (also the map menu → Map Layers → **Topography**, or
+   **F6**); the colour swatches with ▾ show the look and open the list of looks (**Shift+F6** goes to the next one); the
+   list icon (**Legend**) opens the colour key; the crosshair (**Cursor height**) switches the readout next to the pointer. In the mission editor the same buttons sit at the
    top right of its map.
 
 Manual install instead of the Workshop: put `SeaPowerTopo.dll` and `_info.ini` into
