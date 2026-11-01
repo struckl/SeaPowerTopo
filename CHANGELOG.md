@@ -1,23 +1,24 @@
 # Changelog
 
-## Unreleased – title bar icons, refined looks
+## 1.5.0 – 2026-11-01 – title bar icons, new looks
 
-- **Title bar buttons** are one small framed group of icons instead of four wide text buttons with the game's full orange
-  fill: the look's three colour swatches with ▾ (opens the list) and a list (Legend), which show while the layer is on,
-  then a mountain (Topography) and a crosshair (Cursor height), which stay put when the other two come and go. The look
-  list and the legend hang below the title bar left of its buttons, clear of the game's time controls. A lit button has a lighter face and an orange icon; hover and press shade the face; the names are in
-  the tooltips. The group takes about a quarter of the old width. Drawn by the mod's own button template (parsed XAML);
-  if that ever fails to load, the game's button style stays.
-- **New looks**: **Soviet General Staff map** (day: the Genshtab maps' green-to-brown height tints, brown contours, blue
-  water), **Bathymetric chart** (day: grey land, the sea in stepped blues, a dark shelf-edge line), **Survey sonar**
-  (night: depth as a multibeam survey's rainbow, red shallows to violet deep, over dark grey land), **Recon photo** (night: black-and-white reconnaissance film, grey
-  terrain in strong relief), **Amber display** (night: Phosphor green's twin in amber, like a 1980s terminal), **Desert storm** (day: the
-  1991 tan height tints), **Satellite** (day: true colour from orbit, no lines), **1940s chart** (day: a sepia naval
-  chart print), **White phosphor** (night: modern white night vision).
-- **19 looks** (the 18 before, 7 of them gone, 8 new): Atlas, Paper sea chart and Parchment (day) and Quiet, Atlas dusk, ECDIS dusk, Thermal
-  imager and Neon (night) are gone. If one of them was your look, the map starts with the default (Standard by day, Midnight by
-  night); a theme file of yours with `Base=` one of them no longer loads (the log names it) – save the look you want as
-  a file again or give it another `Base`.
+- **Title bar buttons** are one small framed group of icons instead of four wide text buttons with the game's full
+  orange fill: the look's three colour swatches with ▾ (opens the list) and a list (Legend), which show while the layer
+  is on, then a mountain (Topography) and a crosshair (Cursor height), which stay put when the other two come and go.
+  The look list and the legend hang below the title bar left of its buttons, clear of the game's time controls. A lit
+  button has a lighter face and an orange icon; hover and press shade the face; the names are in the tooltips. The
+  group takes about a quarter of the old width. Drawn by the mod's own button template (parsed XAML); if that ever
+  fails to load, the game's button style stays.
+- **Nine new looks**. Day: **Soviet General Staff map** (the Genshtab maps' green-to-brown height tints, brown
+  contours, blue water), **Bathymetric chart** (grey land, the sea in stepped blues, a dark shelf-edge line), **Desert
+  storm** (the 1991 tan height tints), **Satellite** (true colour from orbit, no lines), **1940s chart** (a sepia naval
+  chart print). Night: **Recon photo** (black-and-white reconnaissance film, grey terrain in strong relief), **Survey
+  sonar** (depth as a multibeam survey's rainbow, red shallows to violet deep, over dark grey land), **White phosphor**
+  (modern white night vision), **Amber display** (Phosphor green's twin in amber, like a 1980s terminal).
+- **Eight looks removed**: Atlas, Paper sea chart and Parchment (day), Quiet, Atlas dusk, ECDIS dusk, Thermal imager and
+  Neon (night); 19 looks in all now. If one of them was your look, the map starts with the default (Standard by day,
+  Midnight by night); a theme file of yours with `Base=` one of them no longer loads (the log names it) – save the look
+  you want as a file again or give it another `Base`.
 - **Looks refined** (the Standard looks are unchanged): Phosphor green's lines are quieter; Black's lowland is a dark grey
   instead of pure black; Glacier's water is calmer; ECDIS day has lighter minor land contours.
 - **Run in the game on 0.8.7 (2026-11-01, Intro 01, night map)** with the build before the two fixes above: the icon
