@@ -1,4 +1,4 @@
-# Sea Power Topographic Map
+# Sea Power: R.A.T.S. Topographic Map
 
 **[Get it on the Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3826122523)** – requires
 [Anchor Chain](https://steamcommunity.com/sharedfiles/filedetails/?id=3380210757).
