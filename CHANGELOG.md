@@ -10,8 +10,10 @@
 - **New looks**: **Soviet General Staff map** (day: the Genshtab maps' green-to-brown height tints, brown contours, blue
   water), **Bathymetric chart** (day: grey land, the sea in stepped blues, a dark shelf-edge line), **Survey sonar**
   (night: depth as a multibeam survey's rainbow, red shallows to violet deep, over dark grey land), **Recon photo** (night: black-and-white reconnaissance film, grey
-  terrain in strong relief), **Amber display** (night: Phosphor green's twin in amber, like a 1980s terminal).
-- **15 looks instead of 18**: Atlas, Paper sea chart and Parchment (day) and Quiet, Atlas dusk, ECDIS dusk, Thermal
+  terrain in strong relief), **Amber display** (night: Phosphor green's twin in amber, like a 1980s terminal), **Desert storm** (day: the
+  1991 tan height tints), **Satellite** (day: true colour from orbit, no lines), **1940s chart** (day: a sepia naval
+  chart print), **White phosphor** (night: modern white night vision).
+- **19 looks** (the 18 before, 7 of them gone, 8 new): Atlas, Paper sea chart and Parchment (day) and Quiet, Atlas dusk, ECDIS dusk, Thermal
   imager and Neon (night) are gone. If one of them was your look, the map starts with the default (Standard by day, Midnight by
   night); a theme file of yours with `Base=` one of them no longer loads (the log names it) – save the look you want as
   a file again or give it another `Base`.

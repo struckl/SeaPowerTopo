@@ -218,6 +218,47 @@ internal static class Themes
             SeaShade = 0f, SeaLine = C(125, 137, 140), SeaLineAmt = 0.9f, SafetyLine = C(82, 90, 92),
         });
 
+        // Desert storm: the tan and khaki height tints of the 1991 Gulf War maps over a pale teal sea.
+        Light.Add(new Theme
+        {
+            Id = "desert-storm", Name = "Desert storm", Note = "1991 tan height tints",
+            LandKeys = K(C(230, 214, 176), C(226, 207, 164), C(221, 198, 152), C(216, 189, 140), C(210, 179, 128), C(203, 168, 116),
+                         C(195, 156, 106), C(185, 144, 96), C(174, 132, 88), C(162, 120, 82), C(150, 110, 76), C(138, 100, 72), C(126, 92, 68)),
+            LandStepped = true, Shade = 0.45f, ShadowTint = C(106, 80, 48), ShadowAmt = 0.35f,
+            LandLine = C(138, 106, 58), LandMinor = 0.3f, LandMajor = 0.65f,
+            Coast = C(74, 58, 32), CoastAmt = 0.9f,
+            SeaKeys = K(C(207, 224, 226), C(196, 216, 220), C(184, 208, 214), C(172, 202, 208), C(160, 194, 202), C(148, 186, 196),
+                        C(136, 178, 190), C(124, 170, 184), C(112, 162, 178), C(100, 154, 172), C(90, 146, 166), C(80, 138, 160)),
+            SeaStepped = true, SeaShade = 0.2f, SeaLine = C(90, 128, 144), SeaLineAmt = 0.35f,
+        });
+
+        // The Earth in true colour from orbit: forest green to bare rock and snow, a dark navy sea, no lines.
+        Light.Add(new Theme
+        {
+            Id = "satellite", Name = "Satellite", Note = "true colour from orbit",
+            LandKeys = K(C(62, 90, 48), C(70, 96, 47), C(79, 101, 50), C(90, 105, 54), C(102, 108, 60), C(112, 108, 66),
+                         C(122, 108, 74), C(131, 112, 82), C(140, 120, 96), C(150, 134, 114), C(168, 156, 142), C(200, 196, 190), C(242, 242, 242)),
+            Shade = 0.9f, ShadowTint = C(16, 24, 12), ShadowAmt = 0.5f, HighlightTint = C(255, 246, 224), HighlightAmt = 0.2f,
+            LandLine = C(0, 0, 0), LandMinor = 0f, LandMajor = 0f,
+            SeaKeys = K(C(58, 122, 138), C(46, 102, 128), C(36, 86, 118), C(28, 72, 106), C(22, 60, 94), C(18, 50, 82),
+                        C(15, 42, 72), C(13, 36, 63), C(11, 31, 55), C(10, 27, 49), C(9, 24, 44), C(8, 21, 40)),
+            SeaShade = 0.6f, SeaLine = C(0, 0, 0), SeaLineAmt = 0f,
+        });
+
+        // A 1940s naval chart in sepia print: buff land with brown contours, a cream sea, a dark coastline.
+        Light.Add(new Theme
+        {
+            Id = "chart-1940s", Name = "1940s chart", Note = "sepia naval chart print",
+            LandKeys = K(C(220, 200, 160), C(216, 195, 154), C(212, 190, 148), C(208, 185, 142), C(204, 180, 136), C(200, 175, 130),
+                         C(196, 170, 124), C(192, 165, 118), C(188, 160, 112), C(184, 155, 106), C(180, 150, 100), C(176, 145, 94), C(172, 140, 88)),
+            Shade = 0.4f, ShadowTint = C(106, 74, 40), ShadowAmt = 0.3f,
+            LandLine = C(122, 82, 40), LandMinor = 0.25f, LandMajor = 0.55f,
+            Coast = C(58, 36, 16), CoastAmt = 1f,
+            SeaKeys = K(C(242, 232, 208), C(238, 227, 200), C(234, 222, 192), C(230, 216, 184), C(226, 210, 176), C(221, 204, 168),
+                        C(216, 198, 160), C(210, 191, 152), C(204, 184, 144), C(198, 176, 136), C(192, 168, 128), C(186, 160, 120)),
+            SeaStepped = true, SeaShade = 0f, SeaLine = C(138, 106, 64), SeaLineAmt = 0.45f,
+        });
+
         Theme glacier = new Theme
         {
             Id = "glacier", Name = "Glacier", Note = "snow over turquoise water",
@@ -324,6 +365,20 @@ internal static class Themes
             SeaKeys = K(C(2, 12, 6), C(2, 10, 5), C(2, 9, 4), C(1, 8, 4), C(1, 7, 3), C(1, 6, 3),
                         C(1, 5, 2), C(1, 5, 2), C(0, 4, 2), C(0, 3, 1), C(0, 3, 1), C(0, 2, 1)),
             SeaShade = 0.3f, SeaLine = C(30, 190, 70), SeaLineAmt = 0.5f, SeaLineHalo = 0.15f, ShelfBoost = 1.6f,
+        });
+
+        // Modern white-phosphor night vision: cool grey-white land on a near-black sea, a bright coastline.
+        Dark.Add(new Theme
+        {
+            Id = "white-phosphor", Name = "White phosphor", Note = "modern white night vision", Dark = true,
+            LandKeys = K(C(26, 31, 36), C(30, 36, 42), C(35, 41, 48), C(41, 48, 56), C(48, 56, 65), C(56, 65, 74),
+                         C(65, 75, 85), C(76, 87, 97), C(88, 99, 109), C(102, 114, 124), C(122, 134, 143), C(146, 158, 166), C(192, 204, 212)),
+            Shade = 0.9f, ShadowTint = C(0, 0, 0), ShadowAmt = 0.6f, HighlightTint = C(232, 244, 255), HighlightAmt = 0.25f,
+            LandLine = C(168, 184, 196), LandMinor = 0.12f, LandMajor = 0.45f, LandHalo = 0.08f,
+            Coast = C(232, 242, 250), CoastAmt = 1f,
+            SeaKeys = K(C(12, 18, 24), C(11, 16, 22), C(10, 15, 20), C(9, 14, 18), C(8, 12, 16), C(7, 11, 14),
+                        C(6, 10, 13), C(5, 8, 11), C(4, 7, 10), C(4, 6, 8), C(3, 5, 7), C(2, 4, 6)),
+            SeaShade = 0.4f, SeaLine = C(138, 160, 176), SeaLineAmt = 0.4f, SeaLineHalo = 0.1f, ShelfLine = C(216, 232, 244), ShelfBoost = 1.5f,
         });
 
         // Phosphor green's twin in amber: the 1980s amber terminals and orange plasma panels.
