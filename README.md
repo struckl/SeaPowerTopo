@@ -40,9 +40,10 @@ flat colour: high ground is hard to judge and the seabed can't be seen at all. T
 - **No drawing while zoomed out** – at mission start the area around all units and the whole world are drawn once
   in the background. Zoomed out they are simply shown; closer in the view is drawn live, and the pre-drawn colours
   fill the edges while it catches up with a pan.
-- **Buttons in the map's title bar**, one small icon group left of the map menu (≡): **Topography** on/off (mountain),
-  the look (its colours, ▾), **Legend** (list), **Cursor height** on/off (crosshair); a lit button has an orange icon, the
-  names are in the tooltips. The look list and the legend drop down below them.
+- **Buttons in the map's title bar**, one small icon group left of the map menu (≡): the look (its colours, ▾) and
+  **Legend** (list) while the layer is on, then **Topography** on/off (mountain) and **Cursor height** on/off
+  (crosshair), which never move; a lit button has an orange icon, the names are in the tooltips. The look list and the
+  legend drop down below the title bar, left of its buttons.
 - **In the mission editor** too: its map gets the layer, the buttons, the legend and the cursor readout.
 - **On the 3D globe map**: the overlay lies exactly on the stock map's globe at every zoom, at high latitudes, across
   the date line and over the poles.

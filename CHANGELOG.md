@@ -3,8 +3,9 @@
 ## Unreleased – title bar icons, refined looks
 
 - **Title bar buttons** are one small framed group of icons instead of four wide text buttons with the game's full orange
-  fill: a mountain (Topography), the look's three colour swatches with ▾ (opens the list), a list (Legend), a crosshair
-  (Cursor height). A lit button has a lighter face and an orange icon; hover and press shade the face; the names are in
+  fill: the look's three colour swatches with ▾ (opens the list) and a list (Legend), which show while the layer is on,
+  then a mountain (Topography) and a crosshair (Cursor height), which stay put when the other two come and go. The look
+  list and the legend hang below the title bar left of its buttons, clear of the game's time controls. A lit button has a lighter face and an orange icon; hover and press shade the face; the names are in
   the tooltips. The group takes about a quarter of the old width. Drawn by the mod's own button template (parsed XAML);
   if that ever fails to load, the game's button style stays.
 - **New looks**: **Soviet General Staff map** (day: the Genshtab maps' green-to-brown height tints, brown contours, blue
@@ -19,7 +20,11 @@
   a file again or give it another `Base`.
 - **Looks refined** (the Standard looks are unchanged): Phosphor green's lines are quieter; Black's lowland is a dark grey
   instead of pure black; Glacier's water is calmer; ECDIS day has lighter minor land contours.
-- **Not run in the game yet** on either game version; built for both and the both-versions check passes.
+- **Run in the game on 0.8.7 (2026-11-01, Intro 01, night map)** with the build before the two fixes above: the icon
+  group in the title bar, lit and unlit states, hover, the look list with the night looks, Survey sonar drawn, the
+  legend, Topography off (the look and legend buttons hide), the fallback to Midnight for a removed look. That run
+  showed the two problems now fixed (the legend under the time controls; the mountain moving when the layer went off);
+  **the fixed build has not run in the game yet**, nor the globe build, nor the day looks in the game.
 
 ## 1.4.1 – 2026-10-30 – fix: the mission editor on 0.8.7 drew only the coarse world grid
 

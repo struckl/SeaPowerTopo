@@ -131,7 +131,7 @@ internal sealed class MapDecoration
 
         // One framed group of icon buttons in the title bar (20 px high); the words are in the tooltips. A lit button
         // has a lighter face and an orange icon.
-        topoToggle = Segment(Icon(("M0.5,12.5 L5,4 L7.5,8 L9.5,5.5 L13.5,12.5 Z", 1.2f), ("M3.2,9.3 H10.9", 1f)), first: true);
+        topoToggle = Segment(Icon(("M0.5,12.5 L5,4 L7.5,8 L9.5,5.5 L13.5,12.5 Z", 1.2f), ("M3.2,9.3 H10.9", 1f)));
         topoToggle.ToolTip = $"Topography: land heights and sea depths on the map ({Settings.ToggleKey.Value}). Also in the map menu under Map Layers.";
         topoToggle.Click += (sender, args) =>
         {
@@ -147,7 +147,7 @@ internal sealed class MapDecoration
         chevron.Width = 7f;
         chevron.Margin = new Thickness(4, 0, 0, 0);
         lookContent.Children.Add(chevron);
-        lookButton = Segment(lookContent, first: false);
+        lookButton = Segment(lookContent);
         lookButton.Visibility = Visibility.Collapsed;
         lookButton.Click += (sender, args) =>
         {
@@ -156,7 +156,7 @@ internal sealed class MapDecoration
             picker.Visibility = pickerOpen ? Visibility.Visible : Visibility.Collapsed;
         };
 
-        legendButton = Segment(Icon(("M1,2.5 H3.8 M1,7 H3.8 M1,11.5 H3.8", 2.4f), ("M5.8,2.5 H13 M5.8,7 H13 M5.8,11.5 H11", 1.2f)), first: false);
+        legendButton = Segment(Icon(("M1,2.5 H3.8 M1,7 H3.8 M1,11.5 H3.8", 2.4f), ("M5.8,2.5 H13 M5.8,7 H13 M5.8,11.5 H11", 1.2f)));
         legendButton.Visibility = Visibility.Collapsed;
         legendButton.Click += (sender, args) =>
         {
@@ -166,7 +166,7 @@ internal sealed class MapDecoration
 
         var crosshair = Icon(("M7,0.5 V4 M7,10 V13.5 M0.5,7 H4 M10,7 H13.5", 1.2f));
         crosshair.Children.Add(new Ellipse { Width = 6, Height = 6, Stroke = idleBrush, StrokeThickness = 1.2f });
-        readoutToggle = Segment(crosshair, first: false);
+        readoutToggle = Segment(crosshair);
         readoutToggle.ToolTip = "Cursor height: terrain height or sea depth next to the mouse pointer; lit while it shows, click to switch it off or on (also with Topography off)";
         readoutToggle.Click += (sender, args) =>
         {
@@ -174,10 +174,12 @@ internal sealed class MapDecoration
             TopoHost.Instance?.ToggleReadout();
         };
 
+        // The look and legend buttons come and go with the layer: they sit at the left end, so the two that always show
+        // keep their place under the pointer when the layer is switched.
         segments = new StackPanel { Orientation = Orientation.Horizontal };
-        segments.Children.Add(topoToggle);
         segments.Children.Add(lookButton);
         segments.Children.Add(legendButton);
+        segments.Children.Add(topoToggle);
         segments.Children.Add(readoutToggle);
         bar = new Border
         {
@@ -279,6 +281,7 @@ internal sealed class MapDecoration
         SetVisible(legendButton, drawn && Settings.Legend.Value);
         SetLit(lookButton, drawn && pickerOpen);
         SetLit(legendButton, drawn && Settings.LegendOpen.Value);
+        SetDividers();
         if (notice.Visibility == Visibility.Visible && UnityEngine.Time.unscaledTime > noticeUntil)
             notice.Visibility = Visibility.Collapsed;
         if (!drawn)
@@ -295,7 +298,7 @@ internal sealed class MapDecoration
             RefreshLookButton(theme);
         SetVisible(picker, pickerOpen);
         if (header != null)
-            HangDockFromLookButton();
+            HangDockFromHeader();
 
         bool open = Settings.LegendOpen.Value && Settings.Legend.Value;
         if (shownOpen != open)
@@ -308,14 +311,22 @@ internal sealed class MapDecoration
             RefreshLegend(overlay, aircraft, submarine);
     }
 
-    // In the title bar, what the buttons open hangs below the look button, right edges in line: clear of the game's
-    // own controls in the map's top right corner (the time controls over a full-screen map).
-    private void HangDockFromLookButton()
+    // In the title bar, what the buttons open hangs below it with its right edge at the left end of the title bar's
+    // button row: clear of the game's own controls in the map's top right corner (the time controls over a full-screen
+    // map, about as wide as that row).
+    private void HangDockFromHeader()
     {
-        if (lookButton.ActualWidth <= 0f || root.ActualWidth <= 0f)
+        if (root.ActualWidth <= 0f)
             return;
-        Point edge = root.PointFromScreen(lookButton.PointToScreen(new Point(lookButton.ActualWidth, 0f)));
-        float right = Math.Max(Inset, root.ActualWidth - edge.X);
+        float left = float.MaxValue;
+        foreach (UIElement child in header.Children)
+        {
+            if (child is FrameworkElement fe && fe.Visibility == Visibility.Visible && fe.ActualWidth > 0f)
+                left = Math.Min(left, root.PointFromScreen(fe.PointToScreen(new Point(0f, 0f))).X);
+        }
+        if (left == float.MaxValue)
+            return;
+        float right = Math.Max(Inset, root.ActualWidth - left);
         if (right < root.ActualWidth - 60f && Math.Abs(right - dock.Margin.Right) > 0.5f)
             dock.Margin = new Thickness(0f, 0f, right, 0f);
     }
@@ -340,8 +351,23 @@ internal sealed class MapDecoration
                 Recolour(child, ink);
     }
 
-    // A button of the group: flat, a divider on its left (not the first), the icon centred.
-    private Button Segment(UIElement content, bool first)
+    // A divider on the left of every shown button but the first.
+    private void SetDividers()
+    {
+        bool first = true;
+        foreach (UIElement child in segments.Children)
+        {
+            if (child is not Button button || button.Visibility != Visibility.Visible)
+                continue;
+            float left = first ? 0f : 1f;
+            if (button.BorderThickness.Left != left)
+                button.BorderThickness = new Thickness(left, 0, 0, 0);
+            first = false;
+        }
+    }
+
+    // A button of the group: flat, the icon centred; SetDividers draws the lines between them.
+    private Button Segment(UIElement content)
     {
         var button = new Button
         {
@@ -351,7 +377,7 @@ internal sealed class MapDecoration
             VerticalAlignment = VerticalAlignment.Stretch,
             Background = clearBrush,                       // transparent, not null: the whole face takes clicks
             BorderBrush = new SolidColorBrush(GroupEdge),
-            BorderThickness = new Thickness(first ? 0 : 1, 0, 0, 0),
+            BorderThickness = new Thickness(0),
             Content = content,
         };
         ControlTemplate template = SegmentTemplate();
