@@ -23,8 +23,11 @@
 - **Run in the game on 0.8.7 (2026-11-01, Intro 01, night map)** with the build before the two fixes above: the icon
   group in the title bar, lit and unlit states, hover, the look list with the night looks, Survey sonar drawn, the
   legend, Topography off (the look and legend buttons hide), the fallback to Midnight for a removed look. That run
-  showed the two problems now fixed (the legend under the time controls; the mountain moving when the layer went off);
-  **the fixed build has not run in the game yet**, nor the globe build, nor the day looks in the game.
+  showed the two problems now fixed (the legend under the time controls; the mountain moving when the layer went off).
+  **The fixed build, run the same day on 0.8.7:** the look list and legend hang left of the title bar buttons, clear of
+  the time controls; Topography off and on with two clicks on the same spot; dividers right in both states; the day
+  map (Theme → Light) with its 9 looks, Soviet General Staff map, Bathymetric chart, Desert storm, Satellite and 1940s
+  chart drawn; no errors in the log. **Not run:** the globe build (the installed game is 0.8.7).
 
 ## 1.4.1 – 2026-10-30 – fix: the mission editor on 0.8.7 drew only the coarse world grid
 
