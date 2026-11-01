@@ -38,7 +38,7 @@ LandLines=170,150,120
   `none` removes a colour the base has (`Coast=none` draws no coastline).
 - `Id` is how the look is named in the config and in `Base=` of other files: letters, digits, `-` and `_`, at most 40
   characters, unique. Without an `Id` the file name is used. It must not be the id of a look that ships with the mod.
-- `Base` is the id of a built-in look (`black`, `midnight`, `atlas`, `ecdis-day`, … – the ids are in the config file's
+- `Base` is the id of a built-in look (`black`, `midnight`, `army-map`, `ecdis-day`, … – the ids are in the config file's
   description of the two *Look* settings) or the `Id` of another theme file (up to 8 levels, no circles).
 - `Dark=true` makes it a look for the map's night theme, `false` for its day theme. Left out, it follows `Base`
   (day, if there is none).

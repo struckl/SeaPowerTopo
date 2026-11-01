@@ -7,10 +7,12 @@
   (Cursor height). A lit button has a lighter face and an orange icon; hover and press shade the face; the names are in
   the tooltips. The group takes about a quarter of the old width. Drawn by the mod's own button template (parsed XAML);
   if that ever fails to load, the game's button style stays.
-- **Looks refined** (the Standard looks are unchanged): Neon has fewer and softer contour lines (it was a tangle at the
-  default interval); Phosphor green's lines are quieter; Atlas dusk is darker and fits the night map; Black's lowland is a
-  dark grey instead of pure black; Glacier's water is calmer; Parchment's sea is a faded blue-green ink instead of grey
-  mud; Paper sea chart and ECDIS day have lighter minor land contours.
+- **Fewer looks, 11 instead of 18**: Atlas, Paper sea chart and Parchment (day) and Quiet, Atlas dusk, Thermal imager and
+  Neon (night) are gone. If one of them was your look, the map starts with the default (Standard by day, Midnight by
+  night); a theme file of yours with `Base=` one of them no longer loads (the log names it) – save the look you want as
+  a file again or give it another `Base`.
+- **Looks refined** (the Standard looks are unchanged): Phosphor green's lines are quieter; Black's lowland is a dark grey
+  instead of pure black; Glacier's water is calmer; ECDIS day has lighter minor land contours.
 - **Not run in the game yet** on either game version; built for both and the both-versions check passes.
 
 ## 1.4.1 – 2026-10-30 – fix: the mission editor on 0.8.7 drew only the coarse world grid

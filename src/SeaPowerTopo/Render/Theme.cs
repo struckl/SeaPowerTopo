@@ -166,20 +166,6 @@ internal static class Themes
             SeaKeys = K(C(214, 228, 236), C(168, 190, 208), C(118, 144, 172), C(66, 92, 130), C(22, 40, 76)), SeaStepped = true,
         });
 
-        Theme atlas = new Theme
-        {
-            Id = "atlas", Name = "Atlas", Note = "printed atlas, cool shadows",
-            LandKeys = K(C(186, 212, 158), C(200, 222, 160), C(218, 230, 164), C(236, 234, 168), C(240, 224, 156), C(234, 206, 144),
-                         C(224, 188, 132), C(210, 168, 122), C(194, 148, 112), C(178, 130, 108), C(172, 130, 126), C(196, 184, 196), C(250, 250, 252)),
-            Shade = 0.9f, ShadowTint = C(74, 84, 150), ShadowAmt = 0.55f, HighlightTint = C(255, 248, 214), HighlightAmt = 0.6f,
-            LandLine = C(128, 88, 60), LandMinor = 0.2f, LandMajor = 0.45f,
-            Coast = C(70, 98, 130), CoastAmt = 0.85f,
-            SeaKeys = K(C(212, 232, 246), C(190, 218, 238), C(166, 202, 230), C(142, 186, 222), C(120, 168, 212), C(102, 150, 200),
-                        C(86, 132, 188), C(70, 114, 172), C(56, 96, 154), C(44, 78, 134), C(34, 62, 114), C(26, 48, 94)),
-            SeaShade = 0.55f, SeaLine = C(255, 255, 255), SeaLineAmt = 0.5f,
-        };
-        Light.Add(atlas);
-
         Light.Add(new Theme
         {
             Id = "army-map", Name = "Army tactical map", Note = "printed hypsometric tints",
@@ -195,36 +181,12 @@ internal static class Themes
 
         Light.Add(new Theme
         {
-            Id = "paper-chart", Name = "Paper sea chart", Note = "Admiralty / NOAA style chart",
-            LandFlat = C(250, 232, 176), Shade = 0f,
-            LandLine = C(150, 110, 50), LandMinor = 0.35f, LandMajor = 0.85f,
-            Coast = C(30, 30, 30), CoastAmt = 1f,
-            Zones = K(C(150, 205, 238), C(192, 224, 244), C(226, 241, 250), C(255, 255, 255)),
-            SeaShade = 0f, SeaLine = C(110, 150, 190), SeaLineAmt = 0.9f, SafetyLine = C(30, 80, 170),
-        });
-
-        Light.Add(new Theme
-        {
             Id = "ecdis-day", Name = "ECDIS day", Note = "civil ship chart, IHO S-52",
             LandFlat = C(201, 185, 122), Shade = 0f,
             LandLine = C(139, 102, 31), LandMinor = 0.35f, LandMajor = 0.8f,
             Coast = C(82, 90, 92), CoastAmt = 1f,
             Zones = K(C(115, 182, 239), C(152, 197, 242), C(186, 213, 225), C(212, 234, 238)),
             SeaShade = 0f, SeaLine = C(125, 137, 140), SeaLineAmt = 0.9f, SafetyLine = C(82, 90, 92),
-        });
-
-        Light.Add(new Theme
-        {
-            Id = "parchment", Name = "Parchment", Note = "fantasy map",
-            LandKeys = K(C(234, 218, 180), C(230, 212, 170), C(226, 206, 162), C(222, 200, 154), C(216, 192, 146), C(210, 184, 138),
-                         C(202, 174, 130), C(194, 164, 122), C(184, 152, 112), C(174, 140, 104), C(162, 128, 96), C(150, 118, 88), C(138, 106, 80)),
-            Shade = 0.95f, ShadowTint = C(92, 58, 26), ShadowAmt = 0.6f, HighlightTint = C(255, 246, 214), HighlightAmt = 0.5f,
-            LandLine = C(84, 54, 26), LandMinor = 0.22f, LandMajor = 0.5f,
-            Coast = C(64, 40, 18), CoastAmt = 1f,
-            // Faded ink blue-green water, lighter than the land at the coast so the shore reads.
-            SeaKeys = K(C(212, 220, 200), C(196, 210, 194), C(180, 200, 190), C(166, 190, 186), C(152, 180, 182), C(138, 170, 178),
-                        C(124, 158, 172), C(110, 146, 164), C(98, 134, 156), C(86, 120, 146), C(74, 106, 134), C(62, 92, 122)),
-            SeaShade = 0.4f, SeaLine = C(70, 56, 36), SeaLineAmt = 0.35f,
         });
 
         Theme glacier = new Theme
@@ -262,18 +224,6 @@ internal static class Themes
             SeaKeys = K(C(86, 104, 122), C(58, 72, 88), C(36, 45, 57), C(18, 25, 35), C(4, 7, 13)), SeaStepped = true,
         });
 
-        Dark.Add(new Theme
-        {
-            Id = "quiet", Name = "Quiet", Note = "grey land, colour on high ground", Dark = true, Opacity = 0.92f,
-            LandKeys = K(C(96, 102, 112), C(98, 104, 114), C(102, 108, 118), C(106, 112, 122), C(112, 118, 128), C(150, 136, 110),
-                         C(176, 138, 92), C(204, 132, 72), C(224, 112, 70), C(232, 92, 92), C(214, 110, 150), C(196, 150, 200), C(245, 245, 252)),
-            LandBright = 0.72f, Shade = 1.05f, ShadowTint = C(8, 16, 44), ShadowAmt = 0.55f,
-            LandLine = C(205, 210, 222), LandMinor = 0.10f, LandMajor = 0.30f,
-            SeaKeys = K(C(50, 104, 138), C(42, 92, 128), C(36, 82, 120), C(32, 76, 116), C(25, 62, 102), C(18, 48, 88),
-                        C(14, 38, 74), C(10, 28, 60), C(8, 22, 50), C(6, 16, 40), C(5, 12, 32), C(4, 9, 26)),
-            SeaShade = 0.85f, SeaLine = C(90, 215, 238), SeaLineAmt = 0.5f, SeaLineHalo = 0.12f, ShelfLine = C(150, 245, 255), ShelfBoost = 1.7f,
-        });
-
         // Black: dark-grey relief on black with neutral grey contour lines, a light coastline, a sea in colour between
         // Midnight's blue and a teal, fading to black in the deep.
         Dark.Add(new Theme
@@ -290,18 +240,6 @@ internal static class Themes
             SeaShade = 0.5f, SeaLine = C(85, 210, 225), SeaLineAmt = 0.5f, SeaLineHalo = 0.14f,
             ShelfLine = C(165, 250, 248), ShelfBoost = 1.6f,
         });
-
-        // The atlas at twilight: the same pastel hues at half the light, warm highlights, indigo shadows.
-        Theme dusk = atlas.Clone();
-        dusk.Id = "atlas-dusk"; dusk.Name = "Atlas dusk"; dusk.Note = "the atlas at twilight"; dusk.Dark = true;
-        dusk.LandKeys = Grade(atlas.LandKeys, 0.38f, 1.05f, null, 0f);
-        dusk.SeaKeys = Grade(atlas.SeaKeys, 0.40f, 1.10f, null, 0f);
-        dusk.ShadowTint = C(18, 20, 66); dusk.ShadowAmt = 0.65f;
-        dusk.HighlightTint = C(255, 212, 160); dusk.HighlightAmt = 0.35f;
-        dusk.LandLine = C(232, 216, 190); dusk.LandMinor = 0.2f; dusk.LandMajor = 0.45f;
-        dusk.Coast = C(150, 182, 224); dusk.CoastAmt = 0.8f;
-        dusk.SeaLine = C(205, 226, 255); dusk.SeaLineAmt = 0.45f; dusk.SeaShade = 0.6f;
-        Dark.Add(dusk);
 
         Dark.Add(new Theme
         {
@@ -350,31 +288,6 @@ internal static class Themes
             SeaKeys = K(C(10, 1, 1), C(9, 1, 1), C(8, 1, 1), C(7, 0, 0), C(6, 0, 0), C(6, 0, 0),
                         C(5, 0, 0), C(5, 0, 0), C(4, 0, 0), C(3, 0, 0), C(3, 0, 0), C(2, 0, 0)),
             SeaShade = 0.3f, SeaLine = C(170, 26, 20), SeaLineAmt = 0.5f, SeaLineHalo = 0.15f, ShelfBoost = 1.6f,
-        });
-
-        Dark.Add(new Theme
-        {
-            Id = "thermal", Name = "Thermal imager", Note = "iron-bow heat palette", Dark = true,
-            LandKeys = K(C(20, 0, 50), C(44, 0, 84), C(76, 0, 108), C(110, 6, 112), C(146, 18, 98), C(182, 36, 72),
-                         C(212, 64, 40), C(234, 100, 16), C(246, 140, 10), C(252, 184, 20), C(254, 218, 70), C(255, 240, 140), C(255, 255, 232)),
-            Shade = 0.5f, ShadowTint = C(10, 0, 30), ShadowAmt = 0.5f,
-            LandLine = C(255, 230, 160), LandMinor = 0.12f, LandMajor = 0.3f,
-            SeaKeys = K(C(34, 18, 96), C(28, 14, 84), C(22, 10, 72), C(18, 8, 62), C(14, 6, 52), C(11, 4, 44),
-                        C(8, 3, 36), C(6, 2, 30), C(4, 1, 24), C(3, 1, 20), C(2, 0, 16), C(1, 0, 12)),
-            SeaShade = 0.4f, SeaLine = C(160, 90, 220), SeaLineAmt = 0.2f,
-        });
-
-        Dark.Add(new Theme
-        {
-            Id = "neon", Name = "Neon", Note = "cyberpunk", Dark = true,
-            LandKeys = K(C(14, 8, 34), C(16, 10, 38), C(18, 10, 42), C(20, 12, 46), C(24, 14, 52), C(28, 16, 58),
-                         C(32, 18, 64), C(38, 20, 72), C(44, 22, 80), C(52, 24, 90), C(62, 28, 100), C(74, 32, 112), C(100, 40, 140)),
-            Shade = 0.55f, ShadowTint = C(2, 0, 14), ShadowAmt = 0.5f,
-            LandLine = C(255, 60, 200), LandMinor = 0.3f, LandMajor = 0.9f, LandHalo = 0.25f, LandIntervalScale = 0.8f,
-            Coast = C(255, 210, 255), CoastAmt = 0.9f,
-            SeaKeys = K(C(4, 6, 26), C(4, 5, 22), C(3, 5, 20), C(3, 4, 18), C(3, 4, 16), C(2, 3, 14),
-                        C(2, 3, 13), C(2, 2, 12), C(1, 2, 10), C(1, 2, 9), C(1, 1, 8), C(1, 1, 7)),
-            SeaShade = 0.4f, SeaLine = C(40, 230, 255), SeaLineAmt = 0.55f, SeaLineHalo = 0.2f, ShelfLine = C(180, 255, 255), ShelfBoost = 1.4f,
         });
     }
 }
