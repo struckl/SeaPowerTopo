@@ -179,6 +179,35 @@ internal static class Themes
             SeaStepped = true, SeaShade = 0f, SeaLine = C(80, 140, 200), SeaLineAmt = 0.55f,
         });
 
+        // The Soviet General Staff's topographic maps: green lowland over yellow to deep brown mountains in steps, brown
+        // contours, a blue coastline and stepped blue water.
+        Light.Add(new Theme
+        {
+            Id = "genshtab", Name = "Soviet General Staff map", Note = "Genshtab height tints, brown contours, blue water",
+            LandKeys = K(C(156, 200, 144), C(180, 212, 154), C(205, 224, 164), C(228, 232, 176), C(242, 230, 168), C(240, 214, 144),
+                         C(232, 192, 122), C(220, 166, 102), C(204, 140, 86), C(184, 116, 74), C(160, 94, 64), C(136, 76, 56), C(116, 64, 47)),
+            LandStepped = true, Shade = 0.35f, ShadowTint = C(80, 64, 48), ShadowAmt = 0.3f,
+            LandLine = C(154, 90, 42), LandMinor = 0.3f, LandMajor = 0.65f,
+            Coast = C(30, 90, 160), CoastAmt = 0.9f,
+            SeaKeys = K(C(196, 230, 246), C(174, 220, 242), C(152, 208, 238), C(130, 196, 234), C(110, 182, 226), C(92, 166, 216),
+                        C(76, 150, 204), C(62, 134, 190), C(50, 118, 174), C(40, 102, 156), C(32, 88, 138), C(26, 74, 120)),
+            SeaStepped = true, SeaShade = 0.2f, SeaLine = C(42, 106, 176), SeaLineAmt = 0.5f,
+        });
+
+        // A navy bathymetric chart: plain grey shaded land, the sea in clearly stepped blues, a dark line at the shelf edge.
+        Light.Add(new Theme
+        {
+            Id = "bathy-chart", Name = "Bathymetric chart", Note = "grey land, layered depth blues",
+            LandKeys = K(C(207, 207, 203), C(210, 210, 206), C(213, 213, 209), C(216, 216, 212), C(219, 219, 215), C(222, 222, 218),
+                         C(225, 225, 221), C(228, 228, 224), C(231, 231, 227), C(234, 234, 230), C(237, 237, 234), C(240, 240, 238), C(244, 244, 242)),
+            Shade = 0.6f, ShadowTint = C(112, 112, 112), ShadowAmt = 0.4f,
+            LandLine = C(144, 144, 144), LandMinor = 0f, LandMajor = 0f,
+            Coast = C(64, 64, 64), CoastAmt = 0.9f,
+            SeaKeys = K(C(230, 243, 251), C(207, 231, 246), C(182, 218, 241), C(156, 203, 234), C(130, 187, 226), C(106, 170, 217),
+                        C(84, 152, 205), C(64, 133, 191), C(47, 113, 174), C(33, 93, 153), C(22, 74, 130), C(14, 56, 106)),
+            SeaStepped = true, SeaShade = 0.3f, SeaLine = C(26, 58, 106), SeaLineAmt = 0.45f, ShelfLine = C(10, 42, 90), ShelfBoost = 1.8f,
+        });
+
         Light.Add(new Theme
         {
             Id = "ecdis-day", Name = "ECDIS day", Note = "civil ship chart, IHO S-52",
@@ -241,14 +270,34 @@ internal static class Themes
             ShelfLine = C(165, 250, 248), ShelfBoost = 1.6f,
         });
 
+        // Black-and-white reconnaissance film: grey terrain in strong relief, no lines, a dark smooth sea.
         Dark.Add(new Theme
         {
-            Id = "ecdis-dusk", Name = "ECDIS dusk", Note = "civil ship chart, IHO S-52 dusk table", Dark = true,
-            LandFlat = C(44, 41, 27), Shade = 0f,
-            LandLine = C(76, 56, 17), LandMinor = 0.5f, LandMajor = 0.9f,
-            Coast = C(54, 60, 61), CoastAmt = 1f,
-            Zones = K(C(22, 35, 47), C(21, 27, 33), C(12, 14, 15), C(7, 7, 7)),
-            SeaShade = 0f, SeaLine = C(41, 46, 46), SeaLineAmt = 0.9f, SafetyLine = C(54, 60, 61),
+            Id = "recon-photo", Name = "Recon photo", Note = "black-and-white reconnaissance film", Dark = true,
+            LandKeys = K(C(58, 58, 58), C(64, 64, 64), C(70, 70, 70), C(76, 76, 76), C(82, 82, 82), C(88, 88, 88),
+                         C(94, 94, 94), C(102, 102, 102), C(110, 110, 110), C(120, 120, 120), C(132, 132, 132), C(146, 146, 146), C(176, 176, 176)),
+            Shade = 1.3f, ShadowTint = C(0, 0, 0), ShadowAmt = 0.7f, HighlightTint = C(224, 224, 224), HighlightAmt = 0.35f,
+            LandLine = C(128, 128, 128), LandMinor = 0f, LandMajor = 0f,
+            Coast = C(154, 154, 154), CoastAmt = 0.4f,
+            SeaKeys = K(C(38, 38, 38), C(34, 34, 34), C(31, 31, 31), C(28, 28, 28), C(26, 26, 26), C(24, 24, 24),
+                        C(22, 22, 22), C(20, 20, 20), C(18, 18, 18), C(16, 16, 16), C(14, 14, 14), C(12, 12, 12)),
+            SeaShade = 0.5f, SeaLine = C(46, 46, 46), SeaLineAmt = 0f,
+        });
+
+        // A hydrographic multibeam survey: depth as a rainbow from red shallows to violet deep, with the seabed shaded, over
+        // dark grey land; toned down for the night map.
+        Dark.Add(new Theme
+        {
+            Id = "survey-sonar", Name = "Survey sonar", Note = "multibeam depth rainbow, red shallows to violet deep", Dark = true,
+            LandKeys = K(C(42, 44, 48), C(46, 48, 52), C(50, 52, 56), C(54, 56, 60), C(58, 60, 64), C(62, 64, 68),
+                         C(67, 69, 74), C(72, 74, 79), C(78, 80, 85), C(85, 87, 92), C(92, 94, 99), C(100, 102, 107), C(108, 110, 115)),
+            Shade = 0.9f, ShadowTint = C(0, 0, 0), ShadowAmt = 0.6f,
+            LandLine = C(112, 116, 120), LandMinor = 0.15f, LandMajor = 0.35f,
+            Coast = C(240, 240, 240), CoastAmt = 0.7f,
+            SeaKeys = Grade(K(C(224, 48, 42), C(240, 106, 30), C(245, 168, 28), C(230, 214, 40), C(154, 210, 58), C(62, 196, 106),
+                              C(28, 182, 168), C(26, 150, 208), C(42, 106, 216), C(58, 70, 200), C(74, 48, 168), C(58, 34, 128)),
+                            0.8f, 0.85f, null, 0f),
+            SeaShade = 0.9f, SeaLine = C(0, 0, 0), SeaLineAmt = 0.25f,
         });
 
         Dark.Add(new Theme
@@ -276,6 +325,18 @@ internal static class Themes
                         C(1, 5, 2), C(1, 5, 2), C(0, 4, 2), C(0, 3, 1), C(0, 3, 1), C(0, 2, 1)),
             SeaShade = 0.3f, SeaLine = C(30, 190, 70), SeaLineAmt = 0.5f, SeaLineHalo = 0.15f, ShelfBoost = 1.6f,
         });
+
+        // Phosphor green's twin in amber: the 1980s amber terminals and orange plasma panels.
+        Theme amber = Dark.Find(t => t.Id == "phosphor").Clone();
+        amber.Id = "amber"; amber.Name = "Amber display"; amber.Note = "1980s amber terminal, plasma panel";
+        amber.LandKeys = K(C(22, 10, 0), C(30, 14, 0), C(38, 18, 0), C(46, 22, 0), C(56, 27, 0), C(68, 33, 0),
+                           C(82, 40, 0), C(98, 48, 0), C(118, 58, 0), C(142, 70, 0), C(172, 86, 0), C(208, 112, 0), C(255, 184, 96));
+        amber.ShadowTint = C(6, 2, 0); amber.HighlightTint = C(255, 176, 64);
+        amber.LandLine = C(192, 112, 0); amber.Coast = C(255, 200, 96);
+        amber.SeaKeys = K(C(14, 7, 0), C(12, 6, 0), C(10, 5, 0), C(9, 4, 0), C(8, 4, 0), C(7, 3, 0),
+                          C(6, 3, 0), C(5, 2, 0), C(4, 2, 0), C(3, 1, 0), C(3, 1, 0), C(2, 1, 0));
+        amber.SeaLine = C(176, 106, 0);
+        Dark.Add(amber);
 
         Dark.Add(new Theme
         {

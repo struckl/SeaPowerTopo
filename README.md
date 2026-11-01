@@ -19,11 +19,13 @@ flat colour: high ground is hard to judge and the seabed can't be seen at all. T
   north-west, and contour lines whose step follows the zoom (20 m close in … 1000 m zoomed out, every fifth bold).
 - **Sea tinted by depth** in 12 bands (0 – 6000 m), the deeper the darker, with faint seabed relief and a thin depth
   line at every band edge – banks, shelf edges and basins stand out like on a chart.
-- **11 looks**, light and dark, behind the look button in the map's title bar (or Shift+F6): the map theme you are in
-  decides which list it shows. Day: **Standard** (the original), **Army tactical map**, **ECDIS day**, **Glacier**.
-  Night: **Midnight** (the default), **Standard**, **Black**, **ECDIS dusk**, **Combat display**, **Phosphor green**,
-  **Red light**. The ECDIS looks draw land flat with its contours and coastline and the sea in the four depth shades of
-  a chart with a bold safety contour, in the real IHO S-52 colours.
+- **15 looks**, light and dark, behind the look button in the map's title bar (or Shift+F6): the map theme you are in
+  decides which list it shows. Day: **Standard** (the original), **Army tactical map**, **Soviet General Staff map**,
+  **Bathymetric chart**, **ECDIS day**, **Glacier**. Night: **Midnight** (the default), **Standard**, **Black**,
+  **Recon photo**, **Survey sonar** (depth as a rainbow, like a multibeam survey), **Combat display**, **Phosphor
+  green**, **Amber display**, **Red light**.
+  ECDIS day draws land flat with its contours and coastline and the sea in the four depth shades of a chart with a bold
+  safety contour, in the real IHO S-52 colours.
 - **Looks of your own from theme files**: the look list's **Save this look as a theme file** writes the look on the map as
   a small text file in `BepInEx\config\SeaPowerTopo\themes`; edit it (or write one that starts from another look with
   `Base=` and only lists what differs), save – the map reloads it at once. Format and every key: [docs/themes.md](docs/themes.md).

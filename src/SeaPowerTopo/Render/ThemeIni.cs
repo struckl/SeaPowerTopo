@@ -333,7 +333,7 @@ internal static class ThemeIni
 Id=my-black
 Name=My Black
 Note=Black with warm contour lines
-; Base starts from an existing theme (its id: black, atlas, midnight, ecdis-dusk, ... or another file's Id).
+; Base starts from an existing theme (its id: black, genshtab, midnight, ecdis-day, ... or another file's Id).
 Base=black
 ; Dark=true is for the map's night theme, false for its day theme. Taken from Base if left out.
 Dark=true
