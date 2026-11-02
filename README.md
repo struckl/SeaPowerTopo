@@ -111,8 +111,11 @@ redraw):
 - Works together with Better TacMap (separate map layer numbers).
 - No game files are changed. Uninstall by unsubscribing (or deleting the folder).
 
-Problems: `<Sea Power>\BepInEx\LogOutput.log` has a line for every step the mod takes (`[Info :SeaPowerTopo]`);
-please attach it to a bug report.
+## Feedback and bug reports
+
+Bugs, feedback and ideas go on the R.A.T.S. feedback board: <https://hub.sewerlabs.dev/s/topo>.
+For a bug, add `<Sea Power>\BepInEx\LogOutput.log` as a link; it has a line for every step the mod takes
+(`[Info :SeaPowerTopo]`).
 
 ## Building from source
 
