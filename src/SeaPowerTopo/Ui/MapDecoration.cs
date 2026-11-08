@@ -184,8 +184,9 @@ internal sealed class MapDecoration
         bar = new Border
         {
             Background = new SolidColorBrush(GroupFill),
-            BorderBrush = new SolidColorBrush(GroupEdge),
-            BorderThickness = new Thickness(1),
+            // No outer frame: GroupEdge (#565B5F) on the title bar showed as a light line round the whole group, which looked like a
+            // white border. The fill alone separates the group; the dividers between its buttons keep GroupEdge.
+            BorderThickness = new Thickness(0),
             CornerRadius = new CornerRadius(2),
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Stretch,

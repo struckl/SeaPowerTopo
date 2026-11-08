@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **Title bar buttons:** no outer frame round the button group any more (its light edge looked like a white border); the dividers between the buttons stay.
+
 ## 1.5.1 – 2026-11-08 – fix for the globe beta 261107
 
 - Fix for globe beta 261107: the map failed because the game removed its terrain height options (land is now x1, water x2). Read by name, so one source fits every build. Run in the game on 261107 under Keel.
