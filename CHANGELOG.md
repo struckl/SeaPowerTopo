@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **One menu button instead of four:** the title bar has a single three-dots button; its list holds Topography, Look, Legend and Cursor height (lit entries are orange). Built, not run in the game yet.
 - **Legend and look list no longer jump around or cover other buttons:** the buttons are now plain game-style buttons in the title bar's own button row (like Pop-Out's), the look list is a popup under its button, and the legend sits fixed at the map's top left instead of being placed from the button row. Built, not run in the game yet.
 - **Title bar buttons use the game's own button style** (built like Pop-Out's title bar button, which never showed a frame), without our own template, edge colour and dividers. The light frame round the group should be gone for good.
 - **Title bar buttons:** no outer frame round the button group any more (its light edge looked like a white border); the dividers between the buttons stay.
