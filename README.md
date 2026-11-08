@@ -40,10 +40,10 @@ flat colour: high ground is hard to judge and the seabed can't be seen at all. T
 - **No drawing while zoomed out** – at mission start the area around all units and the whole world are drawn once
   in the background. Zoomed out they are simply shown; closer in the view is drawn live, and the pre-drawn colours
   fill the edges while it catches up with a pan.
-- **Buttons in the map's title bar**, one small icon group left of the map menu (≡): the look (its colours, ▾) and
+- **Buttons in the map's title bar**, plain game-style icon buttons in the title bar's own button row, left of the map menu (≡): the look (its colours, ▾) and
   **Legend** (list) while the layer is on, then **Topography** on/off (mountain) and **Cursor height** on/off
-  (crosshair), which never move; a lit button has an orange icon, the names are in the tooltips. The look list and the
-  legend drop down below the title bar, left of its buttons.
+  (crosshair), which never move; a lit button has an orange icon, the names are in the tooltips. The look list drops down
+  under its button; the legend sits at the map's top left, fixed, clear of the game's time controls.
 - **In the mission editor** too: its map gets the layer, the buttons, the legend and the cursor readout.
 - **On the 3D globe map**: the overlay lies exactly on the stock map's globe at every zoom, at high latitudes, across
   the date line and over the poles.
@@ -69,7 +69,7 @@ on top; the stock coastline is untouched. The map's night theme gets its own loo
    menu (≡): the mountain (**Topography**) turns it on and off (also the map menu → Map Layers → **Topography**, or
    **F6**); the colour swatches with ▾ show the look and open the list of looks (**Shift+F6** goes to the next one); the
    list icon (**Legend**) opens the colour key; the crosshair (**Cursor height**) switches the readout next to the pointer. In the mission editor the same buttons sit at the
-   top right of its map.
+   top left of its map.
 
 Manual install instead of the Workshop: put `SeaPowerTopo.dll` and `_info.ini` into
 `<Sea Power>\Sea Power_Data\StreamingAssets\SeaPowerTopo\`.
@@ -179,7 +179,7 @@ theme file: `Render/ThemeIni.cs` reads and writes the file format and `Render/Th
 `Base=`, keeps the last working version of a file that breaks, and swaps the result into `Themes` when the folder changes
 (polled every 1.5 s); both are plain C# and tested offline by the preview tool's `--check-themes`.
 The title bar buttons, the look list, the legend and the cursor readout are Noesis elements: the buttons go into the map
-window's title bar row next to its menu (≡), the rest into a grid laid over the map control, handed over by a Harmony
+window's title bar button row (found like Pop-Out finds it), the look list is a popup under its button, the rest into a grid laid over the map control, handed over by a Harmony
 postfix on `RenderedLayer.OnRender` that is applied only once NoesisGUI runs; the editor's map is found through its view
 model. The few game internals the mod needs (the night state of the map's palette, a new Layers menu entry) are
 reached by reflection in `GameApi.cs`.

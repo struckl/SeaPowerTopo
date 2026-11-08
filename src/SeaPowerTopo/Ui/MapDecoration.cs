@@ -29,16 +29,8 @@ internal sealed class MapDecoration
     private const int HeaderSearches = 20;
     private const float IconSize = 14f;
 
-    // The button group's colours, matched to the game's title bar (#393D3F) and its orange.
-    private static readonly Color GroupFill = Color.FromArgb(255, 46, 49, 51);
-    private static readonly Color GroupEdge = Color.FromArgb(255, 86, 91, 95);
-    private static readonly Color ActiveFill = Color.FromArgb(255, 72, 77, 81);
-    private static readonly Color IconIdle = Color.FromArgb(255, 160, 166, 172);
+    // A lit button: the game's own button style with an orange icon (the icons' strokes follow the button's Foreground).
     private static readonly Color IconActive = Color.FromArgb(255, 222, 172, 110);
-
-    // Flat segment look shared by the group's buttons (null if the XAML can't be parsed: then the game's style stays).
-    private static ControlTemplate segmentTemplate;
-    private static bool segmentTemplateTried;
 
     public readonly MapBase Map;
 
@@ -53,7 +45,9 @@ internal sealed class MapDecoration
     private readonly TextBlock noticeText;
     private readonly Border lookSwatches;
     private readonly StackPanel pickerList;
-    private readonly SolidColorBrush idleBrush, activeBrush, activeFillBrush, clearBrush;
+    private readonly SolidColorBrush activeBrush;
+    private readonly Button[] buttons;
+    private readonly Popup pickerPopup;
     private float noticeUntil;
     private bool pickerOpen;
     private string lookShown;
@@ -114,7 +108,7 @@ internal sealed class MapDecoration
             CornerRadius = new CornerRadius(3),
             Padding = new Thickness(8, 6, 8, 6),
             Margin = new Thickness(0, Gap, 0, 0),
-            HorizontalAlignment = HorizontalAlignment.Right,
+            HorizontalAlignment = HorizontalAlignment.Left,
             Child = legendBody,
             Visibility = Visibility.Collapsed,
         };
@@ -124,13 +118,10 @@ internal sealed class MapDecoration
             Settings.LegendOpen.Value = false;
         };
 
-        idleBrush = new SolidColorBrush(IconIdle);
         activeBrush = new SolidColorBrush(IconActive);
-        activeFillBrush = new SolidColorBrush(ActiveFill);
-        clearBrush = new SolidColorBrush(Color.FromArgb(0, 0, 0, 0));
 
-        // One framed group of icon buttons in the title bar (20 px high); the words are in the tooltips. A lit button
-        // has a lighter face and an orange icon.
+        // Icon buttons in the title bar's button row, in the game's own button style like Pop-Out's; the words are in the
+        // tooltips. A lit button has an orange icon.
         topoToggle = Segment(Icon(("M0.5,12.5 L5,4 L7.5,8 L9.5,5.5 L13.5,12.5 Z", 1.2f), ("M3.2,9.3 H10.9", 1f)));
         topoToggle.ToolTip = $"Topography: land heights and sea depths on the map ({Settings.ToggleKey.Value}). Also in the map menu under Map Layers.";
         topoToggle.Click += (sender, args) =>
@@ -152,8 +143,10 @@ internal sealed class MapDecoration
         lookButton.Click += (sender, args) =>
         {
             args.Handled = true;
-            pickerOpen = !pickerOpen;
-            picker.Visibility = pickerOpen ? Visibility.Visible : Visibility.Collapsed;
+            if (pickerOpen)
+                ClosePicker();
+            else
+                OpenPicker();
         };
 
         legendButton = Segment(Icon(("M1,2.5 H3.8 M1,7 H3.8 M1,11.5 H3.8", 2.4f), ("M5.8,2.5 H13 M5.8,7 H13 M5.8,11.5 H11", 1.2f)));
@@ -165,7 +158,8 @@ internal sealed class MapDecoration
         };
 
         var crosshair = Icon(("M7,0.5 V4 M7,10 V13.5 M0.5,7 H4 M10,7 H13.5", 1.2f));
-        crosshair.Children.Add(new Ellipse { Width = 6, Height = 6, Stroke = idleBrush, StrokeThickness = 1.2f });
+        if (Noesis.GUI.ParseXaml($"<Ellipse {Ns} Width=\"6\" Height=\"6\" StrokeThickness=\"1.2\" {FollowButton}/>") is Ellipse ring)
+            crosshair.Children.Add(ring);
         readoutToggle = Segment(crosshair);
         readoutToggle.ToolTip = "Cursor height: terrain height or sea depth next to the mouse pointer; lit while it shows, click to switch it off or on (also with Topography off)";
         readoutToggle.Click += (sender, args) =>
@@ -176,19 +170,16 @@ internal sealed class MapDecoration
 
         // The look and legend buttons come and go with the layer: they sit at the left end, so the two that always show
         // keep their place under the pointer when the layer is switched.
+        buttons = new[] { lookButton, legendButton, topoToggle, readoutToggle };
         segments = new StackPanel { Orientation = Orientation.Horizontal };
-        segments.Children.Add(lookButton);
-        segments.Children.Add(legendButton);
-        segments.Children.Add(topoToggle);
-        segments.Children.Add(readoutToggle);
+        foreach (Button button in buttons)
+            segments.Children.Add(button);
+        // Only used where the map has no title bar (the editor): the same buttons in a row at the dock's top.
         bar = new Border
         {
-            Background = null,                                // the title bar shows through, as behind Pop-Out's button
-            // No outer frame: GroupEdge (#565B5F) on the title bar showed as a light line round the whole group, which looked like a
-            // white border. The fill alone separates the group; the dividers between its buttons keep GroupEdge.
+            Background = null,
             BorderThickness = new Thickness(0),
-            CornerRadius = new CornerRadius(2),
-            HorizontalAlignment = HorizontalAlignment.Right,
+            HorizontalAlignment = HorizontalAlignment.Left,
             VerticalAlignment = VerticalAlignment.Stretch,
             Child = segments,
         };
@@ -199,10 +190,22 @@ internal sealed class MapDecoration
             Background = panelBrush,
             CornerRadius = new CornerRadius(3),
             Padding = new Thickness(6, 6, 6, 5),
-            Margin = new Thickness(0, Gap, 0, 0),
-            HorizontalAlignment = HorizontalAlignment.Right,
+            BorderBrush = new SolidColorBrush(Color.FromArgb(255, 86, 91, 95)),
+            BorderThickness = new Thickness(1),
             Child = pickerList,
-            Visibility = Visibility.Collapsed,
+        };
+        // A dropdown under the look button, like Pop-Out's look menu: a popup that lives next to its button while open.
+        pickerPopup = new Popup
+        {
+            Child = picker,
+            PlacementTarget = lookButton,
+            Placement = PlacementMode.Bottom,
+            StaysOpen = false,
+        };
+        pickerPopup.Closed += (sender, args) =>
+        {
+            pickerOpen = false;
+            (VisualTreeHelper.GetParent(pickerPopup) as Panel)?.Children.Remove(pickerPopup);
         };
 
         noticeText = new TextBlock { Foreground = textBrush, FontSize = 12, TextWrapping = TextWrapping.Wrap, MaxWidth = 360 };
@@ -212,22 +215,22 @@ internal sealed class MapDecoration
             CornerRadius = new CornerRadius(3),
             Padding = new Thickness(7, 3, 7, 3),
             Margin = new Thickness(0, Gap, 0, 0),
-            HorizontalAlignment = HorizontalAlignment.Right,
+            HorizontalAlignment = HorizontalAlignment.Left,
             Child = noticeText,
             Visibility = Visibility.Collapsed,
             IsHitTestVisible = false,
         };
 
-        // Top right, below the title bar: what the buttons open, newest notice first.
+        // Top left of the map, below the title bar, fixed: the legend and short notices, newest notice first. Away from the
+        // game's own controls in the top right corner, and it never moves when buttons come and go.
         dock = new StackPanel
         {
             Orientation = Orientation.Vertical,
-            HorizontalAlignment = HorizontalAlignment.Right,
+            HorizontalAlignment = HorizontalAlignment.Left,
             VerticalAlignment = VerticalAlignment.Top,
-            Margin = new Thickness(0, 0, Inset, 0),
+            Margin = new Thickness(Inset, 0, 0, 0),
         };
         dock.Children.Add(notice);
-        dock.Children.Add(picker);
         dock.Children.Add(legend);
 
         // No background: hit tests fall through it to the map everywhere but on the dock.
@@ -253,7 +256,10 @@ internal sealed class MapDecoration
             host.PreviewMouseMove -= moveHandler;
             host.MouseLeave -= leaveHandler;
             host.Children.Remove(root);
-            header?.Children.Remove(bar);
+            ClosePicker();
+            if (header != null)
+                foreach (Button button in buttons)
+                    header.Children.Remove(button);
             header = null;
         }
         catch (Exception ex)
@@ -282,14 +288,12 @@ internal sealed class MapDecoration
         SetVisible(legendButton, drawn && Settings.Legend.Value);
         SetLit(lookButton, drawn && pickerOpen);
         SetLit(legendButton, drawn && Settings.LegendOpen.Value);
-        SetDividers();
         if (notice.Visibility == Visibility.Visible && UnityEngine.Time.unscaledTime > noticeUntil)
             notice.Visibility = Visibility.Collapsed;
         if (!drawn)
         {
-            SetVisible(picker, false);
+            ClosePicker();
             SetVisible(legend, false);
-            pickerOpen = false;
             shownOpen = null;
             return;
         }
@@ -297,9 +301,6 @@ internal sealed class MapDecoration
         Theme theme = overlay.Theme;
         if (theme != null)
             RefreshLookButton(theme);
-        SetVisible(picker, pickerOpen);
-        if (header != null)
-            HangDockFromHeader();
 
         bool open = Settings.LegendOpen.Value && Settings.Legend.Value;
         if (shownOpen != open)
@@ -312,124 +313,64 @@ internal sealed class MapDecoration
             RefreshLegend(overlay, aircraft, submarine);
     }
 
-    // In the title bar, what the buttons open hangs below it with its right edge at the left end of the title bar's
-    // button row: clear of the game's own controls in the map's top right corner (the time controls over a full-screen
-    // map, about as wide as that row).
-    private void HangDockFromHeader()
-    {
-        if (root.ActualWidth <= 0f)
-            return;
-        float left = float.MaxValue;
-        foreach (UIElement child in header.Children)
-        {
-            if (child is FrameworkElement fe && fe.Visibility == Visibility.Visible && fe.ActualWidth > 0f)
-                left = Math.Min(left, root.PointFromScreen(fe.PointToScreen(new Point(0f, 0f))).X);
-        }
-        if (left == float.MaxValue)
-            return;
-        float right = Math.Max(Inset, root.ActualWidth - left);
-        if (right < root.ActualWidth - 60f && Math.Abs(right - dock.Margin.Right) > 0.5f)
-            dock.Margin = new Thickness(0f, 0f, right, 0f);
-    }
-
-    // A lit button: lighter face, orange icon (every Shape in its content).
+    // A lit button: orange icon. The icons' strokes are bound to the button's Foreground, so that is all it takes.
     private void SetLit(Button button, bool on)
     {
-        Brush fill = on ? activeFillBrush : clearBrush;
-        if (ReferenceEquals(button.Background, fill))
+        if (ReferenceEquals(button.Foreground, activeBrush) == on)
             return;
-        button.Background = fill;
-        Brush ink = on ? activeBrush : idleBrush;
-        Recolour(button.Content as DependencyObject, ink);
+        if (on)
+            button.Foreground = activeBrush;
+        else
+            button.ClearValue(Control.ForegroundProperty);
     }
 
-    private static void Recolour(DependencyObject d, Brush ink)
-    {
-        if (d is Shape shape && shape.Stroke != null)
-            shape.Stroke = ink;
-        if (d is Panel panel)
-            foreach (UIElement child in panel.Children)
-                Recolour(child, ink);
-    }
-
-    // A divider on the left of every shown button but the first.
-    private void SetDividers()
-    {
-        return;      // no dividers: they were drawn with the border of our own button template, which is gone
-#pragma warning disable CS0162
-        bool first = true;
-        foreach (UIElement child in segments.Children)
-        {
-            if (child is not Button button || button.Visibility != Visibility.Visible)
-                continue;
-            float left = first ? 0f : 1f;
-            if (button.BorderThickness.Left != left)
-                button.BorderThickness = new Thickness(left, 0, 0, 0);
-            first = false;
-        }
-    }
-
-    // A button of the group: flat, the icon centred; SetDividers draws the lines between them.
+    // A button of the title bar's row, built the way Pop-Out builds its own: a plain Button in the game's own style, no
+    // template, background or border of ours, the icon centred.
     private Button Segment(UIElement content)
     {
-        // Built the way Pop-Out Windows builds its title bar button (which never showed a frame): a plain Button in the game's own
-        // style - no template of ours, no border of ours. Our flat template and its edge colour were what showed as a light frame.
-        var button = new Button
+        return new Button
         {
             Focusable = false,
             Padding = new Thickness(0),
             Margin = new Thickness(0),
-            MinWidth = 24,
-            VerticalAlignment = VerticalAlignment.Stretch,
-            Background = clearBrush,                       // transparent, not null: the whole face takes clicks
+            MinWidth = 20,
             Content = content,
         };
-        return button;
     }
 
-    // A 14 px icon of stroked paths (path markup in a 14 x 14 box), in the idle colour.
+    private const string Ns = "xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\"";
+    private const string FollowButton =
+        "StrokeLineJoin=\"Round\" StrokeStartLineCap=\"Round\" StrokeEndLineCap=\"Round\" " +
+        "Stroke=\"{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}\"";
+
+    // A 14 px icon of stroked paths (path markup in a 14 x 14 box), drawn in the button's Foreground.
     private Grid Icon(params (string data, float thickness)[] strokes)
     {
         var icon = new Grid { Width = IconSize, Height = IconSize, VerticalAlignment = VerticalAlignment.Center };
         foreach ((string data, float thickness) in strokes)
         {
-            if (Noesis.GUI.ParseXaml($"<Path xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\" Data=\"{data}\"/>") is not Path path)
-                continue;
-            path.Stroke = idleBrush;
-            path.StrokeThickness = thickness;
-            path.StrokeLineJoin = PenLineJoin.Round;
-            path.StrokeStartLineCap = PenLineCap.Round;
-            path.StrokeEndLineCap = PenLineCap.Round;
-            icon.Children.Add(path);
+            string width = thickness.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            if (Noesis.GUI.ParseXaml($"<Path {Ns} Data=\"{data}\" StrokeThickness=\"{width}\" {FollowButton}/>") is Path path)
+                icon.Children.Add(path);
         }
         return icon;
     }
 
-    private static ControlTemplate SegmentTemplate()
+    private void OpenPicker()
     {
-        if (segmentTemplateTried)
-            return segmentTemplate;
-        segmentTemplateTried = true;
-        try
-        {
-            segmentTemplate = Noesis.GUI.ParseXaml(
-                "<ControlTemplate xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\" " +
-                "xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\" TargetType=\"Button\">" +
-                "<Border x:Name=\"Face\" Background=\"{TemplateBinding Background}\" BorderBrush=\"{TemplateBinding BorderBrush}\" " +
-                "BorderThickness=\"{TemplateBinding BorderThickness}\" Padding=\"{TemplateBinding Padding}\">" +
-                "<ContentPresenter HorizontalAlignment=\"Center\" VerticalAlignment=\"Center\"/></Border>" +
-                "<ControlTemplate.Triggers>" +
-                "<Trigger Property=\"IsMouseOver\" Value=\"True\"><Setter TargetName=\"Face\" Property=\"Background\" Value=\"#FF52575B\"/></Trigger>" +
-                "<Trigger Property=\"IsPressed\" Value=\"True\"><Setter TargetName=\"Face\" Property=\"Background\" Value=\"#FF26292B\"/></Trigger>" +
-                "</ControlTemplate.Triggers></ControlTemplate>") as ControlTemplate;
-        }
-        catch (Exception ex)
-        {
-            ModLog.Error($"Title bar button look: {ex.Message}");
-        }
-        if (segmentTemplate == null)
-            ModLog.Info("Title bar button look not available: the game's button style stays.");
-        return segmentTemplate;
+        if (VisualTreeHelper.GetParent(lookButton) is not Panel panel)
+            return;
+        if (VisualTreeHelper.GetParent(pickerPopup) == null)
+            panel.Children.Add(pickerPopup);
+        pickerOpen = true;
+        pickerPopup.IsOpen = true;
+    }
+
+    private void ClosePicker()
+    {
+        pickerOpen = false;
+        if (pickerPopup.IsOpen)
+            pickerPopup.IsOpen = false;
     }
 
     private static void SetVisible(UIElement element, bool visible)
@@ -439,13 +380,13 @@ internal sealed class MapDecoration
             element.Visibility = v;
     }
 
-    // The buttons into the map window's title bar, left of its menu (≡); until that is found (the window's template
-    // may not be applied yet), and for good where there is none, at the top of the dock.
+    // The buttons into the map window's title bar, in its row of buttons like Pop-Out's; until that is found (the window's
+    // template may not be applied yet), and for good where there is none, in a row at the top of the dock.
     private void PlaceBar()
     {
         nextHeaderSearch = UnityEngine.Time.unscaledTime + HeaderSearchSeconds;
         headerSearches++;
-        Panel row = FindHeaderRow(out int menuIndex);
+        Panel row = FindHeaderRow(out int at);
         if (row == null)
         {
             if (VisualTreeHelper.GetParent(bar) == null)
@@ -455,14 +396,14 @@ internal sealed class MapDecoration
                 dock.Children.Insert(0, bar);
             }
             if (headerSearches == HeaderSearches)
-                ModLog.Info("No title bar on this map: the Topography buttons sit at its top right.");
+                ModLog.Info("No title bar on this map: the Topography buttons sit at its top left.");
             return;
         }
         if (VisualTreeHelper.GetParent(bar) is Panel old)
             old.Children.Remove(bar);
-        bar.Margin = new Thickness(0, 1, 6, 1);
-        bar.Height = float.NaN;
-        row.Children.Insert(menuIndex, bar);
+        segments.Children.Clear();
+        foreach (Button button in buttons)
+            row.Children.Insert(at++, button);
         header = row;
         ModLog.Info("Topography buttons placed in the map's title bar.");
     }
@@ -484,6 +425,11 @@ internal sealed class MapDecoration
             DependencyObject d = queue.Dequeue();
             if (ReferenceEquals(d, Map))
                 continue;
+            if (d is Button close && close.Name == "CloseButton" && VisualTreeHelper.GetParent(close) is Panel buttonsRow)
+            {
+                menuIndex = 0;                                  // the left end of the row, like Pop-Out's buttons
+                return buttonsRow;
+            }
             if (d is Menu menu && VisualTreeHelper.GetParent(menu) is Panel row && !ReferenceEquals(row, dock))
             {
                 menuIndex = row.Children.IndexOf(menu);
@@ -562,8 +508,7 @@ internal sealed class MapDecoration
             row.Click += (sender, args) =>
             {
                 args.Handled = true;
-                pickerOpen = false;
-                picker.Visibility = Visibility.Collapsed;
+                ClosePicker();
                 TopoHost.Instance?.SetLook(choice);
             };
             pickerList.Children.Add(row);
@@ -597,8 +542,7 @@ internal sealed class MapDecoration
         row.Click += (sender, args) =>
         {
             args.Handled = true;
-            pickerOpen = false;
-            picker.Visibility = Visibility.Collapsed;
+            ClosePicker();
             action();
         };
         return row;
