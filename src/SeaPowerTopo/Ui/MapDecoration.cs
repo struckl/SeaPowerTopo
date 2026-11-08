@@ -197,8 +197,8 @@ internal sealed class MapDecoration
             Focusable = false,
             Padding = new Thickness(0),
             Margin = new Thickness(0),
-            MinWidth = 20,
-            Content = Icon(("M0.5,12.5 L5,4 L7.5,8 L9.5,5.5 L13.5,12.5 Z", 1.2f), ("M3.2,9.3 H10.9", 1f)),
+            MinWidth = 28,
+            Content = new Viewbox { Width = 18, Height = 18, Child = Icon(("M0.5,12.5 L5,4 L7.5,8 L9.5,5.5 L13.5,12.5 Z", 1.4f), ("M3.2,9.3 H10.9", 1.2f)) },
             ToolTip = "Topography menu",
         };
         kebab.Click += (sender, args) =>
