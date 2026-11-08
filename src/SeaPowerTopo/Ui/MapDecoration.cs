@@ -41,14 +41,12 @@ internal sealed class MapDecoration
     private readonly StackPanel dock, menuList, bar;
     private readonly Button kebab;
     private readonly Popup menuPopup;
-    private bool openPickerNext;
     private readonly Button topoToggle, readoutToggle, legendButton, lookButton;
-    private readonly Border notice, picker;
+    private readonly Border notice, menuFrame;
     private readonly TextBlock noticeText;
     private readonly Border lookSwatches;
     private readonly StackPanel pickerList;
     private readonly SolidColorBrush activeBrush;
-    private readonly Popup pickerPopup;
     private float noticeUntil;
     private bool pickerOpen;
     private string lookShown;
@@ -123,12 +121,11 @@ internal sealed class MapDecoration
 
         // One kebab button (three dots) in the title bar's button row, in the game's own button style like Pop-Out's; it opens a
         // list with the mod's switches. A lit entry has an orange icon and text.
-        topoToggle = Segment(Labelled(Icon(("M0.5,12.5 L5,4 L7.5,8 L9.5,5.5 L13.5,12.5 Z", 1.2f), ("M3.2,9.3 H10.9", 1f)), "Topography"));
+        topoToggle = Segment(Labelled(Icon(("M0.5,12.5 L5,4 L7.5,8 L9.5,5.5 L13.5,12.5 Z", 1.2f), ("M3.2,9.3 H10.9", 1f)), "Topography", toggle: true));
         topoToggle.ToolTip = $"Topography: land heights and sea depths on the map ({Settings.ToggleKey.Value}). Also in the map menu under Map Layers.";
         topoToggle.Click += (sender, args) =>
         {
             args.Handled = true;
-            CloseMenu();
             TopoHost.Instance?.ToggleLayer();
         };
 
@@ -146,28 +143,25 @@ internal sealed class MapDecoration
         lookButton.Click += (sender, args) =>
         {
             args.Handled = true;
-            CloseMenu();
-            openPickerNext = true;                          // from Update, once the menu is gone
+            ShowLooks();                                    // the list of looks takes the menu's place, with a Back row
         };
 
-        legendButton = Segment(Labelled(Icon(("M1,2.5 H3.8 M1,7 H3.8 M1,11.5 H3.8", 2.4f), ("M5.8,2.5 H13 M5.8,7 H13 M5.8,11.5 H11", 1.2f)), "Legend"));
+        legendButton = Segment(Labelled(Icon(("M1,2.5 H3.8 M1,7 H3.8 M1,11.5 H3.8", 2.4f), ("M5.8,2.5 H13 M5.8,7 H13 M5.8,11.5 H11", 1.2f)), "Legend", toggle: true));
         legendButton.Visibility = Visibility.Collapsed;
         legendButton.Click += (sender, args) =>
         {
             args.Handled = true;
-            CloseMenu();
             Settings.LegendOpen.Value = !Settings.LegendOpen.Value;
         };
 
         var crosshair = Icon(("M7,0.5 V4 M7,10 V13.5 M0.5,7 H4 M10,7 H13.5", 1.2f));
         if (Noesis.GUI.ParseXaml($"<Ellipse {Ns} Width=\"6\" Height=\"6\" StrokeThickness=\"1.2\" {FollowButton}/>") is Ellipse ring)
             crosshair.Children.Add(ring);
-        readoutToggle = Segment(Labelled(crosshair, "Cursor height"));
+        readoutToggle = Segment(Labelled(crosshair, "Cursor height", toggle: true));
         readoutToggle.ToolTip = "Cursor height: terrain height or sea depth next to the mouse pointer; lit while it shows, click to switch it off or on (also with Topography off)";
         readoutToggle.Click += (sender, args) =>
         {
             args.Handled = true;
-            CloseMenu();
             TopoHost.Instance?.ToggleReadout();
         };
 
@@ -177,21 +171,26 @@ internal sealed class MapDecoration
         menuList.Children.Add(lookButton);
         menuList.Children.Add(legendButton);
         menuList.Children.Add(readoutToggle);
+        menuFrame = new Border
+        {
+            Background = panelBrush,
+            CornerRadius = new CornerRadius(3),
+            BorderBrush = new SolidColorBrush(Color.FromArgb(255, 86, 91, 95)),
+            BorderThickness = new Thickness(1),
+            Padding = new Thickness(4),
+            Child = menuList,
+        };
         menuPopup = new Popup
         {
-            Child = new Border
-            {
-                Background = panelBrush,
-                CornerRadius = new CornerRadius(3),
-                BorderBrush = new SolidColorBrush(Color.FromArgb(255, 86, 91, 95)),
-                BorderThickness = new Thickness(1),
-                Padding = new Thickness(4),
-                Child = menuList,
-            },
+            Child = menuFrame,
             Placement = PlacementMode.Bottom,
             StaysOpen = false,
         };
-        menuPopup.Closed += (sender, args) => (VisualTreeHelper.GetParent(menuPopup) as Panel)?.Children.Remove(menuPopup);
+        menuPopup.Closed += (sender, args) =>
+        {
+            ClosePicker();                                  // next time it opens on the menu again
+            (VisualTreeHelper.GetParent(menuPopup) as Panel)?.Children.Remove(menuPopup);
+        };
 
         kebab = new Button
         {
@@ -199,8 +198,8 @@ internal sealed class MapDecoration
             Padding = new Thickness(0),
             Margin = new Thickness(0),
             MinWidth = 20,
-            Content = Dots(),
-            ToolTip = "Topography menu: the layer on or off, the look, the legend, the cursor height",
+            Content = Burger(),
+            ToolTip = "Topography menu",
         };
         kebab.Click += (sender, args) =>
         {
@@ -216,29 +215,7 @@ internal sealed class MapDecoration
         bar = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Left };
         bar.Children.Add(kebab);
 
-        pickerList = new StackPanel { Orientation = Orientation.Vertical };
-        picker = new Border
-        {
-            Background = panelBrush,
-            CornerRadius = new CornerRadius(3),
-            Padding = new Thickness(6, 6, 6, 5),
-            BorderBrush = new SolidColorBrush(Color.FromArgb(255, 86, 91, 95)),
-            BorderThickness = new Thickness(1),
-            Child = pickerList,
-        };
-        // A dropdown under the look button, like Pop-Out's look menu: a popup that lives next to its button while open.
-        pickerPopup = new Popup
-        {
-            Child = picker,
-            PlacementTarget = kebab,
-            Placement = PlacementMode.Bottom,
-            StaysOpen = false,
-        };
-        pickerPopup.Closed += (sender, args) =>
-        {
-            pickerOpen = false;
-            (VisualTreeHelper.GetParent(pickerPopup) as Panel)?.Children.Remove(pickerPopup);
-        };
+        pickerList = new StackPanel { Orientation = Orientation.Vertical, Margin = new Thickness(2) };
 
         noticeText = new TextBlock { Foreground = textBrush, FontSize = 12, TextWrapping = TextWrapping.Wrap, MaxWidth = 360 };
         notice = new Border
@@ -308,12 +285,6 @@ internal sealed class MapDecoration
         if (header == null && headerSearches < HeaderSearches && UnityEngine.Time.unscaledTime >= nextHeaderSearch)
             PlaceBar();
 
-        if (openPickerNext)
-        {
-            openPickerNext = false;
-            OpenPicker();
-        }
-
         readoutAllowed = readoutOn;
         if (!readoutOn && readout.Visibility == Visibility.Visible)
             readout.Visibility = Visibility.Collapsed;
@@ -359,6 +330,9 @@ internal sealed class MapDecoration
             button.Foreground = activeBrush;
         else
             button.ClearValue(Control.ForegroundProperty);
+        // The entries that switch something show it in words too: the last text of icon, name, state.
+        if (button.Content is StackPanel row && row.Children.Count == 3 && row.Children[2] is TextBlock state)
+            state.Text = on ? "On" : "Off";
     }
 
     // An entry of the menu list: a plain Button in the game's own style, icon and name left aligned.
@@ -376,20 +350,49 @@ internal sealed class MapDecoration
         };
     }
 
-    private static UIElement Labelled(Grid icon, string label)
+    // Icon and name, and for the entries that switch something a third text with the state (On / Off).
+    private static UIElement Labelled(Grid icon, string label, bool toggle = false)
     {
         var row = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
         row.Children.Add(icon);
-        row.Children.Add(new TextBlock { Text = label, FontSize = 13, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center });
+        var name = new TextBlock { Text = label, FontSize = 13, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+        if (toggle)
+            name.Width = 118f;
+        row.Children.Add(name);
+        if (toggle)
+            row.Children.Add(new TextBlock { Text = "Off", FontSize = 12, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center });
         return row;
     }
 
-    // Three dots, drawn in the button's Foreground.
-    private static UIElement Dots()
+    // The menu button's three lines, drawn in the button's Foreground.
+    private static UIElement Burger()
     {
-        const string xaml = "<Path " + Ns + " Width=\"12\" Height=\"12\" StrokeThickness=\"2\" HorizontalAlignment=\"Center\" " +
-            "VerticalAlignment=\"Center\" Data=\"M6,1.5 L6,1.6 M6,6 L6,6.1 M6,10.4 L6,10.5\" " + FollowButton + "/>";
+        const string xaml = "<Path " + Ns + " Width=\"12\" Height=\"12\" StrokeThickness=\"1.5\" HorizontalAlignment=\"Center\" " +
+            "VerticalAlignment=\"Center\" Data=\"M1,2.5 H11 M1,6 H11 M1,9.5 H11\" " + FollowButton + "/>";
         return Noesis.GUI.ParseXaml(xaml) as UIElement;
+    }
+
+    // A Back row for the top of the look list: back to the menu.
+    private Button BackRow()
+    {
+        var content = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        content.Children.Add(Icon(("M9,1.5 L3.5,7 L9,12.5 M3.5,7 H13", 1.2f)));
+        content.Children.Add(new TextBlock { Text = "Back", FontSize = 13, Margin = new Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center });
+        var back = new Button
+        {
+            Focusable = false,
+            Padding = new Thickness(6, 2, 10, 2),
+            Margin = new Thickness(0, 0, 0, 6),
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Content = content,
+            ToolTip = "Back to the menu",
+        };
+        back.Click += (sender, args) =>
+        {
+            args.Handled = true;
+            ClosePicker();
+        };
+        return back;
     }
 
     private void OpenMenu()
@@ -426,21 +429,19 @@ internal sealed class MapDecoration
         return icon;
     }
 
-    private void OpenPicker()
+    // The look list takes the menu's place in the same popup.
+    private void ShowLooks()
     {
-        if (VisualTreeHelper.GetParent(kebab) is not Panel panel)
-            return;
-        if (VisualTreeHelper.GetParent(pickerPopup) == null)
-            panel.Children.Add(pickerPopup);
         pickerOpen = true;
-        pickerPopup.IsOpen = true;
+        menuFrame.Child = pickerList;
     }
 
+    // Back to the menu itself (also what the popup shows whenever it opens).
     private void ClosePicker()
     {
         pickerOpen = false;
-        if (pickerPopup.IsOpen)
-            pickerPopup.IsOpen = false;
+        if (!ReferenceEquals(menuFrame.Child, menuList))
+            menuFrame.Child = menuList;
     }
 
     private static void SetVisible(UIElement element, bool visible)
@@ -533,6 +534,7 @@ internal sealed class MapDecoration
         lookButton.ToolTip = $"Map look: {theme.Name} ({theme.Note}). Click to choose another; {Settings.LookKey.Value} switches to the next.";
 
         pickerList.Children.Clear();
+        pickerList.Children.Add(BackRow());
         pickerList.Children.Add(new TextBlock
         {
             Text = theme.Dark ? "Look for the night map" : "Look for the day map",
@@ -577,7 +579,6 @@ internal sealed class MapDecoration
             row.Click += (sender, args) =>
             {
                 args.Handled = true;
-                ClosePicker();
                 TopoHost.Instance?.SetLook(choice);
             };
             pickerList.Children.Add(row);
@@ -611,7 +612,7 @@ internal sealed class MapDecoration
         row.Click += (sender, args) =>
         {
             args.Handled = true;
-            ClosePicker();
+            CloseMenu();
             action();
         };
         return row;
