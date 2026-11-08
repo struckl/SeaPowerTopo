@@ -65,7 +65,7 @@ on top; the stock coastline is untouched. The map's night theme gets its own loo
    [installation guide](https://seapower-modders.github.io/AnchorChain/install-anchor-chain.html) (one manual step:
    copy its preloader into the game folder).
 2. Subscribe to **[Sea Power Topographic Map](https://steamcommunity.com/sharedfiles/filedetails/?id=3826122523)** on the Steam Workshop.
-3. Start the game. In a mission, open the map: the layer is on. Its menu button (three lines) sits in the map's title bar, left of the map
+3. Start the game. In a mission, open the map: the layer is on. Its menu button (the mod's mountain mark) sits in the map's title bar, left of the map
    menu (≡). The list has **Topography** (on and off; also the map menu → Map Layers → **Topography**, or **F6**), **Look**
    (the list of looks; **Shift+F6** goes to the next one), **Legend** (the colour key) and **Cursor height** (the readout
    next to the pointer). In the mission editor the same button sits at the top left of its map.

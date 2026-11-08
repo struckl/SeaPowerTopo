@@ -198,7 +198,7 @@ internal sealed class MapDecoration
             Padding = new Thickness(0),
             Margin = new Thickness(0),
             MinWidth = 20,
-            Content = Burger(),
+            Content = Icon(("M0.5,12.5 L5,4 L7.5,8 L9.5,5.5 L13.5,12.5 Z", 1.2f), ("M3.2,9.3 H10.9", 1f)),
             ToolTip = "Topography menu",
         };
         kebab.Click += (sender, args) =>
@@ -362,14 +362,6 @@ internal sealed class MapDecoration
         if (toggle)
             row.Children.Add(new TextBlock { Text = "Off", FontSize = 12, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center });
         return row;
-    }
-
-    // The menu button's three lines, drawn in the button's Foreground.
-    private static UIElement Burger()
-    {
-        const string xaml = "<Path " + Ns + " Width=\"12\" Height=\"12\" StrokeThickness=\"1.5\" HorizontalAlignment=\"Center\" " +
-            "VerticalAlignment=\"Center\" Data=\"M1,2.5 H11 M1,6 H11 M1,9.5 H11\" " + FollowButton + "/>";
-        return Noesis.GUI.ParseXaml(xaml) as UIElement;
     }
 
     // A Back row for the top of the look list: back to the menu.
