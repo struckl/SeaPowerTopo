@@ -183,7 +183,7 @@ internal sealed class MapDecoration
         segments.Children.Add(readoutToggle);
         bar = new Border
         {
-            Background = new SolidColorBrush(GroupFill),
+            Background = null,                                // the title bar shows through, as behind Pop-Out's button
             // No outer frame: GroupEdge (#565B5F) on the title bar showed as a light line round the whole group, which looked like a
             // white border. The fill alone separates the group; the dividers between its buttons keep GroupEdge.
             BorderThickness = new Thickness(0),
@@ -355,6 +355,8 @@ internal sealed class MapDecoration
     // A divider on the left of every shown button but the first.
     private void SetDividers()
     {
+        return;      // no dividers: they were drawn with the border of our own button template, which is gone
+#pragma warning disable CS0162
         bool first = true;
         foreach (UIElement child in segments.Children)
         {
@@ -370,20 +372,18 @@ internal sealed class MapDecoration
     // A button of the group: flat, the icon centred; SetDividers draws the lines between them.
     private Button Segment(UIElement content)
     {
+        // Built the way Pop-Out Windows builds its title bar button (which never showed a frame): a plain Button in the game's own
+        // style - no template of ours, no border of ours. Our flat template and its edge colour were what showed as a light frame.
         var button = new Button
         {
             Focusable = false,
-            Padding = new Thickness(6, 0, 6, 0),
-            MinWidth = 26,
+            Padding = new Thickness(0),
+            Margin = new Thickness(0),
+            MinWidth = 24,
             VerticalAlignment = VerticalAlignment.Stretch,
             Background = clearBrush,                       // transparent, not null: the whole face takes clicks
-            BorderBrush = new SolidColorBrush(GroupEdge),
-            BorderThickness = new Thickness(0),
             Content = content,
         };
-        ControlTemplate template = SegmentTemplate();
-        if (template != null)
-            button.Template = template;
         return button;
     }
 

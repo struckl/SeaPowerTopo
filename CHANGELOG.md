@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Title bar buttons use the game's own button style** (built like Pop-Out's title bar button, which never showed a frame), without our own template, edge colour and dividers. The light frame round the group should be gone for good.
 - **Title bar buttons:** no outer frame round the button group any more (its light edge looked like a white border); the dividers between the buttons stay.
 
 ## 1.5.1 – 2026-11-08 – fix for the globe beta 261107
