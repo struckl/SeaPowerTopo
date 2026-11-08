@@ -50,12 +50,23 @@ internal sealed unsafe class HeightReader : IDisposable
 
     public bool HasLowres => low != null;
 
+    // Options in 0.8.7; beta 261107 removed them and fixed land at x1 and water at x2 (TerrainUtils.ScaleDEMHeight). By name, so one build runs on both.
+    private static readonly System.Reflection.FieldInfo HeightMultiplierField = typeof(Globals).GetField("_heightMultiplier");
+    private static readonly System.Reflection.FieldInfo DepthFactorField = typeof(Globals).GetField("_underWaterDepthFactor");
+
+    private static float Option(System.Reflection.FieldInfo field, float fixedValue)
+    {
+        if (field == null) return fixedValue;
+        float value = (float)field.GetValue(null);
+        return value > 0f ? value : 1f;
+    }
+
     /// <param name="missing">Collects the keys of DEM chunks that were needed but not loaded yet (they are being read).</param>
     public HeightReader(HashSet<string> missing = null)
     {
         this.missing = missing;
-        Multiplier = Globals._heightMultiplier > 0f ? Globals._heightMultiplier : 1f;
-        DepthFactor = Globals._underWaterDepthFactor > 0f ? Globals._underWaterDepthFactor : 1f;
+        Multiplier = Option(HeightMultiplierField, 1f);
+        DepthFactor = Option(DepthFactorField, 2f);
         low = LowresGrid.Pointer;
     }
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Fix for globe beta 261107: the map failed because the game removed its terrain height options (land is now x1, water x2). Read by name, so one source fits every build. Run in the game on 261107 under Keel.
+
 ## 1.5.0 – 2026-11-01 – title bar icons, new looks
 
 - **Title bar buttons** are one small framed group of icons instead of four wide text buttons with the game's full
