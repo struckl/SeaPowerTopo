@@ -1,7 +1,6 @@
 # Sea Power: R.A.T.S. Topographic Map
 
-**[Get it on the Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3826122523)** – requires
-[Anchor Chain](https://steamcommunity.com/sharedfiles/filedetails/?id=3380210757).
+**[Get it on the Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3826122523)** – needs a mod loader, either one: [R.A.T.S. Keel](https://steamcommunity.com/sharedfiles/filedetails/?id=3835527459) or [Anchor Chain](https://steamcommunity.com/sharedfiles/filedetails/?id=3380210757).
 
 > **Version 1.4.0 works on both maps with the same features**: Sea Power 0.8.7 and the new 3D globe map (public beta of 26 Oct 2026, the
 > 11 November release) – see [Compatibility](#compatibility).
@@ -60,10 +59,10 @@ on top; the stock coastline is untouched. The map's night theme gets its own loo
 
 ## Installation
 
-1. Install **[Anchor Chain](https://steamcommunity.com/sharedfiles/filedetails/?id=3380210757)**, the Sea Power
-   community mod loader, following its
-   [installation guide](https://seapower-modders.github.io/AnchorChain/install-anchor-chain.html) (one manual step:
-   copy its preloader into the game folder).
+1. Install a mod loader, either one: **[R.A.T.S. Keel](https://steamcommunity.com/sharedfiles/filedetails/?id=3835527459)** (subscribe, switch it on in the Mods menu, copy its one stub
+   file once; it is the one that runs on the 3D-globe public beta) or **[Anchor Chain](https://steamcommunity.com/sharedfiles/filedetails/?id=3380210757)** following its
+   [installation guide](https://seapower-modders.github.io/AnchorChain/install-anchor-chain.html) (one manual step: copy its
+   preloader into the game folder).
 2. Subscribe to **[Sea Power Topographic Map](https://steamcommunity.com/sharedfiles/filedetails/?id=3826122523)** on the Steam Workshop.
 3. Start the game. In a mission, open the map: the layer is on. Its menu button (the mod's mountain mark) sits in the map's title bar, left of the map
    menu (≡). The list has **Topography** (on and off; also the map menu → Map Layers → **Topography**, or **F6**), **Look**
