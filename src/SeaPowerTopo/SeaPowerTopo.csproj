@@ -19,7 +19,9 @@
     <!--Override with your own install: dotnet build -p:GameDir="D:\Steam\steamapps\common\Sea Power"-->
     <GameDir Condition="'$(GameDir)' == ''">E:\Games\steamapps\common\Sea Power</GameDir>
     <!--Anchor Chain lives in the Steam Workshop folder of the library that holds the game.-->
-    <AnchorChainDir Condition="'$(AnchorChainDir)' == ''">$(GameDir)\..\..\workshop\content\1286220\3380210757</AnchorChainDir>
+    <!-- Anchor Chain's library, to compile the entry point against: the copy Keel ships, so no build needs the Anchor Chain item. AnchorChainDir overrides it. -->
+    <AnchorChainRef Condition="'$(AnchorChainDir)' != ''">$(AnchorChainDir)\AnchorChain.dll</AnchorChainRef>
+    <AnchorChainRef Condition="'$(AnchorChainRef)' == ''">$(MSBuildThisFileDirectory)..\..\..\SeaPowerKeel\lib\AnchorChain.keel.bin</AnchorChainRef>
     <ManagedDir Condition="'$(ManagedDir)' == ''">$(GameDir)\Sea Power_Data\Managed</ManagedDir>
     <!--Local mod folder: Anchor Chain scans every StreamingAssets sub folder for plugin DLLs.-->
     <ModDeployDir>$(GameDir)\Sea Power_Data\StreamingAssets\SeaPowerTopo</ModDeployDir>
@@ -56,7 +58,7 @@ efs\Sea Power 0.8.7\Managed"]-->
     <Reference Include="CommunityToolkit.Mvvm"><HintPath>$(ManagedDir)\CommunityToolkit.Mvvm.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Unity.Mathematics"><HintPath>$(ManagedDir)\Unity.Mathematics.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Unity.Collections"><HintPath>$(ManagedDir)\Unity.Collections.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="AnchorChain"><HintPath>$(AnchorChainDir)\AnchorChain.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="AnchorChain"><HintPath>$(AnchorChainRef)</HintPath><Private>false</Private></Reference>
   </ItemGroup>
 
   <ItemGroup>

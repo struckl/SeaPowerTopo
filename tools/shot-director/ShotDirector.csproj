@@ -14,7 +14,9 @@
       https://nuget.bepinex.dev/v3/index.json
     </RestoreAdditionalProjectSources>
     <GameDir Condition="'$(GameDir)' == ''">E:\Games\steamapps\common\Sea Power</GameDir>
-    <AnchorChainDir Condition="'$(AnchorChainDir)' == ''">$(GameDir)\..\..\workshop\content\1286220\3380210757</AnchorChainDir>
+    <!-- Anchor Chain's library, to compile the entry point against: the copy Keel ships, so no build needs the Anchor Chain item. AnchorChainDir overrides it. -->
+    <AnchorChainRef Condition="'$(AnchorChainDir)' != ''">$(AnchorChainDir)\AnchorChain.dll</AnchorChainRef>
+    <AnchorChainRef Condition="'$(AnchorChainRef)' == ''">$(MSBuildThisFileDirectory)..\..\..\SeaPowerKeel\lib\AnchorChain.keel.bin</AnchorChainRef>
     <ManagedDir>$(GameDir)\Sea Power_Data\Managed</ManagedDir>
     <ModDeployDir>$(GameDir)\Sea Power_Data\StreamingAssets\ShotDirector</ModDeployDir>
   </PropertyGroup>
@@ -36,7 +38,7 @@
     <Reference Include="CommunityToolkit.Mvvm"><HintPath>$(ManagedDir)\CommunityToolkit.Mvvm.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Unity.Mathematics"><HintPath>$(ManagedDir)\Unity.Mathematics.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Unity.Collections"><HintPath>$(ManagedDir)\Unity.Collections.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="AnchorChain"><HintPath>$(AnchorChainDir)\AnchorChain.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="AnchorChain"><HintPath>$(AnchorChainRef)</HintPath><Private>false</Private></Reference>
   </ItemGroup>
 
   <Target Name="DeployMod" AfterTargets="Build" Condition="Exists('$(GameDir)') And '$(Deploy)' != 'false'">
