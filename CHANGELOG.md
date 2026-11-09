@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 1.6.0 – 2026-11-09 – one menu button
+
+Run in the game on the globe beta (build 261107) on 2026-11-09: the menu button and its list in the map's title bar (Topography, Look, Legend, Cursor height). 0.8.7 checked offline only.
 
 - **One menu button instead of four:** the title bar has a single menu button (the mountain mark); its list holds Topography, Look, Legend and Cursor height with icons. Switches show On / Off and keep the menu open; Look opens in the same menu with a Back row; lit entries are orange. Built, not run in the game yet.
 - **Legend and look list no longer jump around or cover other buttons:** the buttons are now plain game-style buttons in the title bar's own button row (like Pop-Out's), the look list is a popup under its button, and the legend sits fixed at the map's top left instead of being placed from the button row. Built, not run in the game yet.

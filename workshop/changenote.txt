@@ -1,1 +1,3 @@
-1.5.1: the map works again on the 3D globe public beta (build 261107), where the game removed its terrain height options. Run in the game on that beta. 0.8.7 checked offline only.
+1.6.0: one menu button in the map's title bar instead of four buttons.
+The mountain mark opens a short list: Topography, Look, Legend and Cursor height, each with an icon; switches show On or Off, and Look opens inside the same menu. The legend no longer jumps around or covers other buttons.
+Run in the game on the 3D globe public beta (build 261107). 0.8.7 checked offline only.
