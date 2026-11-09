@@ -1,66 +1,58 @@
 [h1]R.A.T.S. Topographic Map[/h1]
 [i]R.A.T.S. – Reconnaissance, Acoustics, Terrain & Signals[/i]
-Land heights and sea depths on the tactical map. Useful for low-level flying, terrain masking and radar horizons, and for knowing where your submarine has room to dive.
 
-The stock map shows land as a satellite picture and all water in one flat colour. This mod adds a [b]Topography[/b] layer:
+[b]Stop flying blind over the terrain.[/b]
+Land heights and sea depths on your tactical map: for low-level flying, terrain masking, radar horizons, and for knowing where your submarine has room to dive.
 
+[h2]The highlights[/h2]
 [list]
-[*]Land tinted by height in 13 bands (0 to 4000 m), with hill shading and contour lines that follow the zoom (20 m close in, up to 1000 m zoomed out).
-[*]Sea tinted by depth in 12 bands (0 to 6000 m), darker the deeper it gets, with faint seabed relief and chart-style depth lines, so banks, shelf edges and basins are easy to see.
-[*]The height or depth under the mouse pointer, in m and ft.
-[*]Select an aircraft or helicopter in the air and any terrain at or above its altitude is hatched red. The readout shows the clearance.
-[*]Select a submarine and you see where it's below the game's thermal layer, where the layer ends and where the water gets too shallow. The readout gives the layer depth and the water under the keel.
-[*]19 looks for day and night. Day: Standard, army tactical map, Soviet General Staff map, bathymetric chart, ECDIS (the IHO S-52 colours), desert storm, satellite, 1940s chart, glacier. Night: Midnight, Standard, Black, recon photo, survey sonar (depth as a rainbow), combat display, phosphor green, white phosphor, amber display, red light.
-[*]Your own looks: [i]Save this look as a theme file[/i] in the look list writes the current look to a small text file. Edit it and the map updates when you save.
-[*]Works on the new 3D globe map, lined up with the stock map at every zoom, at high latitudes, across the date line and over the poles.
-[*]Works in the mission editor too, with the layer, buttons, legend and readout on the editor's map.
+[*][b]Heights and depths at a glance.[/b] Land tinted in 13 height bands, sea in 12 depth bands, with hill shading and contour lines that follow your zoom
+[*][b]Terrain that hits back.[/b] Select an aircraft and every piece of terrain at or above its altitude is hatched red, with the clearance in the readout
+[*][b]Submarine room to dive.[/b] Select a submarine and see where it is below the thermal layer, where the layer ends and where the water gets too shallow
+[*][b]19 looks, day and night.[/b] ECDIS, Soviet General Staff map, survey sonar, phosphor green, amber display, red light and more. Make your own with a small text file
+[*][b]Made for the 3D globe.[/b] Lined up with the stock map at every zoom, at high latitudes, across the date line and over the poles
+[*]Height or depth under the mouse pointer in metres and feet, and it works in the mission editor too
 [/list]
 
-The mission area and the rest of the world are drawn once when the mission starts, so nothing gets redrawn while you play zoomed out.
-
-The heights and depths are the ones the simulation uses, taken from the game's own terrain data, including the terrain height multiplier and under-water depth factor in Options, World. Unit symbols, waypoints and labels stay on top.
+[h2]The looks[/h2]
+[list]
+[*][b]Day:[/b] Standard, army tactical map, Soviet General Staff map, bathymetric chart, ECDIS (IHO S-52 colours), desert storm, satellite, 1940s chart, glacier
+[*][b]Night:[/b] Midnight, Standard, Black, recon photo, survey sonar (depth as a rainbow), combat display, phosphor green, white phosphor, amber display, red light
+[*][b]Your own:[/b] Save this look as a theme file, edit the small text file, and the map updates when you save
+[/list]
 
 [h2]How to use[/h2]
-Open the map in a mission and the layer is already on. One menu button, the mountain mark, sits in the map's title bar, left of the map menu (≡). Its list holds Topography, Look, Legend and Cursor height; a lit entry has an orange icon.
+Open the map in a mission and the layer is already on. One menu button, the mountain mark, sits in the map's title bar, left of the map menu. Its list holds:
 [list]
-[*]The [b]mountain[/b] (Topography) switches the layer (also F6, or map menu, Map Layers, Topography).
-[*]The [b]colour swatches with ▾[/b] show the current look and open the list of looks for the day or night map you're on. Shift+F6 jumps to the next one. The list also has [i]Save this look as a theme file[/i] and [i]Open the themes folder[/i].
-[*]The [b]list icon[/b] (Legend) shows the colour key and the contour step.
-[*]The [b]crosshair[/b] (Cursor height) switches the readout next to the pointer.
+[*][b]Topography:[/b] the layer on or off (also F6)
+[*][b]Look:[/b] the looks for the day or night map you are on (Shift+F6 jumps to the next one)
+[*][b]Legend:[/b] the colour key and the contour step
+[*][b]Cursor height:[/b] the readout next to the pointer
 [/list]
-The look and legend entries show while the layer is on.
 In the mission editor the same menu button is at the top right of its map.
 
-[h2]Requirements[/h2]
-[b]A mod loader[/b] is required, either one: [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3835527459]R.A.T.S. Keel[/url] (needed on the 3D globe beta) or [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3380210757]Anchor Chain[/url].
-
-[h2]Settings[/h2]
-Everything is in [i]<Sea Power>\BepInEx\config\dev.sewerlabs.seapowertopo.cfg[/i], which is created on first start. You can edit it with the game open or closed; changes show on the next redraw.
+[h2]Good to know[/h2]
 [list]
-[*]Toggle key and look key, F6 and Shift+F6 by default.
-[*]Look for the day map and for the night map (the look list sets these too). A look from a theme file goes by its Id.
-[*]Opacity, how strongly the colours cover the stock map (default 0.7). Hill shading strength, 0 turns it off.
-[*]Contour lines on or off, and the contour interval in metres (0 follows the zoom).
-[*]Where the height bands and depth bands start, in metres.
-[*]Sea depth: tint the sea, or leave the water to the stock map.
-[*]Chart safety contour, the bold depth line in the chart looks (default 30 m).
-[*]Red terrain highlight for the selected aircraft, thermal layer for the selected submarine.
-[*]Height under cursor: WithOverlay (default), Always or Off. The Cursor height button switches it. Units: metres, feet or both.
-[*]Legend button on or off.
-[*]Resolution of the overlay compared to the map (lower is faster), and whether to pre-draw the mission area and the world at mission start.
+[*]The heights and depths are the ones the simulation uses, from the game's own terrain data, including the terrain height multiplier and under-water depth factor in Options, World
+[*]The mission area and the world are drawn once at mission start, so nothing is redrawn while you play zoomed out
+[*]Unit symbols, waypoints and labels stay on top. No game files are changed
+[*]Works together with Better TacMap
 [/list]
 
-[h2]Theme files[/h2]
-[i]<Sea Power>\BepInEx\config\SeaPowerTopo\themes[/i] holds one .ini file per look, for example [i]Base=black[/i] and [i]LandLines=170,150,120[/i] for Black with warm contour lines. Every key is explained in the [i]_example.ini[/i] the mod puts there, and in [url=https://github.com/struckl/SeaPowerTopo/blob/main/docs/themes.md]docs/themes.md[/url].
+[h2]Settings[/h2]
+Everything is in [i]<Sea Power>\BepInEx\config\dev.sewerlabs.seapowertopo.cfg[/i], created on first start. You can edit it with the game open; changes show on the next redraw.
+[list]
+[*]Toggle key and look key, looks for the day and night map, opacity, hill shading strength
+[*]Contour lines and interval, where the height and depth bands start, sea tint, chart safety contour
+[*]Red terrain highlight for aircraft, thermal layer for submarines
+[*]Height under cursor (WithOverlay, Always or Off), units in metres, feet or both, the Legend entry
+[*]Overlay resolution and pre-drawing of the mission area and the world
+[/list]
+Theme files: [i]<Sea Power>\BepInEx\config\SeaPowerTopo\themes[/i] holds one .ini per look, for example [i]Base=black[/i] and [i]LandLines=170,150,120[/i] for Black with warm contour lines. Every key is explained in the [i]_example.ini[/i] and in [url=https://github.com/struckl/SeaPowerTopo/blob/main/docs/themes.md]docs/themes.md[/url].
 
-[h2]Compatibility[/h2]
-Works on both versions of the game: the current one (0.8.7, flat map) and the new 3D globe map (public beta of 26 Oct 2026, the 11 November release). The item has a build for each and the right one switches on by itself.
-
-On 0.8.7 you get the same features: the menu button in the map's title bar (top right of the map where a window has no title bar), the Cursor height button and the mission editor. The screenshots are from the globe version.
-
-On the public beta, Anchor Chain doesn't start yet, so no Anchor Chain mod loads there until it's updated ([url=https://github.com/seapower-modders/AnchorChain/issues/19]Anchor Chain issue #19[/url]).
-
-Works together with Better TacMap. No game files are changed.
+[h2]Install and game versions[/h2]
+[b]R.A.T.S. Keel[/b] is required: [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3835527459]subscribe[/url] and switch it on in the Mods menu; its page has the one install step. It replaces Anchor Chain.
+Run in the game on the 3D globe public beta (build 261107). The build for 0.8.7 (flat map) has the same features and passes the offline checks; the item has a build for each and the right one switches on by itself. The screenshots are from the globe version.
 
 [h2]Problems, feedback, ideas[/h2]
 Post bugs, feedback and ideas on the [url=https://hub.sewerlabs.dev/s/topo]R.A.T.S. feedback board[/url]. For a bug, add [i]<Sea Power>\BepInEx\LogOutput.log[/i] (as a link).
