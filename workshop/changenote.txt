@@ -1,3 +1,3 @@
-1.6.0: one menu button in the map's title bar instead of four buttons.
-The mountain mark opens a short list: Topography, Look, Legend and Cursor height, each with an icon; switches show On or Off, and Look opens inside the same menu. The legend no longer jumps around or covers other buttons.
-Run in the game on the 3D globe public beta (build 261107). 0.8.7 checked offline only.
+1.6.1: ready for Sea Power 0.9.0.
+The game no longer lists this mod as "not declared to be compatible", and 0.9.0 players get this and later updates from the Workshop (the game skips updates from items that do not declare its version).
+Nothing else changed. Checked against 0.9.0 (build 261111) without starting the game: everything the mod uses is still there. Not yet run in the game on 0.9.0.
