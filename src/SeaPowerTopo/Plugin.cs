@@ -25,9 +25,9 @@ public class Plugin : IAnchorChainMod
 #if FLATMAP
     // Anchor Chain skips a plugin whose id it has already seen, so the flat-map build has an id of its own.
     public const string PluginGuid = Guid + ".flatmap";
-    public const string Name = "Sea Power Topographic Map (flat map)";
+    public const string Name = "R.A.T.S. Topographic Map";
 #else
-    public const string Name = "Sea Power Topographic Map";
+    public const string Name = "R.A.T.S. Topographic Map";
 #endif
     public const string Version = "1.6.1";
 
