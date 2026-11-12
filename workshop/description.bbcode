@@ -1,63 +1,87 @@
 [h1]R.A.T.S. Topographic Map[/h1]
 [i]R.A.T.S. – Reconnaissance, Acoustics, Terrain & Signals[/i]
-[b]Bugs, ideas, questions:[/b] [url=https://hub.sewerlabs.dev/s/topo]R.A.T.S. feedback board[/url]
 
 [b]Stop flying blind over the terrain.[/b]
-Land heights and sea depths on your tactical map: for low-level flying, terrain masking, radar horizons, and for knowing where your submarine has room to dive.
+Land heights and sea depths on your tactical map: for low-level flying, terrain masking, radar horizons and room to dive.
 
-[h2]The highlights[/h2]
+[quote]▶ [b]Requires[/b] a mod loader: [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3835527459]R.A.T.S. Keel[/url] or Anchor Chain, either one
+✉ Bugs, ideas, questions: [url=https://hub.sewerlabs.dev/s/topo]R.A.T.S. feedback board[/url]
+⭐ A favourite helps other captains find it[/quote]
+
+[h2]✦ New in 1.6[/h2]
 [list]
-[*][b]Heights and depths at a glance.[/b] Land tinted in 13 height bands, sea in 12 depth bands, with hill shading and contour lines that follow your zoom
-[*][b]Terrain that hits back.[/b] Select an aircraft and every piece of terrain at or above its altitude is hatched red, with the clearance in the readout
-[*][b]Submarine room to dive.[/b] Select a submarine and see where it is below the thermal layer, where the layer ends and where the water gets too shallow
-[*][b]19 looks, day and night.[/b] ECDIS, Soviet General Staff map, survey sonar, phosphor green, amber display, red light and more. Make your own with a small text file
-[*][b]Made for the 3D globe.[/b] Lined up with the stock map at every zoom, at high latitudes, across the date line and over the poles
-[*]Height or depth under the mouse pointer in metres and feet, and it works in the mission editor too
+[*][b]One menu button[/b] in the map's title bar: Topography, Look, Legend, Cursor height
+[*][b]Runs on 0.9.1[/b] and the flat map (0.8.7)
 [/list]
 
-[h2]The looks[/h2]
+[h2]✦ Highlights[/h2]
 [list]
-[*][b]Day:[/b] Standard, army tactical map, Soviet General Staff map, bathymetric chart, ECDIS (IHO S-52 colours), desert storm, satellite, 1940s chart, glacier
-[*][b]Night:[/b] Midnight, Standard, Black, recon photo, survey sonar (depth as a rainbow), combat display, phosphor green, white phosphor, amber display, red light
-[*][b]Your own:[/b] Save this look as a theme file, edit the small text file, and the map updates when you save
+[*][b]Heights and depths at a glance.[/b] 13 height bands, 12 depth bands, hill shading, contour lines that follow your zoom
+[*][b]Terrain that hits back.[/b] Select an aircraft: terrain at or above its altitude is hatched red, with the clearance
+[*][b]Room to dive.[/b] Select a submarine: below the thermal layer, where the layer ends, where it gets too shallow
+[*][b]19 looks, day and night.[/b] ECDIS, Soviet General Staff map, survey sonar, phosphor green, red light and more
+[*][b]Your own look[/b] from a small text file; the map updates when you save
+[*][b]Made for the 3D globe.[/b] Lined up at every zoom, at high latitudes, across the date line and over the poles
+[*][b]Height under the pointer[/b] in metres and feet, in the mission editor too
 [/list]
 
-[h2]How to use[/h2]
-Open the map in a mission and the layer is already on. One menu button, the mountain mark, sits in the map's title bar, left of the map menu. Its list holds:
+[h2]▶ Quick start[/h2]
+[olist]
+[*]Subscribe, and a mod loader if you have none (Keel above)
+[*]Switch R.A.T.S. Topographic Map on in Mods
+[*]Open the map in a mission: the layer is already on
+[/olist]
 [list]
-[*][b]Topography:[/b] the layer on or off (also F6)
-[*][b]Look:[/b] the looks for the day or night map you are on (Shift+F6 jumps to the next one)
-[*][b]Legend:[/b] the colour key and the contour step
-[*][b]Cursor height:[/b] the readout next to the pointer
-[/list]
-In the mission editor the same menu button is at the top right of its map.
-
-[h2]Good to know[/h2]
-[list]
-[*]The heights and depths are the ones the simulation uses, from the game's own terrain data, including the terrain height multiplier and under-water depth factor in Options, World
-[*]The mission area and the world are drawn once at mission start, so nothing is redrawn while you play zoomed out
-[*]Unit symbols, waypoints and labels stay on top. No game files are changed
-[*]Works together with Better TacMap
+[*][b]The menu:[/b] the mountain mark in the map's title bar, left of the map menu; in the editor at the top right of its map
+[*][b]Keys:[/b] F6 on/off, Shift+F6 next look
 [/list]
 
-[h2]Settings[/h2]
-Everything is in [i]<Sea Power>\BepInEx\config\dev.sewerlabs.seapowertopo.cfg[/i], created on first start. You can edit it with the game open; changes show on the next redraw.
+[h2]⚙ The looks[/h2]
 [list]
-[*]Toggle key and look key, looks for the day and night map, opacity, hill shading strength
-[*]Contour lines and interval, where the height and depth bands start, sea tint, chart safety contour
-[*]Red terrain highlight for aircraft, thermal layer for submarines
-[*]Height under cursor (WithOverlay, Always or Off), units in metres, feet or both, the Legend entry
-[*]Overlay resolution and pre-drawing of the mission area and the world
+[*][b]Day:[/b] Standard, army tactical map, Soviet General Staff map, bathymetric chart, ECDIS (IHO S-52), desert storm, satellite, 1940s chart, glacier
+[*][b]Night:[/b] Midnight, Standard, Black, recon photo, survey sonar, combat display, phosphor green, white phosphor, amber, red light
+[*][b]Your own:[/b] Look, Save this look, edit the .ini; every key is in [url=https://github.com/struckl/SeaPowerTopo/blob/main/docs/themes.md]docs/themes.md[/url]
 [/list]
-Theme files: [i]<Sea Power>\BepInEx\config\SeaPowerTopo\themes[/i] holds one .ini per look, for example [i]Base=black[/i] and [i]LandLines=170,150,120[/i] for Black with warm contour lines. Every key is explained in the [i]_example.ini[/i] and in [url=https://github.com/struckl/SeaPowerTopo/blob/main/docs/themes.md]docs/themes.md[/url].
 
-[h2]Install and game versions[/h2]
-[b]R.A.T.S. Keel[/b] is required: [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3835527459]subscribe[/url] and switch it on in the Mods menu; its page has the one install step. It replaces Anchor Chain.
-Run in the game on the 3D globe public beta (build 261107). The build for 0.8.7 (flat map) has the same features and passes the offline checks; the item has a build for each and the right one switches on by itself. The screenshots are from the globe version.
+[h2]⚠ Good to know[/h2]
+[list]
+[*][b]The game's own heights and depths,[/b] from its terrain data, with the height and depth factors from Options, World
+[*][b]Display only.[/b] Units, missions and saves are untouched; symbols, waypoints and labels stay on top
+[*][b]Drawn once at mission start,[/b] so nothing is redrawn while you play zoomed out
+[*][b]Works with Better TacMap[/b]
+[/list]
 
-[h2]Problems, feedback, ideas[/h2]
-Post bugs, feedback and ideas on the [url=https://hub.sewerlabs.dev/s/topo]R.A.T.S. feedback board[/url]. For a bug, add [i]<Sea Power>\BepInEx\LogOutput.log[/i] (as a link).
+[h2]⚙ Settings[/h2]
+[list]
+[*][i]BepInEx\config\dev.sewerlabs.seapowertopo.cfg[/i], editable with the game open
+[*][b]Map:[/b] keys, looks for day and night, opacity, hill shading, contours, band starts, sea tint, safety contour
+[*][b]Units:[/b] red terrain for aircraft, thermal layer for submarines
+[*][b]Readout:[/b] height under cursor, metres / feet / both, the Legend entry
+[/list]
 
-Source code (MIT): [url=https://github.com/struckl/SeaPowerTopo]github.com/struckl/SeaPowerTopo[/url]
+[h2]⚙ Install and game versions[/h2]
+[list]
+[*][b]Run in the game on 0.9.1[/b] (build 261112): Red Sea Breakout, under R.A.T.S. Keel
+[*][b]0.8.7 (flat map):[/b] same features, checked offline; the right build switches on by itself
+[*][b]No game files are changed[/b]
+[*][b]More:[/b] [url=https://github.com/struckl/SeaPowerTopo]README on GitHub[/url]
+[/list]
+
+[h2]✉ Problems, feedback, ideas[/h2]
+[list]
+[*][url=https://hub.sewerlabs.dev/s/topo]R.A.T.S. feedback board[/url]
+[*][b]With Keel:[/b] Send report in its report window (Ctrl+Shift+K) sends the logs
+[*][b]Videos:[/b] [url=https://www.youtube.com/@SewerRatte]R.A.T.S. on YouTube[/url]
+[/list]
+
+[h2]Support[/h2]
+[list]
+[*]Topographic Map is free and stays free. If you want to keep the rats fed: [url=https://ko-fi.com/kanalratte_sewerlabs]a cheese on Ko-fi[/url] or [url=https://www.patreon.com/cw/Kanalratte]Patreon[/url]
+[/list]
+
+[h2]Credits[/h2]
+[list]
+[*]Source (MIT): https://github.com/struckl/SeaPowerTopo
+[/list]
 
 [i]R.A.T.S. – Ratte's Assorted Tactical Systems[/i]
