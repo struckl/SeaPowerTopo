@@ -2,7 +2,7 @@
 
 **Bugs, ideas, questions:** [R.A.T.S. feedback board](https://hub.sewerlabs.dev/s/topo)
 
-> **Sea Power 0.9.0 (11 November 2026):** 1.6.1 declares the new game version in its `_info.ini` (0.8.7 up to every 0.9.x), so the game no longer lists it as "not declared to be compatible" and Steam passes its updates to 0.9.0 players. Checked offline against 0.9.0 (build 261111); not run in the game on 0.9.0 yet.
+> **Sea Power 0.9.1 (12 November 2026):** 1.6.2 shows as "R.A.T.S. Topographic Map" in the game and declares 0.8.7 up to every 0.9.x in its `_info.ini`. 1.6.1 was run in the game on 0.9.1 (build 261112) on 12 November 2026; checked offline against 0.9.1.
 
 **[Get it on the Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3826122523)** – needs a mod loader, either one: [R.A.T.S. Keel](https://steamcommunity.com/sharedfiles/filedetails/?id=3835527459) or [Anchor Chain](https://steamcommunity.com/sharedfiles/filedetails/?id=3380210757).
 

@@ -1,3 +1,1 @@
-1.6.1: ready for Sea Power 0.9.0.
-The game no longer lists this mod as "not declared to be compatible", and 0.9.0 players get this and later updates from the Workshop (the game skips updates from items that do not declare its version).
-Nothing else changed. Checked against 0.9.0 (build 261111) without starting the game: everything the mod uses is still there. Not yet run in the game on 0.9.0.
+1.6.2: shows as "R.A.T.S. Topographic Map" in the game's mod list and in the mod loader's list (Keel or Anchor Chain), the same name on every game version. Runs on Sea Power 0.9.1.
