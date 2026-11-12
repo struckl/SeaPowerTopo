@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- The mod folder carries this CHANGELOG.md, so R.A.T.S. Keel's What's new can show what changed when there are no Workshop notes (a local copy, the GitHub zip).
+
 ## 1.6.2 – 2026-11-12 – in-game name R.A.T.S. Topographic Map
 
 Run in the game on 0.9.1 (build 261112) on 2026-11-12: the new name shows in Keel's list, the mod works in Red Sea Breakout.
