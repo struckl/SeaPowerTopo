@@ -112,9 +112,8 @@ held at 1,200 m, S315 Kaura held at 100 m, map centres e.g. `center 69.45 19.45 
 
 ## Posts for Reddit and Discord
 
-[workshop/promotion.md](../workshop/promotion.md) has the 1.3.0 posts – Reddit gallery with captions, the Steam
-modding forum, BuOrd's `#sp-mods` and the MicroProse Discord – and which pictures go with each. The pictures in
-`workshop/reddit/` and `workshop/discord/` come from the 4K grabs of the screenshots above and of the looks on the
+The 1.3.0 posts – Reddit gallery with captions, the Steam modding forum, BuOrd's `#sp-mods` and the MicroProse
+Discord – and their pictures are in the private workspace (post texts and pictures are not kept in this repo). The pictures come from the 4K grabs of the screenshots above and of the looks on the
 whole globe (the preview's view, one grab per look):
 
 ```powershell

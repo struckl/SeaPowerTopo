@@ -1,7 +1,8 @@
-"""Dev tool: the pictures for the Reddit and Discord posts (workshop/reddit, workshop/discord; texts in
-workshop/promotion.md) from the full-screen 4K grabs the Workshop screenshots were made from.
+"""Dev tool: the pictures for the Reddit and Discord posts from the full-screen 4K grabs the Workshop screenshots were made from.
 
     python tools/shot-director/make_post_pictures.py SHOTS GLOBES
+
+It writes workshop/reddit and workshop/discord, which git ignores: post pictures are kept in the private workspace, never here.
 
 SHOTS holds the 4K grabs named like workshop/screenshots (01-overview-standard.png ...), GLOBES the whole-globe grabs
 of the looks (t1-standard.png ...: shot director `symbols off`, `center 58 -18 3.55`, one per look). The game's

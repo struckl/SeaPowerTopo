@@ -218,8 +218,7 @@ tools/package.ps1            release build → dist/SeaPowerTopo/
 tools/shot-director/         dev-only plugin that scripts the Workshop screenshots and in-game tests, and the scripts
                              for the Workshop preview and the post pictures (docs/workshop.md)
 tools/anchorchain-beta-shim/ dev-only BepInEx plugin that starts Anchor Chain on the globe beta (docs/testing.md)
-workshop/                    Workshop description, preview.jpg, screenshots/; promotion.md with the Reddit and
-                             Discord posts and their pictures (reddit/, discord/)
+workshop/                    Workshop description, preview.jpg, screenshots/
 ```
 
 ## License
