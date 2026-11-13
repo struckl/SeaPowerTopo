@@ -13,3 +13,6 @@ dist/
 # Local
 .env
 .claude/
+
+# Post drafts never go into this public repo: they live in the private workspace repo (posts/<mod>/)
+workshop/posts-*/
