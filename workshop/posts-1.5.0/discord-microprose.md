@@ -1,2 +1,0 @@
-Updated my **Topographic Map** mod to 1.5.0: the buttons in the map's title bar are now one small icon group, and there are 9 new looks – among them a Soviet General Staff map, a survey sonar look that shows depth as a rainbow, satellite colours and a 1940s sepia chart. Needs Anchor Chain.
-**Sea Power: Rats Topographic Map** – Workshop: https://steamcommunity.com/sharedfiles/filedetails/?id=3826122523
