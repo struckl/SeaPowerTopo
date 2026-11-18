@@ -1,21 +1,51 @@
-MIT License
+R.A.T.S. Source License 1.0
 
-Copyright (c) 2026 Lukas Struckl
+Copyright (c) 2026 Lukas Struckl ("Ratte"). All rights reserved, except as granted below.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+The source is public so you can read it, learn from it and help improve it. It is not open source:
+the mod may only be shared through its official releases.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+"The Work" = everything in this repository and in this mod's official releases: source code, builds,
+voice clips, sounds, pictures and texts, unless a file says it is under another license.
+"Official releases" = the author's own Steam Workshop items and GitHub releases.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+YOU MAY
+
+1. Read and study the Work.
+2. Fork the repository on GitHub, change your fork, and send changes back as pull requests or patches.
+3. Build the Work and run your own build on your own computer, for yourself.
+4. Download and play the official releases, and show them in videos, streams and screenshots.
+5. Link to the official releases anywhere, and add them to Steam Workshop collections.
+
+YOU MAY NOT, without the author's written permission
+
+1. Re-upload or share the Work or a build of it, changed or unchanged, anywhere outside a GitHub fork
+   (Steam Workshop, Nexus Mods, other mod sites, Discord, file hosts, modpacks, game copies with the
+   mod inside).
+2. Use the Work or any part of it (code, voices, sounds, pictures, texts) in another mod, program,
+   project or product.
+3. Sell the Work or use it commercially.
+4. Use the names "R.A.T.S." or the mod's name, the logos or the pictures for anything that is not an
+   official release, or in a way that looks official.
+5. Remove or change this license or the copyright notices.
+
+CONTRIBUTIONS
+
+By sending a pull request or patch you agree that the author may use it in the Work under this license.
+
+EARLIER VERSIONS
+
+Versions released before 2026-11-18 under the MIT license (and Radio's voices under CC BY 4.0) keep
+those licenses, for those versions only. Every later version is under this license.
+
+THIRD-PARTY PARTS
+
+Parts by others keep their own licenses and credits; the repository names them (e.g. THIRD-PARTY.txt,
+CREDITS.txt, the README).
+
+NO WARRANTY
+
+The Work is provided "as is", without warranty of any kind. The author is not liable for any claim,
+damage or other liability arising from its use.
+
+Permission requests and questions: https://hub.sewerlabs.dev or a GitHub issue.

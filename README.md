@@ -223,5 +223,5 @@ workshop/                    Workshop description, preview.jpg, screenshots/
 
 ## License
 
-[MIT](LICENSE). Not affiliated with Triassic Games or MicroProse. The mod reads the game's terrain data at runtime;
+[R.A.T.S. Source License](LICENSE): read it, fork it, send fixes; no re-uploads, no reuse in other projects. Not affiliated with Triassic Games or MicroProse. The mod reads the game's terrain data at runtime;
 nothing of the game is included in this repository or in the mod.
