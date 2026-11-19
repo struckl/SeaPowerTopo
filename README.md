@@ -197,7 +197,7 @@ src/SeaPowerTopo/
   Ui/MapDecoration.cs        title bar buttons, look list, legend and cursor readout (Noesis)
   mod/_info.ini              Mod Manager entry
 tools/topo-preview/          offline preview: compiles the plugin's plain C# Render files as they are
-tools/package.ps1            release build → dist/SeaPowerTopo/
+tools/package.ps1            release build -> dist/SeaPowerTopo/
 tools/shot-director/         dev-only plugin that scripts the Workshop screenshots and in-game tests, and the scripts
                              for the Workshop preview and the post pictures (docs/workshop.md)
 tools/anchorchain-beta-shim/ dev-only BepInEx plugin that starts Anchor Chain on the globe beta (docs/testing.md)
