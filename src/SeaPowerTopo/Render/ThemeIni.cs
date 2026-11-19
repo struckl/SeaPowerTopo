@@ -23,16 +23,83 @@ internal sealed class ThemeFile
 /// </summary>
 internal static class ThemeIni
 {
-    private static readonly HashSet<string> Known = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    // A key of the format: how a file's value is read into a theme, and how a theme writes it (null = the line is left
+    // out). Every key is listed once, here, in the order a saved file has them.
+    private sealed class Key
     {
-        "Id", "Name", "Note", "Base", "Dark", "Opacity",
-        "LandColours", "LandStepped", "LandBrightness", "LandFlat", "Relief",
-        "ShadowColour", "ShadowAmount", "HighlightColour", "HighlightAmount",
-        "LandLines", "LandLinesMinor", "LandLinesMajor", "LandLinesGlow", "LandLinesSpacing",
-        "LandLinesHighColour", "LandLinesHighAt", "LandLinesLowStrength", "Coast", "CoastStrength",
-        "SeaColours", "SeaStepped", "SeaZones", "SeaRelief",
-        "SeaLines", "SeaLinesStrength", "SeaLinesGlow", "ShelfLines", "ShelfBoost", "SafetyLine",
+        public readonly string Name;
+        public readonly Func<string, Theme, bool> Read;
+        public readonly Func<Theme, string> Write;
+
+        public Key(string name, Func<string, Theme, bool> read, Func<Theme, string> write)
+        {
+            Name = name;
+            Read = read;
+            Write = write;
+        }
+    }
+
+    private static readonly Key[] Head =
+    {
+        new Key("Dark", (v, t) => Bool(v, ref t.Dark), t => B(t.Dark)),
+        new Key("Opacity", (v, t) => Num(v, 0f, 1f, ref t.Opacity), t => F(t.Opacity)),
     };
+
+    private static readonly Key[] Land =
+    {
+        new Key("LandColours", (v, t) => Colours(v, 2, MaxKeys, ref t.LandKeys), t => CL(t.LandKeys)),
+        new Key("LandStepped", (v, t) => Bool(v, ref t.LandStepped), t => B(t.LandStepped)),
+        new Key("LandBrightness", (v, t) => Num(v, 0.05f, 3f, ref t.LandBright), t => F(t.LandBright)),
+        new Key("LandFlat", (v, t) => Colour(v, ref t.LandFlat), t => t.LandFlat != null ? C(t.LandFlat) : null),
+        new Key("Relief", (v, t) => Num(v, 0f, 1.5f, ref t.Shade), t => F(t.Shade)),
+        new Key("ShadowColour", (v, t) => Colour(v, ref t.ShadowTint), t => C(t.ShadowTint)),
+        new Key("ShadowAmount", (v, t) => Num(v, 0f, 1f, ref t.ShadowAmt), t => F(t.ShadowAmt)),
+        new Key("HighlightColour", (v, t) => Colour(v, ref t.HighlightTint), t => C(t.HighlightTint)),
+        new Key("HighlightAmount", (v, t) => Num(v, 0f, 1f, ref t.HighlightAmt), t => F(t.HighlightAmt)),
+        new Key("LandLines", (v, t) => Colour(v, ref t.LandLine), t => C(t.LandLine)),
+        new Key("LandLinesMinor", (v, t) => Num(v, 0f, 1f, ref t.LandMinor), t => F(t.LandMinor)),
+        new Key("LandLinesMajor", (v, t) => Num(v, 0f, 1f, ref t.LandMajor), t => F(t.LandMajor)),
+        new Key("LandLinesGlow", (v, t) => Num(v, 0f, 1f, ref t.LandHalo), t => F(t.LandHalo)),
+        new Key("LandLinesSpacing", (v, t) => Num(v, 0.1f, 5f, ref t.LandIntervalScale), t => F(t.LandIntervalScale)),
+        new Key("LandLinesHighColour", (v, t) => Colour(v, ref t.LandLineHigh), t => C(t.LandLineHigh)),
+        new Key("LandLinesHighAt", (v, t) => Num(v, 10f, 9000f, ref t.LandLineSpan), t => F(t.LandLineSpan)),
+        new Key("LandLinesLowStrength", (v, t) => Num(v, 0f, 1f, ref t.LandLineLowAmt), t => F(t.LandLineLowAmt)),
+        new Key("Coast", (v, t) => Colour(v, ref t.Coast), t => C(t.Coast)),
+        new Key("CoastStrength", (v, t) => Num(v, 0f, 1f, ref t.CoastAmt), t => F(t.CoastAmt)),
+    };
+
+    private static readonly Key[] Sea =
+    {
+        new Key("SeaColours", (v, t) => Colours(v, 2, MaxKeys, ref t.SeaKeys), t => CL(t.SeaKeys)),
+        new Key("SeaStepped", (v, t) => Bool(v, ref t.SeaStepped), t => B(t.SeaStepped)),
+        new Key("SeaZones", (v, t) => Colours(v, 4, 4, ref t.Zones), t => t.Zones != null ? CL(t.Zones) : null),
+        new Key("SeaRelief", (v, t) => Num(v, 0f, 1.5f, ref t.SeaShade), t => F(t.Legacy ? Look.LegacySeaRelief : t.SeaShade)),
+        new Key("SeaLines", (v, t) => Colour(v, ref t.SeaLine), t => C(t.SeaLine)),
+        new Key("SeaLinesStrength", (v, t) => Num(v, 0f, 1f, ref t.SeaLineAmt), t => F(t.SeaLineAmt)),
+        new Key("SeaLinesGlow", (v, t) => Num(v, 0f, 1f, ref t.SeaLineHalo), t => F(t.SeaLineHalo)),
+        new Key("ShelfLines", (v, t) => Colour(v, ref t.ShelfLine), t => C(t.ShelfLine)),
+        new Key("ShelfBoost", (v, t) => Num(v, 0.5f, 3f, ref t.ShelfBoost), t => F(t.ShelfBoost)),
+        new Key("SafetyLine", (v, t) => Colour(v, ref t.SafetyLine), t => C(t.SafetyLine)),
+    };
+
+    // The keys that name the theme and its base, read by TryRead and Start.
+    private static readonly string[] NameKeys = { "Id", "Name", "Note", "Base" };
+
+    private static readonly Dictionary<string, Key> Keys = ByName();
+
+    private static Dictionary<string, Key> ByName()
+    {
+        var keys = new Dictionary<string, Key>(StringComparer.OrdinalIgnoreCase);
+        foreach (Key[] group in new[] { Head, Land, Sea })
+        {
+            foreach (Key key in group)
+                keys[key.Name] = key;
+        }
+        return keys;
+    }
+
+    private static bool Known(string key) =>
+        Keys.ContainsKey(key) || Array.Exists(NameKeys, k => k.Equals(key, StringComparison.OrdinalIgnoreCase));
 
     private const int MaxKeys = 64;
 
@@ -54,7 +121,7 @@ internal static class ThemeIni
                 continue;
             }
             string key = line.Substring(0, eq).Trim(), value = line.Substring(eq + 1).Trim();
-            if (!Known.Contains(key))
+            if (!Known(key))
             {
                 messages.Add($"line {lineNo}: unknown key '{key}', ignored");
                 continue;
@@ -89,65 +156,13 @@ internal static class ThemeIni
     /// <summary>Builds the theme of a file on top of its base theme (null = from scratch). False if the result is unusable.</summary>
     public static bool TryBuild(ThemeFile file, Theme baseTheme, out Theme theme, List<string> messages)
     {
-        // From scratch, lines and glow have sensible strengths in case the file gives only a colour.
-        Theme t = baseTheme != null
-            ? baseTheme.Clone()
-            : new Theme { Opacity = 1f, LandMinor = 0.3f, LandMajor = 0.7f, SeaLineAmt = 0.5f };
-        t.Custom = true;
-        // The Standard looks have no SeaRelief of their own: they shade the seabed by their own rule.
-        if (baseTheme != null && baseTheme.Legacy)
-            t.SeaShade = Look.LegacySeaRelief;
-        t.Legacy = false;
-        t.Id = file.Id;
-        t.Name = file.Values.TryGetValue("Name", out string name) && name.Length > 0 ? name : file.Id;
-        t.Note = file.Values.TryGetValue("Note", out string note) ? note : (baseTheme?.Note ?? "");
+        Theme t = Start(file, baseTheme);
         theme = null;
-
         foreach (KeyValuePair<string, string> kv in file.Values)
         {
-            string key = kv.Key.ToLowerInvariant(), v = kv.Value;
-            bool ok = true;
-            switch (key)
-            {
-                case "id": case "name": case "note": case "base": break;
-                case "dark": ok = Bool(v, ref t.Dark); break;
-                case "opacity": ok = Num(v, 0f, 1f, ref t.Opacity); break;
-
-                case "landcolours": ok = Colours(v, 2, MaxKeys, ref t.LandKeys); break;
-                case "landstepped": ok = Bool(v, ref t.LandStepped); break;
-                case "landbrightness": ok = Num(v, 0.05f, 3f, ref t.LandBright); break;
-                case "landflat": ok = Colour(v, ref t.LandFlat); break;
-                case "relief": ok = Num(v, 0f, 1.5f, ref t.Shade); break;
-                case "shadowcolour": ok = Colour(v, ref t.ShadowTint); break;
-                case "shadowamount": ok = Num(v, 0f, 1f, ref t.ShadowAmt); break;
-                case "highlightcolour": ok = Colour(v, ref t.HighlightTint); break;
-                case "highlightamount": ok = Num(v, 0f, 1f, ref t.HighlightAmt); break;
-                case "landlines": ok = Colour(v, ref t.LandLine); break;
-                case "landlinesminor": ok = Num(v, 0f, 1f, ref t.LandMinor); break;
-                case "landlinesmajor": ok = Num(v, 0f, 1f, ref t.LandMajor); break;
-                case "landlinesglow": ok = Num(v, 0f, 1f, ref t.LandHalo); break;
-                case "landlinesspacing": ok = Num(v, 0.1f, 5f, ref t.LandIntervalScale); break;
-                case "landlineshighcolour": ok = Colour(v, ref t.LandLineHigh); break;
-                case "landlineshighat": ok = Num(v, 10f, 9000f, ref t.LandLineSpan); break;
-                case "landlineslowstrength": ok = Num(v, 0f, 1f, ref t.LandLineLowAmt); break;
-                case "coast": ok = Colour(v, ref t.Coast); break;
-                case "coaststrength": ok = Num(v, 0f, 1f, ref t.CoastAmt); break;
-
-                case "seacolours": ok = Colours(v, 2, MaxKeys, ref t.SeaKeys); break;
-                case "seastepped": ok = Bool(v, ref t.SeaStepped); break;
-                case "seazones": ok = Colours(v, 4, 4, ref t.Zones); break;
-                case "searelief": ok = Num(v, 0f, 1.5f, ref t.SeaShade); break;
-                case "sealines": ok = Colour(v, ref t.SeaLine); break;
-                case "sealinesstrength": ok = Num(v, 0f, 1f, ref t.SeaLineAmt); break;
-                case "sealinesglow": ok = Num(v, 0f, 1f, ref t.SeaLineHalo); break;
-                case "shelflines": ok = Colour(v, ref t.ShelfLine); break;
-                case "shelfboost": ok = Num(v, 0.5f, 3f, ref t.ShelfBoost); break;
-                case "safetyline": ok = Colour(v, ref t.SafetyLine); break;
-            }
-            if (!ok)
-                messages.Add($"'{kv.Key}={v}' is not usable here, ignored");
+            if (Keys.TryGetValue(kv.Key, out Key key) && !key.Read(kv.Value, t))
+                messages.Add($"'{kv.Key}={kv.Value}' is not usable here, ignored");
         }
-
         if (t.LandFlat == null && (t.LandKeys == null || t.LandKeys.Length < 2))
         {
             messages.Add("the theme needs LandColours (at least two) or LandFlat, or a Base that has them");
@@ -162,7 +177,23 @@ internal static class ThemeIni
         return true;
     }
 
-    // ------------------------------------------------------------------------------------------ values
+    // The base theme's copy (or a new theme) with the file's id, name and note, before its values are read.
+    private static Theme Start(ThemeFile file, Theme baseTheme)
+    {
+        // From scratch, lines and glow have sensible strengths in case the file gives only a colour.
+        Theme t = baseTheme != null
+            ? baseTheme.Clone()
+            : new Theme { Opacity = 1f, LandMinor = 0.3f, LandMajor = 0.7f, SeaLineAmt = 0.5f };
+        t.Custom = true;
+        // The Standard looks have no SeaRelief of their own: they shade the seabed by their own rule.
+        if (baseTheme != null && baseTheme.Legacy)
+            t.SeaShade = Look.LegacySeaRelief;
+        t.Legacy = false;
+        t.Id = file.Id;
+        t.Name = file.Values.TryGetValue("Name", out string name) && name.Length > 0 ? name : file.Id;
+        t.Note = file.Values.TryGetValue("Note", out string note) ? note : (baseTheme?.Note ?? "");
+        return t;
+    }
 
     private static bool Bool(string v, ref bool target)
     {
@@ -242,8 +273,6 @@ internal static class ThemeIni
         return true;
     }
 
-    // ------------------------------------------------------------------------------------------- writing
-
     private static string F(float v) => v.ToString("0.####", CultureInfo.InvariantCulture);
 
     private static string C(int[] c) => c == null ? "none" : $"{c[0]},{c[1]},{c[2]}";
@@ -273,6 +302,15 @@ internal static class ThemeIni
         var sb = new StringBuilder();
         void Line(string key, string value) => sb.Append(key).Append('=').Append(value).Append('\n');
         void Comment(string text) => sb.Append("; ").Append(text).Append('\n');
+        void Lines(Key[] keys)
+        {
+            foreach (Key key in keys)
+            {
+                string value = key.Write(t);
+                if (value != null)
+                    Line(key.Name, value);
+            }
+        }
 
         Comment($"Sea Power Topographic Map theme, saved from \"{savedFrom}\". Edit and save: the map reloads it by itself.");
         Comment("Colours are r,g,b or #rrggbb; lists are colour; colour; ... Lines starting with ; or # are comments.");
@@ -283,43 +321,13 @@ internal static class ThemeIni
         Line("Id", t.Id);
         Line("Name", t.Name);
         Line("Note", t.Note ?? "");
-        Line("Dark", B(t.Dark));
-        Line("Opacity", F(t.Opacity));
+        Lines(Head);
         sb.Append('\n');
         Comment($"Land: key colours spread over the height bands (0 to {Top(Palette.DefaultLimits)} m), or one flat colour");
-        Line("LandColours", CL(t.LandKeys));
-        Line("LandStepped", B(t.LandStepped));
-        Line("LandBrightness", F(t.LandBright));
-        if (t.LandFlat != null)
-            Line("LandFlat", C(t.LandFlat));
-        Line("Relief", F(t.Shade));
-        Line("ShadowColour", C(t.ShadowTint));
-        Line("ShadowAmount", F(t.ShadowAmt));
-        Line("HighlightColour", C(t.HighlightTint));
-        Line("HighlightAmount", F(t.HighlightAmt));
-        Line("LandLines", C(t.LandLine));
-        Line("LandLinesMinor", F(t.LandMinor));
-        Line("LandLinesMajor", F(t.LandMajor));
-        Line("LandLinesGlow", F(t.LandHalo));
-        Line("LandLinesSpacing", F(t.LandIntervalScale));
-        Line("LandLinesHighColour", C(t.LandLineHigh));
-        Line("LandLinesHighAt", F(t.LandLineSpan));
-        Line("LandLinesLowStrength", F(t.LandLineLowAmt));
-        Line("Coast", C(t.Coast));
-        Line("CoastStrength", F(t.CoastAmt));
+        Lines(Land);
         sb.Append('\n');
         Comment($"Sea: key colours spread over the depth bands (0 to {Top(Palette.DefaultDepthLimits)} m), or the four shades of a chart");
-        Line("SeaColours", CL(t.SeaKeys));
-        Line("SeaStepped", B(t.SeaStepped));
-        if (t.Zones != null)
-            Line("SeaZones", CL(t.Zones));
-        Line("SeaRelief", F(t.Legacy ? Look.LegacySeaRelief : t.SeaShade));
-        Line("SeaLines", C(t.SeaLine));
-        Line("SeaLinesStrength", F(t.SeaLineAmt));
-        Line("SeaLinesGlow", F(t.SeaLineHalo));
-        Line("ShelfLines", C(t.ShelfLine));
-        Line("ShelfBoost", F(t.ShelfBoost));
-        Line("SafetyLine", C(t.SafetyLine));
+        Lines(Sea);
         return sb.ToString();
     }
 
