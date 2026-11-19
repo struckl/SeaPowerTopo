@@ -1,5 +1,3 @@
-using System.IO;
-using BepInEx;
 using BepInEx.Configuration;
 using SeaPowerTopo.Render;
 using UnityEngine;
@@ -11,14 +9,11 @@ internal enum ReadoutMode { WithOverlay, Always, Off }
 internal enum HeightUnits { Both, Metres, Feet }
 
 /// <summary>
-/// BepInEx config at <c>BepInEx/config/dev.sewerlabs.seapowertopo.cfg</c>. Sections are numbered so they sort in
-/// the order a player would look for them. Changes made while the game runs apply on the next redraw.
+/// BepInEx config at <c>BepInEx/config/dev.sewerlabs.seapowertopo.cfg</c> (the file and the General section: ModSettings in
+/// the shared skeleton). Sections are numbered so they sort in the order a player would look for them. Changes made while the game runs apply on the next redraw.
 /// </summary>
 internal static class Settings
 {
-    public static ConfigEntry<bool> Enabled;
-    public static ConfigEntry<bool> VerboseLog;
-
     public static ConfigEntry<bool> Visible;
     public static ConfigEntry<KeyboardShortcut> ToggleKey;
     public static ConfigEntry<float> Opacity;
@@ -42,29 +37,28 @@ internal static class Settings
     public static ConfigEntry<bool> LegendOpen;
     public static ConfigEntry<HeightUnits> Units;
 
-    /// <summary>Bumped on every config change, so the overlay and the legend know to redraw.</summary>
-    public static int Version { get; private set; }
+    /// <summary>Counts every config change but the layer, legend and readout switches (ModSettings, in the shared skeleton).</summary>
+    public static ChangeCounter Changes;
+
+    private static int themeTouches;
+
+    /// <summary>Moves on every config change and every <see cref="Touch"/>, so the overlay and the legend know to redraw.</summary>
+    public static int Version => Changes.Version + themeTouches;
 
     /// <summary>The theme the player chose for the map's day or night theme.</summary>
     public static Theme LookFor(bool dark) => Themes.Get(dark ? NightLook.Value : DayLook.Value, dark);
 
     /// <summary>Makes everything that depends on the settings redraw (the theme files changed).</summary>
-    public static void Touch() => Version++;
+    public static void Touch() => themeTouches++;
 
     // "id (Name: note), ..." for a config description; your own theme files are chosen by their Id as well.
     private static string Describe(bool dark) =>
         string.Join("; ", Themes.Of(dark).FindAll(t => !t.Custom).ConvertAll(t => $"{t.Id} ({t.Name}: {t.Note})")) +
         $". Theme files in {ThemeLibrary.FolderShown} add their own: use their Id";
 
-    public static void Init()
+    /// <summary>From ModSettings.Open: binds the entries and sets up the change counter.</summary>
+    public static void Bind(ConfigFile file)
     {
-        var file = new ConfigFile(Path.Combine(Paths.ConfigPath, Plugin.Guid + ".cfg"), saveOnInit: true);
-
-        Enabled = file.Bind("1. General", "Enable mod", true,
-            "Master switch. Needs a restart.");
-        VerboseLog = file.Bind("1. General", "Verbose log", false,
-            "Write debug detail (every redraw of the overlay with its timing) to BepInEx/LogOutput.log.");
-
         Visible = file.Bind("2. Overlay", "Visible", true,
             "Whether the Topography map layer is on. Written by the mod when you toggle it in the map's " +
             "Layers menu or with the toggle key.");
@@ -135,10 +129,6 @@ internal static class Settings
             "Height units in the readout and the legend: Both (metres and feet), Metres or Feet.");
 
         // Turning the layer, the legend or the readout on and off is not a reason to redraw the overlay.
-        file.SettingChanged += (_, e) =>
-        {
-            if (e.ChangedSetting != Visible && e.ChangedSetting != LegendOpen && e.ChangedSetting != Readout)
-                Version++;
-        };
+        Changes = ChangeCounter.AllBut(Visible, LegendOpen, Readout);
     }
 }

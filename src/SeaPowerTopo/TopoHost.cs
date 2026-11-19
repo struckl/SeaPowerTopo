@@ -14,7 +14,7 @@ using UnityEngine;
 namespace SeaPowerTopo;
 
 /// <summary>
-/// Drives the mod: applies the late map hook once NoesisGUI runs, and during a mission keeps the Layers-menu entry,
+/// Drives the mod (ModHost, in the shared skeleton, applies the late map hook once NoesisGUI runs): during a mission keeps the Layers-menu entry,
 /// the toggle key, the overlay, and the title bar buttons, legend and cursor readout of every live map in step. Out of
 /// a mission, the mission editor's map gets the overlay (drawn live, as a picture on its flat map) and the same
 /// buttons.
@@ -24,9 +24,9 @@ namespace SeaPowerTopo;
 /// drawn while playing. Closer in, or while an aircraft's terrain highlight is on, the live layer draws the view on
 /// top, with the pre-drawn layers filling in around it while it catches up with a pan.</para>
 /// </summary>
-internal sealed class TopoHost : MonoBehaviour
+internal sealed class TopoHost : ModHost
 {
-    public static TopoHost Instance { get; private set; }
+    public static new TopoHost Instance => ModHost.Instance as TopoHost;
 
     private const float MinClearanceMetres = 30f;     // closer to the ground than this counts as landed / on deck
 
@@ -37,9 +37,7 @@ internal sealed class TopoHost : MonoBehaviour
     private const double WorldDpp = 0.1;
     private const double MinMissionSpan = 4.0;         // degrees
 
-    private enum HookState { Waiting, Applied, Failed }
-
-    private readonly TopoLayer layer = new TopoLayer();
+    private readonly LayerEntry layer = new LayerEntry(600, "SEWERLABS_TOPOGRAPHY", "Topography (heights and depths)", Settings.Visible);
     private readonly MapSceneRef map = new MapSceneRef();
     private readonly OverlayRenderer live;
     private readonly List<OverlayRenderer> drawn = new List<OverlayRenderer>();    // pre-drawn, finest first
@@ -56,10 +54,8 @@ internal sealed class TopoHost : MonoBehaviour
     private MapDecoration editorDecoration;
     private float nextEditorCheck;
 
-    private HookState mapHooks;
-    private float nextHookCheck, nextPrune, nextAircraftCheck, nextThemePoll;
+    private float nextPrune, nextAircraftCheck, nextThemePoll;
     private bool missionActive;
-    private int errors;
 
     private string aircraftName;
     private float aircraftAltitude = float.NaN;
@@ -72,35 +68,13 @@ internal sealed class TopoHost : MonoBehaviour
         editorLive = new OverlayRenderer(editorMap, "editor", 0f);
     }
 
-    private void Awake() => Instance = this;
+    protected override string StageTwoReady => "Map hook in place (legend and cursor readout).";
 
-    private void Update()
+    protected override void Tick()
     {
-        try
-        {
-            Tick();
-        }
-        catch (Exception ex)
-        {
-            // Log the first few, then stay quiet; a broken frame must never break the game's.
-            if (errors++ < 5)
-                ModLog.Error($"Update failed: {ex}");
-        }
-    }
-
-    private void Tick()
-    {
-        if (mapHooks == HookState.Waiting && Time.unscaledTime >= nextHookCheck)
-        {
-            nextHookCheck = Time.unscaledTime + 1f;
-            // A WindowHost registers itself with WindowHostManager when it is built, which only happens while
-            // NoesisGUI runs (the main menu view has one) - from then on Noesis types are safe to touch.
-            if (Singleton<WindowHostManager>.InstanceExists())
-                ApplyMapHooks();
-        }
         if (missionActive)
             TickMission();
-        else if (mapHooks == HookState.Applied)
+        else if (HookRegistry.IsActive("Map"))
             TickEditor();
     }
 
@@ -525,61 +499,32 @@ internal sealed class TopoHost : MonoBehaviour
         }
     }
 
-    private void ApplyMapHooks()
+    protected override void OnMissionReady()
     {
-        try
-        {
-            mapHooks = Patches.ApplyMapHooks() ? HookState.Applied : HookState.Failed;
-        }
-        catch (Exception ex)
-        {
-            mapHooks = HookState.Failed;
-            ModLog.Error($"Map hook failed - no legend or cursor readout: {ex}");
-        }
-        if (mapHooks == HookState.Applied)
-            ModLog.Info("Map hook in place (legend and cursor readout).");
+        LeaveEditor();                     // a test run from the editor
+        missionActive = true;
+        layer.EnsureRegistered();
     }
 
-    internal void MissionReady()
+    protected override void OnMissionEnded()
     {
-        try
-        {
-            LeaveEditor();                     // a test run from the editor
-            missionActive = true;
-            layer.EnsureRegistered();
-        }
-        catch (Exception ex)
-        {
-            ModLog.Error($"Mission start handling failed: {ex}");
-        }
-    }
-
-    internal void MissionEnded()
-    {
-        try
-        {
-            missionActive = false;
-            live.Shutdown();
-            foreach (OverlayRenderer layer in drawn)
-                layer.Shutdown();
-            drawn.Clear();
-            drawnPlanned = false;
-            legendSource = null;
-            map.Forget();
-            DemCache.Clear();
-            foreach (MapDecoration map in maps)
-                map.Detach();
-            maps.Clear();
-            undecoratable.Clear();
-            aircraftName = null;
-            aircraftAltitude = float.NaN;
-            submarineName = null;
-            submarineDepth = float.NaN;
-        }
-        catch (Exception ex)
-        {
-            ModLog.Error($"Mission end handling failed: {ex}");
-        }
+        missionActive = false;
+        live.Shutdown();
+        foreach (OverlayRenderer layer in drawn)
+            layer.Shutdown();
+        drawn.Clear();
+        drawnPlanned = false;
+        legendSource = null;
+        map.Forget();
+        DemCache.Clear();
+        foreach (MapDecoration map in maps)
+            map.Detach();
+        maps.Clear();
+        undecoratable.Clear();
+        aircraftName = null;
+        aircraftAltitude = float.NaN;
+        submarineName = null;
+        submarineDepth = float.NaN;
     }
 
     /// <summary>Every frame from each map control showing the live map: decorate the ones we haven't yet.</summary>
@@ -610,8 +555,7 @@ internal sealed class TopoHost : MonoBehaviour
         }
         catch (Exception ex)
         {
-            if (errors++ < 5)
-                ModLog.Error($"Map decoration failed: {ex}");
+            ReportError($"Map decoration failed: {ex}");
         }
     }
 

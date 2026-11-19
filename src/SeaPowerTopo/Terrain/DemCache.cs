@@ -191,7 +191,7 @@ internal static class DemCache
         if (!Singleton<FileManager>.InstanceExists())
             return null;
         // Captured as object: a closure field of type FileLayerSnapshot (not in 0.8.7) would make the closure class
-        // unloadable there and ECS would fail to start, although this globe DLL stays off (see GameApi.PaletteDark).
+        // unloadable there and ECS would fail to start, although this globe DLL stays off (see GameReflection, shared).
         object layers = Singleton<FileManager>.Instance.Layers;
         return System.Threading.Tasks.Task.Run(() => Read(key, (FileLayerSnapshot)layers));
     }

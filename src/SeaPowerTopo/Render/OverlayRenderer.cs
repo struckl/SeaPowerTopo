@@ -229,7 +229,7 @@ internal sealed class MapSceneRef : OverlayTarget
     }
 
     /// <summary>The map's day/night state, the shown palette's (in Auto: at the view's centre).</summary>
-    public override bool Dark => Scene != null && GameApi.IsDark(Scene.GetComponent<MapThemeSelector>()?.Palette);
+    public override bool Dark => Scene != null && GameReflection.IsDark(Scene.GetComponent<MapThemeSelector>()?.Palette);
 
     public override void Forget()
     {

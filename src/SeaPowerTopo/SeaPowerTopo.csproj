@@ -1,77 +1,29 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
+  <!--The common part (framework, game references, the flat-map build with -p:GameBuild=Flat, deploy, the shared source files)
+      comes from the R.A.T.S. shared folder in the Keel repo: SeaPowerKeel\shared\Rats.Mod.props in the workspace.
+      -p:RatsWorkspace=<workspace> builds from a clone outside it, -p:RatsShared=<folder>\ against another copy of the shared folder.-->
   <PropertyGroup>
-    <TargetFramework>netstandard2.1</TargetFramework>
     <AssemblyName>SeaPowerTopo</AssemblyName>
     <RootNamespace>SeaPowerTopo</RootNamespace>
     <Product>Terrain heights on Sea Power's tactical map.</Product>
     <Version>1.6.2</Version>
-    <LangVersion>latest</LangVersion>
-    <Nullable>disable</Nullable>
+    <RatsUseLayers>true</RatsUseLayers>
     <!--Terrain heights are read straight from the game's DEM buffers.-->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <GenerateDocumentationFile>false</GenerateDocumentationFile>
-    <RestoreAdditionalProjectSources>
-      https://api.nuget.org/v3/index.json;
-      https://nuget.bepinex.dev/v3/index.json
-    </RestoreAdditionalProjectSources>
-
-    <!--Override with your own install: dotnet build -p:GameDir="D:\Steam\steamapps\common\Sea Power"-->
-    <GameDir Condition="'$(GameDir)' == ''">E:\Games\steamapps\common\Sea Power</GameDir>
-    <!--Anchor Chain lives in the Steam Workshop folder of the library that holds the game.-->
-    <!-- Anchor Chain's library, to compile the entry point against: the copy Keel ships, so no build needs the Anchor Chain item. AnchorChainDir overrides it. -->
-    <AnchorChainRef Condition="'$(AnchorChainDir)' != ''">$(AnchorChainDir)\AnchorChain.dll</AnchorChainRef>
-    <AnchorChainRef Condition="'$(AnchorChainRef)' == ''">$(MSBuildThisFileDirectory)..\..\..\SeaPowerKeel\lib\AnchorChain.keel.bin</AnchorChainRef>
-    <ManagedDir Condition="'$(ManagedDir)' == ''">$(GameDir)\Sea Power_Data\Managed</ManagedDir>
-    <!--Local mod folder: Anchor Chain scans every StreamingAssets sub folder for plugin DLLs.-->
-    <ModDeployDir>$(GameDir)\Sea Power_Data\StreamingAssets\SeaPowerTopo</ModDeployDir>
+    <RatsWorkspace Condition="'$(RatsWorkspace)' == ''">$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildProjectDirectory), mods.json))</RatsWorkspace>
+    <RatsShared Condition="'$(RatsShared)' == ''">$([MSBuild]::EnsureTrailingSlash('$(RatsWorkspace)'))SeaPowerKeel\shared\</RatsShared>
   </PropertyGroup>
 
-  <!--The flat-map build for Sea Power 0.8.7: the same source with FLATMAP defined, built against 0.8.7's assemblies (a copy of
-      its Sea Power_Data\Managed; default: the workspace's _gamerefs) as SeaPowerTopoFlat.dll. It stays off on the globe game and
-      the globe build stays off on 0.8.7.
-        dotnet build -p:GameBuild=Flat [-p:FlatManagedDir="D:
-efs\Sea Power 0.8.7\Managed"]-->
-  <PropertyGroup Condition="'$(GameBuild)' == 'Flat'">
-    <AssemblyName>SeaPowerTopoFlat</AssemblyName>
-    <DefineConstants>$(DefineConstants);FLATMAP</DefineConstants>
-    <FlatManagedDir Condition="'$(FlatManagedDir)' == ''">$(MSBuildThisFileDirectory)..\..\..\_gamerefs\SeaPower-0.8.7-public\Managed</FlatManagedDir>
-    <ManagedDir>$(FlatManagedDir)</ManagedDir>
-  </PropertyGroup>
+  <Import Project="$(RatsShared)Rats.Mod.props" />
 
   <ItemGroup>
-    <PackageReference Include="BepInEx.Core" Version="5.4.21" IncludeAssets="compile" PrivateAssets="all" />
-    <PackageReference Include="HarmonyX" Version="2.9.0" IncludeAssets="compile" PrivateAssets="all" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Reference Include="Seapower-Scripts"><HintPath>$(ManagedDir)\Seapower-Scripts.dll</HintPath><Private>false</Private></Reference>
     <!--The game's LZ4 (DEM chunks the editor's map needs) lives here; only the flat-map build uses it.-->
     <Reference Include="Assets" Condition="'$(GameBuild)' == 'Flat'"><HintPath>$(ManagedDir)\Assets.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="Noesis.NoesisGUI"><HintPath>$(ManagedDir)\Noesis.NoesisGUI.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="UnityEngine"><HintPath>$(ManagedDir)\UnityEngine.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="UnityEngine.CoreModule"><HintPath>$(ManagedDir)\UnityEngine.CoreModule.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine.InputLegacyModule"><HintPath>$(ManagedDir)\UnityEngine.InputLegacyModule.dll</HintPath><Private>false</Private></Reference>
-    <!--Pulled in by game types we touch (Singleton, view models, terrain loader), compile-only.-->
-    <Reference Include="Libraries"><HintPath>$(ManagedDir)\Libraries.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="UniRx"><HintPath>$(ManagedDir)\UniRx.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="CommunityToolkit.Mvvm"><HintPath>$(ManagedDir)\CommunityToolkit.Mvvm.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Unity.Mathematics"><HintPath>$(ManagedDir)\Unity.Mathematics.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Unity.Collections"><HintPath>$(ManagedDir)\Unity.Collections.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="AnchorChain"><HintPath>$(AnchorChainRef)</HintPath><Private>false</Private></Reference>
   </ItemGroup>
-
-  <ItemGroup>
-    <ModFiles Include="mod\**\*.*" />
-  </ItemGroup>
-
-  <!--Copy plugin + mod files into the local mod folder after every build (only if the game is installed).-->
-  <Target Name="DeployMod" AfterTargets="Build" Condition="Exists('$(GameDir)') And '$(Deploy)' != 'false'">
-    <MakeDir Directories="$(ModDeployDir)" />
-    <Copy SourceFiles="$(OutputPath)$(AssemblyName).dll" DestinationFolder="$(ModDeployDir)" />
-    <Copy SourceFiles="$(OutputPath)$(AssemblyName).pdb" DestinationFolder="$(ModDeployDir)" Condition="Exists('$(OutputPath)$(AssemblyName).pdb')" />
-    <Copy SourceFiles="@(ModFiles)" DestinationFolder="$(ModDeployDir)\%(RecursiveDir)" SkipUnchangedFiles="true" />
-    <Message Importance="high" Text="SeaPowerTopo deployed to $(ModDeployDir)" />
-  </Target>
 
 </Project>

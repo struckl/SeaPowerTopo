@@ -80,7 +80,7 @@ internal sealed class FlatMapRef : OverlayTarget
 #if FLATMAP
     public override bool Dark => Singleton<ThemeTracker>.InstanceExists() && Singleton<ThemeTracker>.Instance.CurrentTheme == ThemeMode.Dark;
 #else
-    public override bool Dark => GameApi.IsDark(ViewModel?.Palette);
+    public override bool Dark => GameReflection.IsDark(ViewModel?.Palette);
 #endif
 
     /// <summary>A new picture on the map, hidden until it has an image and a place.</summary>
