@@ -45,6 +45,9 @@ internal static class Settings
     /// <summary>Bumped on every config change, so the overlay and the legend know to redraw.</summary>
     public static int Version { get; private set; }
 
+    /// <summary>The theme the player chose for the map's day or night theme.</summary>
+    public static Theme LookFor(bool dark) => Themes.Get(dark ? NightLook.Value : DayLook.Value, dark);
+
     /// <summary>Makes everything that depends on the settings redraw (the theme files changed).</summary>
     public static void Touch() => Version++;
 

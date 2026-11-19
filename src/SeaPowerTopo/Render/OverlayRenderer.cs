@@ -727,8 +727,7 @@ internal sealed class OverlayRenderer
 
     private void EnsurePalette(bool dark)
     {
-        // The theme the user chose for this map theme (day or night).
-        Theme theme = Themes.Get(dark ? Settings.NightLook.Value : Settings.DayLook.Value, dark);
+        Theme theme = Settings.LookFor(dark);
         if (sharedLand == null || sharedVersion != Settings.Version || sharedDark != dark || sharedTheme != theme)
         {
             float[] limits = Palette.ParseLimits(Settings.Bands.Value);

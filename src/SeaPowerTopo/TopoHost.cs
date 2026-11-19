@@ -99,19 +99,19 @@ internal sealed class TopoHost : MonoBehaviour
             if (Singleton<WindowHostManager>.InstanceExists())
                 ApplyMapHooks();
         }
-        if (!missionActive)
-        {
-            if (mapHooks == HookState.Applied)
-                TickEditor();
-            return;
-        }
+        if (missionActive)
+            TickMission();
+        else if (mapHooks == HookState.Applied)
+            TickEditor();
+    }
 
+    private void TickMission()
+    {
         layer.EnsureRegistered();
         TickShared();
 
         bool on = layer.Visible;
-        bool dark = IsDark();
-        UpdateAircraft();
+        UpdateSelection();
         float danger = Settings.AircraftClearance.Value ? aircraftAltitude : float.NaN;
         float keel = Settings.SubmarineLayer.Value ? submarineDepth : float.NaN;
         if (on && Settings.Predraw.Value && !drawnPlanned && Time.unscaledTime >= nextPlanTry)
@@ -119,25 +119,29 @@ internal sealed class TopoHost : MonoBehaviour
             nextPlanTry = Time.unscaledTime + 1f;
             drawnPlanned = PlanDrawnLayers();
         }
-        TickLayers(on, dark, danger, keel);
-
-        if (Time.unscaledTime >= nextPrune)
-        {
-            nextPrune = Time.unscaledTime + 2f;
-            for (int i = maps.Count - 1; i >= 0; i--)
-            {
-                if (!maps[i].Alive)
-                {
-                    maps[i].Detach();
-                    maps.RemoveAt(i);
-                }
-            }
-        }
+        TickLayers(on, map.Dark, danger, keel);
+        PruneMaps();
         bool readout = ReadoutOn(on);
         string highlighted = live.Showing && !float.IsNaN(live.ShownDanger) ? aircraftName : null;
         string submarine = live.Showing && !float.IsNaN(live.ShownKeel) ? submarineName : null;
         foreach (MapDecoration decoration in maps)
             decoration.Update(on, readout, legendSource, highlighted, submarine);
+    }
+
+    // Maps whose window was closed lose their decoration.
+    private void PruneMaps()
+    {
+        if (Time.unscaledTime < nextPrune)
+            return;
+        nextPrune = Time.unscaledTime + 2f;
+        for (int i = maps.Count - 1; i >= 0; i--)
+        {
+            if (!maps[i].Alive)
+            {
+                maps[i].Detach();
+                maps.RemoveAt(i);
+            }
+        }
     }
 
     // What a mission and the mission editor both need every frame: the world grid and DEM chunks being read, theme
@@ -201,7 +205,6 @@ internal sealed class TopoHost : MonoBehaviour
         editorDecoration?.Update(on, ReadoutOn(on), editorLive, null, null);
     }
 
-    // The editor's map control, if it is on screen.
     private MapBase FindEditorMap()
     {
         MapViewModel model = MissionEditorViewModel.Instance?.Map?.Map;
@@ -212,25 +215,32 @@ internal sealed class TopoHost : MonoBehaviour
             return known;
         foreach (NoesisView view in FindObjectsByType<NoesisView>(FindObjectsSortMode.None))
         {
-            if (view.Content == null)
-                continue;
-            var stack = new Stack<Noesis.DependencyObject>();
-            stack.Push(view.Content);
-            for (int seen = 0; stack.Count > 0 && seen < 50000; seen++)
+            MapBase found = view.Content != null ? FindMapOf(view.Content, model) : null;
+            if (found != null)
+                return found;
+        }
+        return null;
+    }
+
+    // The visible map control showing this map in a UI tree (not looking inside other maps).
+    private static MapBase FindMapOf(Noesis.DependencyObject content, MapViewModel model)
+    {
+        var stack = new Stack<Noesis.DependencyObject>();
+        stack.Push(content);
+        for (int seen = 0; stack.Count > 0 && seen < 50000; seen++)
+        {
+            Noesis.DependencyObject d = stack.Pop();
+            if (d is MapBase candidate)
             {
-                Noesis.DependencyObject d = stack.Pop();
-                if (d is MapBase candidate)
-                {
-                    if (ReferenceEquals(candidate.DataContext, model) && candidate.IsVisible && candidate.ActualWidth > 0f)
-                        return candidate;
-                    continue;
-                }
-                if (d is Noesis.Visual v)
-                {
-                    int n = Noesis.VisualTreeHelper.GetChildrenCount(v);
-                    for (int i = 0; i < n; i++)
-                        stack.Push(Noesis.VisualTreeHelper.GetChild(v, i));
-                }
+                if (ReferenceEquals(candidate.DataContext, model) && candidate.IsVisible && candidate.ActualWidth > 0f)
+                    return candidate;
+                continue;
+            }
+            if (d is Noesis.Visual v)
+            {
+                int n = Noesis.VisualTreeHelper.GetChildrenCount(v);
+                for (int i = 0; i < n; i++)
+                    stack.Push(Noesis.VisualTreeHelper.GetChild(v, i));
             }
         }
         return null;
@@ -259,24 +269,41 @@ internal sealed class TopoHost : MonoBehaviour
     /// </summary>
     private void TickLayers(bool on, bool dark, float danger, float keel)
     {
-        bool haveView = map.TryView(out GeoRect view, out double viewDpp, out _);
         bool predraw = on && Settings.Predraw.Value;
-        OverlayRenderer primary = null;
-        var showing = new bool[drawn.Count];
-        for (int i = 0; i < drawn.Count; i++)
-        {
-            OverlayRenderer layer = drawn[i];
-            showing[i] = predraw && haveView && layer.HasImage && viewDpp <= layer.AreaDpp * MaxShrink;
-            if (showing[i] && primary == null && layer.Area.Value.Holds(view) && viewDpp >= layer.AreaDpp / MaxStretch)
-                primary = layer;
-        }
-
+        bool[] showing = ShowingDrawn(predraw, out OverlayRenderer primary);
         bool liveOn = on && (primary == null || !float.IsNaN(danger) || !float.IsNaN(keel));
         live.Tick(liveOn, liveOn, dark, danger, keel, mayStart: true);
-        bool busy = live.Filling;
         front.Clear();
         if (live.Showing)
             front.Add(live.ShownRect);
+        OverlayRenderer firstShowing = TickDrawn(predraw, showing, dark, busy: live.Filling);
+        legendSource = live.Showing ? live : primary ?? firstShowing ?? live;
+    }
+
+    // Which pre-drawn layers show the view (not zoomed out too far from their scale), and the finest that has all of it
+    // at about its own scale.
+    private bool[] ShowingDrawn(bool predraw, out OverlayRenderer primary)
+    {
+        primary = null;
+        var showing = new bool[drawn.Count];
+        // Asked every frame, also with the layer off: it keeps track of which map is the largest.
+        bool haveView = map.TryView(out GeoRect view, out double viewDpp, out _);
+        if (!predraw || !haveView)
+            return showing;
+        for (int i = 0; i < drawn.Count; i++)
+        {
+            OverlayRenderer layer = drawn[i];
+            showing[i] = layer.HasImage && viewDpp <= layer.AreaDpp * MaxShrink;
+            if (showing[i] && primary == null && layer.Area.Value.Holds(view) && viewDpp >= layer.AreaDpp / MaxStretch)
+                primary = layer;
+        }
+        return showing;
+    }
+
+    // The pre-drawn layers, finest first, each leaving out what the layers in front show; only one copies heights per
+    // frame. Returns the first one on the map.
+    private OverlayRenderer TickDrawn(bool predraw, bool[] showing, bool dark, bool busy)
+    {
         OverlayRenderer firstShowing = null;
         for (int i = 0; i < drawn.Count; i++)
         {
@@ -290,7 +317,7 @@ internal sealed class TopoHost : MonoBehaviour
                 firstShowing ??= layer;
             }
         }
-        legendSource = live.Showing ? live : primary ?? firstShowing ?? live;
+        return firstShowing;
     }
 
     /// <summary>
@@ -386,12 +413,8 @@ internal sealed class TopoHost : MonoBehaviour
         return m;
     }
 
-    private bool IsDark() => map.Dark;
-
     /// <summary>The theme the map shows now: the user's choice for the map theme (day or night) it is in.</summary>
-    internal Theme CurrentTheme() => CurrentTheme(IsDark());
-
-    private static Theme CurrentTheme(bool dark) => Themes.Get(dark ? Settings.NightLook.Value : Settings.DayLook.Value, dark);
+    internal Theme CurrentTheme() => Settings.LookFor(map.Dark);
 
     /// <summary>
     /// The next theme of the map's current theme. With the layer off, the first press only turns it on, showing
@@ -416,7 +439,7 @@ internal sealed class TopoHost : MonoBehaviour
         }
     }
 
-    /// <summary>Topography on or off (the title bar button, the toggle key, the Layers menu entry).</summary>
+    // The title bar menu, the toggle key and the Layers menu entry all come here.
     internal void ToggleLayer()
     {
         layer.Toggle();
@@ -668,7 +691,7 @@ internal sealed class TopoHost : MonoBehaviour
 
     // The selected unit: an aircraft or helicopter in the air (its altitude above sea level), or a submarine (its
     // depth).
-    private void UpdateAircraft()
+    private void UpdateSelection()
     {
         if (Time.unscaledTime < nextAircraftCheck)
             return;
