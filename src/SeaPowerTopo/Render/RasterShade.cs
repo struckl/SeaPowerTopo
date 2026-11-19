@@ -245,16 +245,8 @@ internal static partial class Raster
     {
         RasterJob job = run.Job;
         Theme theme = run.Theme;
-        float[] h = job.Heights;
-        int gw = job.Width + 2;
-        float h0 = h[i];
-        float hl = h[i - 1], hr = h[i + 1], hu = h[i - gw], hd = h[i + gw];
-        bool shore = hl < 0f || hr < 0f || hu < 0f || hd < 0f;
-        // Water next to the land counts as sea level.
-        if (hl < 0f) hl = 0f;
-        if (hr < 0f) hr = 0f;
-        if (hu < 0f) hu = 0f;
-        if (hd < 0f) hd = 0f;
+        float h0 = job.Heights[i];
+        bool shore = LandNeighbours(job, i, out float hl, out float hr, out float hu, out float hd);
 
         Px p = LandColour(job.Palette, h0, job.Opacity);
         if (run.LandShading > 0f)
@@ -274,16 +266,36 @@ internal static partial class Raster
             p.A += theme.CoastAmt * (1f - p.A);
         }
         if (run.Hatch && grad > 1e-3f)
-        {
-            // Solid red edge where the terrain reaches the aircraft's altitude.
-            float edge = Clamp01(1.8f - Math.Abs(h0 - job.Danger) / grad);
-            if (edge > 0f)
-            {
-                p.Mix(DangerEdge, edge);
-                p.A += edge * (0.95f - p.A);
-            }
-        }
+            DangerEdgeLine(h0, job.Danger, grad, ref p);
         return p;
+    }
+
+    // The four neighbours of a land pixel, water next to the land counting as sea level; true on the shore.
+    private static bool LandNeighbours(RasterJob job, int i, out float hl, out float hr, out float hu, out float hd)
+    {
+        float[] h = job.Heights;
+        int gw = job.Width + 2;
+        hl = h[i - 1];
+        hr = h[i + 1];
+        hu = h[i - gw];
+        hd = h[i + gw];
+        bool shore = hl < 0f || hr < 0f || hu < 0f || hd < 0f;
+        hl = Math.Max(hl, 0f);
+        hr = Math.Max(hr, 0f);
+        hu = Math.Max(hu, 0f);
+        hd = Math.Max(hd, 0f);
+        return shore;
+    }
+
+    // Solid red edge where the terrain reaches the aircraft's altitude.
+    private static void DangerEdgeLine(float h0, float danger, float grad, ref Px p)
+    {
+        float edge = Clamp01(1.8f - Math.Abs(h0 - danger) / grad);
+        if (edge > 0f)
+        {
+            p.Mix(DangerEdge, edge);
+            p.A += edge * (0.95f - p.A);
+        }
     }
 
     private static Px LandColour(Palette pal, float h0, float opacity)
@@ -403,37 +415,48 @@ internal static partial class Raster
     private static void DepthLine(Palette sea, float d0, float grad, bool darkBand, ref Px p)
     {
         float[] limits = sea.Limits;
-        int n = limits.Length;
-        int bandIndex = sea.BandOf(d0);
-        float shallower = bandIndex > 0 ? d0 - limits[bandIndex] : float.PositiveInfinity;
-        float deeper = bandIndex + 1 < n ? limits[bandIndex + 1] - d0 : float.PositiveInfinity;
-        int edge = shallower <= deeper ? bandIndex : bandIndex + 1;
-        float dist = Math.Min(shallower, deeper);
-        if (float.IsInfinity(dist))
+        if (!NearestBandEdge(limits, sea.BandOf(d0), d0, out int edge, out float dist))
             return;
         float spacing = limits[edge] - limits[edge - 1];
-        if (edge + 1 < n)
+        if (edge + 1 < limits.Length)
             spacing = Math.Min(spacing, limits[edge + 1] - limits[edge]);
         Theme theme = sea.Theme;
-        float la = Clamp01(1.1f - dist / grad) * (sea.Dark ? 0.35f : 0.45f) * Fade(grad / spacing);
-        float lr = darkBand ? 176f : 28f, lg = darkBand ? 196f : 48f, lb = darkBand ? 216f : 82f;
+        float la;
         if (!theme.Legacy && theme.SeaLine != null)
         {
             bool shelf = Math.Abs(limits[edge] - ShelfDepth) < 1f;
-            int[] lc = shelf && theme.ShelfLine != null ? theme.ShelfLine : theme.SeaLine;
-            lr = lc[0];
-            lg = lc[1];
-            lb = lc[2];
-            float boost = shelf ? theme.ShelfBoost : 1f;
-            float core = Clamp01(1.1f - dist / grad) * Math.Min(1f, theme.SeaLineAmt * boost);
-            float halo = theme.SeaLineHalo > 0f ? Clamp01(1f - dist / (grad * 3.5f)) * theme.SeaLineHalo * boost : 0f;
-            la = Math.Max(core, halo) * Fade(grad / spacing);
+            la = ThemedDepthLine(theme, shelf, dist, grad) * Fade(grad / spacing);
+            if (la > 0f)
+                p.Mix(shelf && theme.ShelfLine != null ? theme.ShelfLine : theme.SeaLine, la);
+        }
+        else
+        {
+            la = Clamp01(1.1f - dist / grad) * (sea.Dark ? 0.35f : 0.45f) * Fade(grad / spacing);
+            if (la > 0f)
+                p.Mix(darkBand ? 176f : 28f, darkBand ? 196f : 48f, darkBand ? 216f : 82f, la);
         }
         if (la > 0f)
-        {
-            p.Mix(lr, lg, lb, la);
             p.A += la * (1f - p.A);
-        }
+    }
+
+    // The band edge nearest a depth, and how far it is; false if the depth has no edge on either side.
+    private static bool NearestBandEdge(float[] limits, int band, float d0, out int edge, out float dist)
+    {
+        int n = limits.Length;
+        float shallower = band > 0 ? d0 - limits[band] : float.PositiveInfinity;
+        float deeper = band + 1 < n ? limits[band + 1] - d0 : float.PositiveInfinity;
+        edge = shallower <= deeper ? band : band + 1;
+        dist = Math.Min(shallower, deeper);
+        return !float.IsInfinity(dist);
+    }
+
+    // A theme's own depth line: a core and an optional glow, both stronger at the shelf edge.
+    private static float ThemedDepthLine(Theme theme, bool shelf, float dist, float grad)
+    {
+        float boost = shelf ? theme.ShelfBoost : 1f;
+        float core = Clamp01(1.1f - dist / grad) * Math.Min(1f, theme.SeaLineAmt * boost);
+        float halo = theme.SeaLineHalo > 0f ? Clamp01(1f - dist / (grad * 3.5f)) * theme.SeaLineHalo * boost : 0f;
+        return Math.Max(core, halo);
     }
 
     // A chart's water: the four depth shades of the theme, contours at the standard chart depths with the safety
@@ -457,28 +480,32 @@ internal static partial class Raster
     private static void ChartContour(ShadeRun run, float d0, float grad, ref Px p)
     {
         float[] levels = run.ChartLevels;
-        int n = levels.Length;
         int k = 0;
-        while (k < n && levels[k] <= d0)
+        while (k < levels.Length && levels[k] <= d0)
             k++;
         float below = k > 0 ? d0 - levels[k - 1] : float.PositiveInfinity;
-        float above = k < n ? levels[k] - d0 : float.PositiveInfinity;
+        float above = k < levels.Length ? levels[k] - d0 : float.PositiveInfinity;
         int edge = below <= above ? k - 1 : k;
         float dist = Math.Min(below, above);
-        if (edge < 0 || edge >= n || float.IsInfinity(dist))
+        if (edge < 0 || edge >= levels.Length || float.IsInfinity(dist))
             return;
-        float spacing = float.PositiveInfinity;
-        if (edge > 0)
-            spacing = levels[edge] - levels[edge - 1];
-        if (edge + 1 < n)
-            spacing = Math.Min(spacing, levels[edge + 1] - levels[edge]);
-        if (float.IsInfinity(spacing))
-            spacing = levels[edge];
+        float spacing = LevelSpacing(levels, edge);
         Theme theme = run.Theme;
         bool safety = edge == run.ChartSafetyLevel;
         float la = Clamp01((safety ? 1.9f : 1.1f) - dist / grad) * Math.Min(1f, theme.SeaLineAmt) * Fade(grad / spacing / (safety ? 3f : 1f));
         if (la > 0f)
             p.Mix(safety && theme.SafetyLine != null ? theme.SafetyLine : theme.SeaLine, la);
+    }
+
+    // The distance to the next contour on either side of one, or its own depth where it is the only one.
+    private static float LevelSpacing(float[] levels, int edge)
+    {
+        float spacing = float.PositiveInfinity;
+        if (edge > 0)
+            spacing = levels[edge] - levels[edge - 1];
+        if (edge + 1 < levels.Length)
+            spacing = Math.Min(spacing, levels[edge + 1] - levels[edge]);
+        return float.IsInfinity(spacing) ? levels[edge] : spacing;
     }
 
     // What a selected submarine needs on a water pixel: the thermal layer's tile in teal - clearly where the
