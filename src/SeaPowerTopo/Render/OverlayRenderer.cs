@@ -423,27 +423,13 @@ internal sealed class OverlayRenderer
     public void Tick(bool on, bool show, bool dark, float danger, float keel, bool mayStart)
     {
         if (map.Generation != generation)
-        {
-            // A new scene means a new mission: anything from the old one is gone.
-            generation = map.Generation;
-            shown = spare = null;
-            shownPlan = null;
-            quad = null;
-            quadRenderer = null;
-            mesh = null;
-            image = null;
-            imageTexture = null;
-        }
+            ForgetMap();
         if (!on)
         {
-            if (quadRenderer != null)
-                quadRenderer.enabled = false;
-            ShowImage(false);
-            if (phase != Phase.Idle)
-                Abort();
+            Hide();
             return;
         }
-        if (shaderMissing || !map.Find() || !(map is FlatMapRef ? EnsureImage() : EnsureQuad()))
+        if (shaderMissing || !map.Find() || !EnsureTarget())
             return;
         EnsurePalette(dark);
 
@@ -454,23 +440,53 @@ internal sealed class OverlayRenderer
             if (!meshDirty && shownPlan != null && LeftCap(cap))
                 meshDirty = true;
         }
-        switch (phase)
-        {
-            case Phase.Filling:
-                if (mayStart || area == null)
-                    ContinueFill();
-                break;
-            case Phase.Shading:
-                if (work.IsCompleted)
-                    Finish();
-                break;
-            default:
-                if (area != null)
-                    StartFixedIfStale(dark, mayStart);
-                else if (haveView)
-                    StartIfStale(view, viewDpp, dark, danger, keel);
-                break;
-        }
+        if (phase != Phase.Idle)
+            Continue(mayStart);
+        else if (area != null)
+            StartFixedIfStale(dark, mayStart);
+        else if (haveView)
+            StartIfStale(view, viewDpp, dark, danger, keel);
+        Present(show, haveView, cap);
+    }
+
+    // A redraw under way: the next slice of the main-thread fill (a pre-drawn layer only in a frame given to it),
+    // or the upload once the workers are done.
+    private void Continue(bool mayStart)
+    {
+        if (phase == Phase.Filling && (mayStart || area == null))
+            ContinueFill();
+        else if (phase == Phase.Shading && work.IsCompleted)
+            Finish();
+    }
+
+    // A new map means a new mission (or editor map): anything put into the old one is gone with it.
+    private void ForgetMap()
+    {
+        generation = map.Generation;
+        shown = spare = null;
+        shownPlan = null;
+        quad = null;
+        quadRenderer = null;
+        mesh = null;
+        image = null;
+        imageTexture = null;
+    }
+
+    // Layer off: nothing on the map, a redraw under way dropped.
+    private void Hide()
+    {
+        if (quadRenderer != null)
+            quadRenderer.enabled = false;
+        ShowImage(false);
+        if (phase != Phase.Idle)
+            Abort();
+    }
+
+    // The flat editor map shows a picture, the globe scene a mesh.
+    private bool EnsureTarget() => map is FlatMapRef ? EnsureImage() : EnsureQuad();
+
+    private void Present(bool show, bool haveView, GlobeCap cap)
+    {
         if (quadRenderer == null)
         {
             ShowImage(show && shown != null);
@@ -666,7 +682,6 @@ internal sealed class OverlayRenderer
     }
 #endif
 
-    // Hands the vertices, uvs and triangles built to the quad's mesh.
     private void ApplyMesh()
     {
         mesh.Clear();
@@ -748,11 +763,7 @@ internal sealed class OverlayRenderer
         bool covered = shownPlan != null && Covers(shownPlan, view);
         double zoom = shownPlan != null ? shownPlan.ViewDpp / viewDpp : 1.0;
         bool nearEdge = covered && NearEdge(shownPlan, view);
-        // The layer tiles are worked out with the heights on the main thread: taking it up needs a full redraw.
-        bool geometryStale = shown == null || !covered || shownPlan.SettingsVersion != Settings.Version ||
-                             zoom > 1.45 || zoom < 0.7 || nearEdge || shownPlan.Layer != layer ||
-                             shownPlan.ThemeId != palette.Theme.Id || DemArrived();
-        if (geometryStale)
+        if (NeedsFullRedraw(covered, zoom, nearEdge, layer))
         {
             // Let a zoom settle first, unless the view has run off the image. A pan that has used up most of the
             // margin redraws at once, so the new image is there before the view reaches the edge.
@@ -762,8 +773,18 @@ internal sealed class OverlayRenderer
             StartFull(view, viewDpp, dark, danger, keel, layer);
             return;
         }
-        if (shownPlan.Dark != dark || DangerMoved(shownPlan.Danger, danger) || KeelMoved(shownPlan.Keel, keel))
+        if (shownPlan.Dark != dark || Moved(shownPlan.Danger, danger, 10f) || Moved(shownPlan.Keel, keel, 3f))
             StartRecolour(dark, danger, keel);
+    }
+
+    // The image on the map no longer fits the view or the settings. The layer tiles are worked out with the heights
+    // on the main thread: taking it up needs a full redraw too.
+    private bool NeedsFullRedraw(bool covered, double zoom, bool nearEdge, bool layer)
+    {
+        if (shown == null || !covered || nearEdge || zoom > 1.45 || zoom < 0.7)
+            return true;
+        return shownPlan.SettingsVersion != Settings.Version || shownPlan.Layer != layer ||
+               shownPlan.ThemeId != palette.Theme.Id || DemArrived();
     }
 
     private void StartFixedIfStale(bool dark, bool mayStart)
@@ -819,20 +840,14 @@ internal sealed class OverlayRenderer
         return p.South > -90.0 + eps && view.South - p.South < lat;
     }
 
-    private static bool KeelMoved(float shownKeel, float keel)
+    // The aircraft's altitude or the submarine's depth has come or gone, or moved by more than 3 % (at least
+    // `least` metres) since the image was drawn.
+    private static bool Moved(float shownValue, float value, float least)
     {
-        bool shownOn = !float.IsNaN(shownKeel), on = !float.IsNaN(keel);
+        bool shownOn = !float.IsNaN(shownValue), on = !float.IsNaN(value);
         if (shownOn != on)
             return true;
-        return on && Math.Abs(shownKeel - keel) > Math.Max(3f, 0.03f * keel);
-    }
-
-    private static bool DangerMoved(float shownDanger, float danger)
-    {
-        bool shownOn = !float.IsNaN(shownDanger), on = !float.IsNaN(danger);
-        if (shownOn != on)
-            return true;
-        return on && Math.Abs(shownDanger - danger) > Math.Max(10f, 0.03f * Math.Abs(danger));
+        return on && Math.Abs(shownValue - value) > Math.Max(least, 0.03f * Math.Abs(value));
     }
 
     // A DEM chunk the image had to do without has been loaded since (the map loads them as you zoom in).
@@ -1096,19 +1111,7 @@ internal sealed class OverlayRenderer
         RasterJob job = building;
         building = null;
         bool mips = job.Mips != null && area != null;
-        if (texture == null || texture.width != job.Width || texture.height != job.Height || texture.mipmapCount > 1 != mips)
-        {
-            if (texture != null)
-                Object.Destroy(texture);
-            texture = new Texture2D(job.Width, job.Height, TextureFormat.RGBA32, mips)
-            {
-                name = $"SeaPowerTopo {name}",
-                wrapMode = TextureWrapMode.Clamp,
-                filterMode = mips ? FilterMode.Trilinear : FilterMode.Bilinear,
-            };
-            if (material != null)
-                material.mainTexture = texture;
-        }
+        EnsureTexture(job.Width, job.Height, mips);
         if (!mips)
         {
             texture.LoadRawTextureData(job.Rgba);
@@ -1116,26 +1119,7 @@ internal sealed class OverlayRenderer
         }
         else
         {
-            bool loaded = false;
-            if (texture.mipmapCount == Raster.MipCount(job.Width, job.Height))
-            {
-                try
-                {
-                    texture.LoadRawTextureData(job.Mips);
-                    texture.Apply(false, false);
-                    loaded = true;
-                }
-                catch (Exception ex)
-                {
-                    ModLog.Debug($"Overlay {name}: own mip levels refused ({ex.Message})");
-                }
-            }
-            if (!loaded)
-            {
-                // Unity lays the levels out differently: let it make them.
-                texture.SetPixelData(job.Rgba, 0);
-                texture.Apply(true, false);
-            }
+            UploadMips(job);
         }
         spare = shown;
         shown = job;
@@ -1159,6 +1143,43 @@ internal sealed class OverlayRenderer
             spare = null;
             source.V = null;
         }
+    }
+
+    // A texture of the image's size (and with mip levels for a pre-drawn layer), made again when that changes.
+    private void EnsureTexture(int width, int height, bool mips)
+    {
+        if (texture != null && texture.width == width && texture.height == height && texture.mipmapCount > 1 == mips)
+            return;
+        if (texture != null)
+            Object.Destroy(texture);
+        texture = new Texture2D(width, height, TextureFormat.RGBA32, mips)
+        {
+            name = $"SeaPowerTopo {name}",
+            wrapMode = TextureWrapMode.Clamp,
+            filterMode = mips ? FilterMode.Trilinear : FilterMode.Bilinear,
+        };
+        if (material != null)
+            material.mainTexture = texture;
+    }
+
+    // The image with the mip levels made on the worker; where Unity lays the levels out differently, it makes them.
+    private void UploadMips(RasterJob job)
+    {
+        if (texture.mipmapCount == Raster.MipCount(job.Width, job.Height))
+        {
+            try
+            {
+                texture.LoadRawTextureData(job.Mips);
+                texture.Apply(false, false);
+                return;
+            }
+            catch (Exception ex)
+            {
+                ModLog.Debug($"Overlay {name}: own mip levels refused ({ex.Message})");
+            }
+        }
+        texture.SetPixelData(job.Rgba, 0);
+        texture.Apply(true, false);
     }
 
     private void Abort()
