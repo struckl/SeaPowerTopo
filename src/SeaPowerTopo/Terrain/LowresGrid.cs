@@ -17,10 +17,6 @@ namespace SeaPowerTopo.Terrain;
 /// </summary>
 internal static unsafe class LowresGrid
 {
-#if FLATMAP
-    /// <summary>The file is read only where it is needed (the mission editor).</summary>
-    public static bool Active;
-#endif
     private static string path;
     private static Task<short[]> loading;
     private static short[] data;
@@ -51,24 +47,7 @@ internal static unsafe class LowresGrid
         }
     }
 
-    // The terrain folder the game reads its heights from (a mod's user/ folder when it has a terrain).
-    internal static string TerrainDir()
-    {
-        string dir = Singleton<TerrainManager>.InstanceExists() ? Singleton<TerrainManager>.Instance.WorldPath : null;
-        if (string.IsNullOrEmpty(dir))
-            dir = Application.streamingAssetsPath + (File.Exists(Application.streamingAssetsPath + "/user/terrain/data/y1_x01.lz4")
-                ? "/user/terrain/data/" : "/original/terrain/data/");
-        return Directory.Exists(dir) ? dir : null;
-    }
-
-    private static string TerrainFile(string name)
-    {
-        string dir = TerrainDir();
-        if (dir == null)
-            return null;
-        string file = Path.Combine(dir, name);
-        return File.Exists(file) ? file : null;
-    }
+    private static string TerrainFile(string name) => EditorTerrain.FilePath(name);
 #else
     /// <summary>The grid, or null while it loads (or if the file is missing).</summary>
     public static short* Pointer => data == null ? null : (short*)pin.AddrOfPinnedObject();
@@ -98,7 +77,7 @@ internal static unsafe class LowresGrid
             return;
         }
 #if FLATMAP
-        if (!Active || Scene != null)
+        if (!EditorTerrain.Active || Scene != null)
             return;                                   // a mission's map scene has the grid
 #endif
         string now = TerrainFile("lowres.raw");
@@ -130,7 +109,6 @@ internal static unsafe class LowresGrid
     /// <summary>The editor's map is left: the file's copy of the grid goes.</summary>
     public static void Clear()
     {
-        Active = false;
         loading = null;
         path = null;
         Release();

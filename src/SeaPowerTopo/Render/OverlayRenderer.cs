@@ -359,9 +359,11 @@ internal sealed class OverlayRenderer
     private bool shaderMissing;
     private readonly List<GeoRect> holes = new List<GeoRect>();
     private bool meshDirty = true, meshEmpty;
+#if !FLATMAP
     // The part of the globe the mesh was made for, with a margin; it is made again once the view leaves that.
     private GlobeCap meshCap;
     private double meshRadius;
+#endif
     private readonly List<Vector3> meshVertices = new List<Vector3>();
     private readonly List<Vector2> meshUvs = new List<Vector2>();
     private readonly List<int> meshTriangles = new List<int>();

@@ -186,8 +186,7 @@ internal sealed class TopoHost : MonoBehaviour
                 {
                     editorMap.Use(found);
 #if FLATMAP
-                    // On 0.8.7 the editor's map has no map scene and the game loads no DEM for it: the mod reads its own.
-                    LowresGrid.Active = DemCache.Active = true;
+                    EditorTerrain.Active = true;
 #endif
                     editorDecoration = MapDecoration.TryAttach(found, Describe);
                     ModLog.Info("Mission editor map found: Topography drawn there too.");
@@ -246,7 +245,7 @@ internal sealed class TopoHost : MonoBehaviour
         editorDecoration = null;
         editorMap.Forget();
 #if FLATMAP
-        DemCache.Active = false;
+        EditorTerrain.Active = false;
         DemCache.Clear();
         LowresGrid.Clear();
 #endif
