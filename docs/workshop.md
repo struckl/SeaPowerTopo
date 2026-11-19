@@ -37,23 +37,21 @@ Updates an existing item through the running, signed-in Steam client - the same 
 screen, without starting the game and without a password. Steam must be running and signed in with the account that owns
 the item (the tool refuses any other).
 
+With the workspace's shared tool, from the workspace root (`E:\Project\Mods\Sea Power`; reference: its
+`docs/modtool.md`). Every write prints its plan and changes nothing without `--yes`:
+
 ```powershell
-dotnet build tools\workshop-upload -c Release
-# read-only: shows the item's title, owner, visibility and last update
-dotnet run --project tools\workshop-upload -c Release --no-build -- check 3826122523
-# content folder + change note (+ optional new description, main picture, page pictures); title, tags, visibility stay
-dotnet run --project tools\workshop-upload -c Release --no-build -- upload 3826122523 "<Sea Power>\Sea Power_Data\StreamingAssets\SeaPowerTopo" workshop\changenote.txt workshop\description.bbcode --preview workshop\preview.jpg --screenshots workshop\screenshots
-# only the pictures (main picture and/or page pictures): content, description and change notes stay
-dotnet run --project tools\workshop-upload -c Release --no-build -- pictures 3826122523 --preview workshop\preview.jpg
-# only the description: content, pictures and change notes stay
-dotnet run --project tools\workshop-upload -c Release --no-build -- description 3826122523 workshop\description.bbcode
+# read-only: the item's title, owner, visibility, last update and the picture check
+python tools/modtool.py workshop topo check
+# content folder, change note, description and pictures; a release also makes the GitHub release of the same version
+python tools/modtool.py workshop topo upload
+# only the description, only the pictures
+python tools/modtool.py workshop topo description
+python tools/modtool.py workshop topo gallery
 ```
 
 Right after an update the Workshop page can answer "hidden or you do not have permission" for a minute even though
 the item is public; it comes back by itself.
-
-`Result: k_EResultOK` = done; the entry shows on the item's Change Notes page. The same tool is in the Pop-Out and Radio
-repos (1.2.0 of this mod went out with an in-game variant of it, 2026-10-25).
 
 ## Upload in the game
 

@@ -203,18 +203,23 @@ src/SeaPowerTopo/
   Terrain/HeightReader.cs    reads DEM chunks and the world grid (main thread), height under a point
   Terrain/LowresGrid.cs      the 3′ world grid, read from the game's file
   Terrain/DemCache.cs        the DEM chunks the overlay draws from, read on a worker thread
+  Terrain/EditorTerrain.cs   0.8.7 only: the mission editor's terrain folder, read by the mod itself
   Terrain/LayerMap.cs        the game's thermal layer per 0.2° tile
   Render/OverlayRenderer.cs  one overlay layer (live or pre-drawn): the map camera's view, mesh in the globe scene (or
                              a picture on the editor's map), redraw pipeline, holes
   Render/GlobeMesh.cs        an image's mesh on the stock map's globe
   Render/FlatMapRef.cs       the mission editor's flat map as a place to draw
   Render/Cutout.cs           an image minus the layers in front of it, as rectangles
-  Render/Raster.cs           resampling, tint, hill shading, contours, red hatching, sea depth, thermal layer,
-                             mipmaps (worker threads, plain C#)
+  Render/Raster.cs           source grid, resampling, thermal layer tiles, mipmaps (worker threads, plain C#)
+  Render/RasterShade.cs      tint, hill shading, contours, red hatching, sea depth, thermal layer per pixel
+  Render/Look.cs             the look settings' defaults and how they scale a theme; chart depths
+  Render/DemGrid.cs          the game's two height grids and where their samples sit
+  Render/GeoRect.cs          a lon/lat rectangle
   Render/Palette.cs          height and depth bands and their colours
+  Render/Theme*.cs           the looks that ship, theme files (format, loading)
   Ui/MapDecoration.cs        title bar buttons, look list, legend and cursor readout (Noesis)
   mod/_info.ini              Mod Manager entry
-tools/topo-preview/          offline preview (links Raster.cs and Palette.cs)
+tools/topo-preview/          offline preview: compiles the plugin's plain C# Render files as they are
 tools/package.ps1            release build → dist/SeaPowerTopo/
 tools/shot-director/         dev-only plugin that scripts the Workshop screenshots and in-game tests, and the scripts
                              for the Workshop preview and the post pictures (docs/workshop.md)
