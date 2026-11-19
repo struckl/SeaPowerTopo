@@ -1,55 +1,72 @@
 # Sea Power: R.A.T.S. Topographic Map
 
-**Bugs, ideas, questions:** [R.A.T.S. feedback board](https://hub.sewerlabs.dev/s/topo)
+A mod for [Sea Power: Naval Combat in the Missile Age](https://store.steampowered.com/app/1286220/) that makes land heights
+and sea depths readable on the tactical map. It helps with low-level flying, terrain masking, radar horizons and finding
+room for a submarine to dive.
 
-> **Sea Power 0.9.1 (12 November 2026):** 1.6.2 shows as "R.A.T.S. Topographic Map" in the game and declares 0.8.7 up to every 0.9.x in its `_info.ini`. 1.6.1 was run in the game on 0.9.1 (build 261112) on 12 November 2026; checked offline against 0.9.1.
+Needs a mod loader, either one: [R.A.T.S. Keel](https://steamcommunity.com/sharedfiles/filedetails/?id=3835527459) or
+[Anchor Chain](https://steamcommunity.com/sharedfiles/filedetails/?id=3380210757).
 
-**[Get it on the Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3826122523)** - needs a mod loader, either one: [R.A.T.S. Keel](https://steamcommunity.com/sharedfiles/filedetails/?id=3835527459) or [Anchor Chain](https://steamcommunity.com/sharedfiles/filedetails/?id=3380210757).
-
-> **Version 1.4.0 works on both maps with the same features**: Sea Power 0.8.7 and the new 3D globe map (public beta of 26 Oct 2026, the
-> 11 November release) - see [Compatibility](#compatibility).
-
-A mod for [Sea Power: Naval Combat in the Missile Age](https://store.steampowered.com/app/1286220/) that makes land
-heights and sea depths readable on the tactical map - for low-level flying, terrain masking and radar horizons, and
-for where a submarine has room to dive.
+- [Get it on the Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3826122523)
+- [R.A.T.S. feedback board](https://hub.sewerlabs.dev/s/topo)
 
 ![The fjords around Tromsø with the Topography layer](workshop/screenshots/03-closeup-standard.jpg)
 
-The stock map colours land only with its satellite-style texture and a faint slope shade, and paints all water one
-flat colour: high ground is hard to judge and the seabed can't be seen at all. This mod adds a **Topography** layer:
+The stock map colours land with its satellite-style texture and a faint slope shade, and paints all water one flat colour.
+This mod adds a Topography layer on top.
 
-- **Land tinted by height** in 13 bands (0 - 4000 m: greens, yellow, browns, grey, white), hill shading lit from the
-  north-west, and contour lines whose step follows the zoom (20 m close in ... 1000 m zoomed out, every fifth bold).
-- **Sea tinted by depth** in 12 bands (0 - 6000 m), the deeper the darker, with faint seabed relief and a thin depth
-  line at every band edge - banks, shelf edges and basins stand out like on a chart.
-- **19 looks**, light and dark, behind the look button in the map's title bar (or Shift+F6): the map theme you are in
-  decides which list it shows. Day: **Standard** (the original), **Army tactical map**, **Soviet General Staff map**,
-  **Bathymetric chart**, **ECDIS day**, **Desert storm**, **Satellite**, **1940s chart**, **Glacier**. Night:
-  **Midnight** (the default), **Standard**, **Black**, **Recon photo**, **Survey sonar** (depth as a rainbow, like a
-  multibeam survey), **Combat display**, **Phosphor green**, **White phosphor**, **Amber display**, **Red light**.
-  ECDIS day draws land flat with its contours and coastline and the sea in the four depth shades of a chart with a bold
-  safety contour, in the real IHO S-52 colours.
-- **Looks of your own from theme files**: the look list's **Save this look as a theme file** writes the look on the map as
-  a small text file in `BepInEx\config\SeaPowerTopo\themes`; edit it (or write one that starts from another look with
-  `Base=` and only lists what differs), save - the map reloads it at once. Format and every key: [docs/themes.md](docs/themes.md).
-- **Height under the cursor** - terrain height in m and ft (or the sea depth) next to the mouse pointer; the
-  **Cursor height** button in the title bar switches it off and on.
-- **Terrain above the selected aircraft** - with an aircraft or helicopter in the air selected, terrain as high as or
-  higher than its altitude is hatched red, and the readout gives the clearance ("Viper 2-1 clears it by 210 m").
-- **Thermal layer for the selected submarine** - teal where the submarine, at its current depth, is below the
-  game's thermal layer (hidden from hull sonars above it), faint teal where the layer is deeper, a thin line where
-  the layer area ends (the game's 0.2° squares blend softly, the change lies on each square's edge). Water shallower
-  than the submarine is hatched red; the readout adds the layer depth and the water under the keel.
-- **No drawing while zoomed out** - at mission start the area around all units and the whole world are drawn once
-  in the background. Zoomed out they are simply shown; closer in the view is drawn live, and the pre-drawn colours
-  fill the edges while it catches up with a pan.
-- **One menu button in the map's title bar** (three lines, in the title bar's own button row, left of the map menu ≡) that opens
-  a short list: **Topography** on/off, **Look** (while the layer is on; opens the list of looks), **Legend** and
-  **Cursor height** on/off. Each switch shows On or Off and stays open so you see the effect; Look opens the list of looks in the same menu with a **Back** row on top. A switched-on entry is orange. The legend sits at the map's top left, fixed, clear of the
-  game's time controls.
-- **In the mission editor** too: its map gets the layer, the buttons, the legend and the cursor readout.
-- **On the 3D globe map**: the overlay lies exactly on the stock map's globe at every zoom, at high latitudes, across
-  the date line and over the poles.
+## What it does
+
+### Land and sea
+
+- Land is tinted by height in 13 bands (0 - 4000 m: greens, yellow, browns, grey, white).
+- Hill shading is lit from the north-west.
+- Contour lines follow the zoom: 20 m close in, 1000 m zoomed out, every fifth line bold.
+- The sea is tinted by depth in 12 bands (0 - 6000 m), the deeper the darker.
+  - Faint seabed relief and a thin depth line at every band edge make banks, shelf edges and basins stand out.
+- Unit symbols, waypoints and labels stay on top. The stock coastline is untouched.
+
+### Looks
+
+- 19 looks, light and dark. The map theme you are in decides which list you see.
+- Day looks: Standard, Army tactical map, Soviet General Staff map, Bathymetric chart, ECDIS day, Desert storm, Satellite,
+  1940s chart, Glacier.
+- Night looks: Midnight (the default), Standard, Black, Recon photo, Survey sonar, Combat display, Phosphor green, White
+  phosphor, Amber display, Red light.
+- ECDIS day draws land flat with contours and coastline, and the sea in four chart depth shades with a bold safety contour,
+  in IHO S-52 colours. Survey sonar draws depth as a rainbow, like a multibeam survey.
+- Pick a look in the title bar menu (Look), or press Shift+F6 for the next one.
+
+### Looks of your own
+
+- Look > Save this look as a theme file writes the current look to `BepInEx\config\SeaPowerTopo\themes`.
+- Edit the file and save: the map reloads it at once.
+- A file can start from another look with `Base=` and list only what differs.
+- Format and every key: [docs/themes.md](docs/themes.md).
+
+### Readouts and highlights
+
+- The terrain height in m and ft (or the sea depth) shows next to the mouse pointer. The Cursor height entry switches it.
+- With an aircraft or helicopter in the air selected, terrain as high as or higher than its altitude is hatched red.
+  - The readout gives the clearance, for example "Viper 2-1 clears it by 210 m".
+- With a submarine selected, the game's thermal layer is shown.
+  - Teal tint: the submarine, at its current depth, is below the layer (hidden from hull sonars above it).
+  - Faint teal: the layer is deeper. A thin line marks where the layer area ends.
+  - Water shallower than the submarine is hatched red.
+  - The readout adds the layer depth and the water under the keel.
+
+### Map menu and where it works
+
+- One menu button (the mountain mark) sits in the map's title bar, left of the map menu.
+  - Its list has Topography on/off, Look, Legend and Cursor height.
+  - Switches show On or Off and the list stays open. A switched-on entry is orange.
+  - Look opens the list of looks in the same menu, with a Back row on top.
+- The legend sits fixed at the map's top left, clear of the game's time controls.
+- The mission editor's map gets the layer, the button, the legend and the cursor readout too.
+- On the 3D globe map the overlay lies on the stock globe at every zoom, at high latitudes, across the date line and over
+  the poles.
+- At mission start the area around all units and the whole world are drawn once in the background, so nothing is drawn
+  while zoomed out. Closer in, the view is drawn live.
 
 | | |
 | --- | --- |
@@ -57,144 +74,103 @@ flat colour: high ground is hard to judge and the seabed can't be seen at all. T
 | ![Lofoten and the shelf edge, legend open](workshop/screenshots/04-closeup-combat.jpg) | ![Terrain above a selected F-4E hatched red](workshop/screenshots/05-aircraft.jpg) |
 | ![Thermal layer and shallow water for a selected submarine](workshop/screenshots/06-submarine.jpg) | ![The mission editor's map with the layer](workshop/screenshots/08-editor.jpg) |
 
-All heights and depths are the ones the simulation itself uses: the game's own terrain data (the DEM), including the
-terrain height multiplier and under-water depth factor from Options > World. Unit symbols, waypoints and labels stay
-on top; the stock coastline is untouched. The map's night theme gets its own looks (Midnight by default).
+### Where the data comes from
 
-## Installation
+- Heights and depths are the ones the simulation uses: the game's own terrain data (the DEM).
+- The terrain height multiplier and under-water depth factor from Options > World are applied.
+- The layer is display-only. The mission's own zones and rules decide what counts in play.
+- No game files are changed.
 
-1. Install a mod loader, either one: **[R.A.T.S. Keel](https://steamcommunity.com/sharedfiles/filedetails/?id=3835527459)** (subscribe, switch it on in the Mods menu, copy its one stub
-   file once; it is the one that runs on the 3D-globe public beta) or **[Anchor Chain](https://steamcommunity.com/sharedfiles/filedetails/?id=3380210757)** following its
-   [installation guide](https://seapower-modders.github.io/AnchorChain/install-anchor-chain.html) (one manual step: copy its
-   preloader into the game folder).
-2. Subscribe to **[Sea Power Topographic Map](https://steamcommunity.com/sharedfiles/filedetails/?id=3826122523)** on the Steam Workshop.
-3. Start the game. In a mission, open the map: the layer is on. Its menu button (the mod's mountain mark) sits in the map's title bar, left of the map
-   menu (≡). The list has **Topography** (on and off; also the map menu > Map Layers > **Topography**, or **F6**), **Look**
-   (the list of looks; **Shift+F6** goes to the next one), **Legend** (the colour key) and **Cursor height** (the readout
-   next to the pointer). In the mission editor the same button sits at the top left of its map.
+## Install
+
+1. Install a mod loader, either one.
+   - R.A.T.S. Keel: subscribe, switch it on in the Mods menu and copy its one stub file once. It is the loader that runs
+     on the 3D-globe beta.
+   - Anchor Chain: follow its [installation guide](https://seapower-modders.github.io/AnchorChain/install-anchor-chain.html).
+2. Subscribe to [R.A.T.S. Topographic Map](https://steamcommunity.com/sharedfiles/filedetails/?id=3826122523) on the Workshop.
+3. Start the game and open the map in a mission. The layer is on.
+   - Topography on/off: the menu button, the map menu > Map Layers > Topography, or F6.
+   - Next look: Shift+F6.
+   - In the mission editor the button sits at the top left of its map.
 
 Manual install instead of the Workshop: put `SeaPowerTopo.dll` and `_info.ini` into
 `<Sea Power>\Sea Power_Data\StreamingAssets\SeaPowerTopo\`.
 
+To uninstall, unsubscribe or delete the folder.
+
 ## Settings
 
-`<Sea Power>\BepInEx\config\dev.sewerlabs.seapowertopo.cfg` (created on the first start; changes apply on the next
-redraw):
+- File: `<Sea Power>\BepInEx\config\dev.sewerlabs.seapowertopo.cfg`, created on the first start. Changes apply on the next
+  redraw.
 
 | Setting | What it does |
 | --- | --- |
 | Toggle key | Key for the layer (default F6) |
-| Look (day map), Look (night map), Look key | The look for each map theme (Standard / Midnight by default; also set by the look button and Shift+F6); a look from a theme file is named by its `Id` |
-| Chart safety contour | For the chart looks: the bold contour in metres (default 30); the shallowest water shade ends at a sixth of it, the deepest begins at three and a third times it |
+| Look (day map), Look (night map), Look key | The look for each map theme (Standard by day, Midnight by night; also set by the menu and Shift+F6). A look from a theme file is named by its `Id` |
+| Chart safety contour | For the chart looks: the bold contour in metres (default 30). The shallowest water shade ends at a sixth of it, the deepest begins at three and a third times it |
 | Opacity, Hill shading | How strongly the colours and the relief cover the stock map |
-| Contour lines, Contour interval | Contours on/off; fixed step in metres or 0 = follows the zoom |
+| Contour lines, Contour interval | Contours on/off; a fixed step in metres, or 0 to follow the zoom |
 | Height bands, Depth bands | Lower edges of the colour bands in metres |
 | Sea depth | Tint the sea by depth, or leave it to the stock map |
 | Terrain above selected aircraft | The red highlight and clearance readout |
 | Thermal layer for selected submarine | The thermal layer, shallow-water hatching and keel readout |
-| Resolution | Overlay resolution relative to the map's (lower = faster) |
-| Pre-draw mission area | Draw the mission area and the world once at mission start (less drawing while playing) |
-| Height under cursor, Legend, Units | Readout with the layer / always / off (the Cursor height button is lit while it shows and switches it), legend button, metres / feet / both |
+| Resolution | Overlay resolution relative to the map's (lower is faster) |
+| Pre-draw mission area | Draw the mission area and the world once at mission start |
+| Height under cursor, Legend, Units | Readout with the layer / always / off; the legend button; metres, feet or both |
 
 ## Compatibility
 
-- **Both maps in one package**: `SeaPowerTopo.dll` is the build for the 3D globe map (public beta of 26 Oct 2026,
-  build 261026, and the 11 November release), `SeaPowerTopoFlat.dll` the one for 0.8.7's flat map (the same source with `FLATMAP`
-  defined; since 1.4.0 it has everything the globe build has - the title bar buttons, the cursor height button, the mission
-  editor, the look list, theme files). Each stays off on the game the other is for; the log says which runs. They share the
-  config file and theme files. (1.2.0 alone stops on the globe beta at the first mission.)
-- **Anchor Chain on the beta:** Anchor Chain 1.1.0 doesn't start on the globe beta - its preloader looks for the mod
-  folders before the game has listed them, so *no* Anchor Chain mod loads
-  ([seapower-modders/AnchorChain#19](https://github.com/seapower-modders/AnchorChain/issues/19)). Until Anchor Chain is
-  updated, [tools/anchorchain-beta-shim](tools/anchorchain-beta-shim) (dev only) starts it; see
+- Declared for Sea Power 0.8.7 up to every 0.9.x (`_info.ini`).
+- Run in the game on 0.9.1 (build 261112) under Keel, in Red Sea Breakout (1.6.2). Other 0.9.x builds were checked offline.
+- One package, two game builds: `SeaPowerTopo.dll` for the 3D globe map, `SeaPowerTopoFlat.dll` for 0.8.7's flat map. Each
+  stays off on the game the other is for, and the log says which one runs. They share the config file and theme files.
+- Both loaders run the same mod. Anchor Chain 1.1.0 does not start on the globe beta
+  ([seapower-modders/AnchorChain#19](https://github.com/seapower-modders/AnchorChain/issues/19)), so there the mod runs under
+  Keel. [tools/anchorchain-beta-shim](tools/anchorchain-beta-shim) starts Anchor Chain for development; see
   [docs/testing.md](docs/testing.md).
-- The game updates often; if an update moves something the mod hooks into, the affected part stops and the log says
-  why - the game itself keeps running.
+- The game updates often. If an update moves something the mod hooks into, the affected part stops and the log says why.
+  The game keeps running.
 - Works together with Better TacMap (separate map layer numbers).
-- No game files are changed. Uninstall by unsubscribing (or deleting the folder).
 
-## Feedback and bug reports
+## Feedback
 
-Bugs, feedback and ideas go on the R.A.T.S. feedback board: <https://hub.sewerlabs.dev/s/topo>.
-For a bug, add `<Sea Power>\BepInEx\LogOutput.log` as a link; it has a line for every step the mod takes
-(`[Info :SeaPowerTopo]`).
+- Bugs, ideas and questions go on the [R.A.T.S. feedback board](https://hub.sewerlabs.dev/s/topo).
+- For a bug, link `<Sea Power>\BepInEx\LogOutput.log`. It has a line for every step the mod takes (`[Info :SeaPowerTopo]`).
 
-## Building from source
+## Building
 
-Requires the .NET SDK 8, Sea Power installed (1.3.0 builds against the globe beta: Steam > Sea Power > Properties ->
-Betas), and Anchor Chain subscribed (the build references the game's and Anchor Chain's assemblies).
+- Needs the .NET SDK 8, Sea Power installed, and the R.A.T.S. Keel repo next to this one: the build compiles
+  `SeaPowerKeel\shared\` into the DLL and takes `AnchorChain.dll` from Keel's copy.
+- `GameDir` can also be set as an environment variable.
 
 ```bash
 dotnet build src/SeaPowerTopo/SeaPowerTopo.csproj -c Release -p:GameDir="C:\Program Files (x86)\Steam\steamapps\common\Sea Power"
 ```
 
-The build copies the mod into `<Sea Power>\Sea Power_Data\StreamingAssets\SeaPowerTopo\` (`-p:Deploy=false` to
-skip). The common project part, log, hooks, settings, Layers-menu entry and package steps are the shared R.A.T.S. skeleton (`SeaPowerKeel\shared`, compiled into the DLL). The release package (`tools/package.ps1`) adds the flat-map build (`-p:GameBuild=Flat`, `FLATMAP`), compiled against
-a copy of 0.8.7's `Sea Power_Data\Managed` (`-FlatManagedDir`). `GameDir` can also be set as an environment variable. Release packaging and the Workshop upload are described
-in [docs/workshop.md](docs/workshop.md); in-game test checklists are in [docs/testing.md](docs/testing.md).
+- The build copies the mod into `<Sea Power>\Sea Power_Data\StreamingAssets\SeaPowerTopo\` (`-p:Deploy=false` skips that).
+- `tools/package.ps1` builds the release package. It adds the flat-map build (`-p:GameBuild=Flat`, `FLATMAP`), compiled
+  against a copy of 0.8.7's `Sea Power_Data\Managed` (`-FlatManagedDir`).
+- Packaging and the Workshop upload: [docs/workshop.md](docs/workshop.md). In-game test checklists: [docs/testing.md](docs/testing.md).
+- How the overlay is drawn: [docs/how-it-works.md](docs/how-it-works.md).
 
-Offline preview with the plugin's own colouring code and the game's terrain files - handy for tuning colours:
+Offline preview with the plugin's own colouring code and the game's terrain files, handy for tuning colours:
 
 ```bash
 dotnet run --project tools/topo-preview -c Release -- --at 61.5,8 --span 2 --size 1600x900 --out norway.png
-# --globe: the globe map's narrower pixels (0.9 and later); without it the flat map's (0.8.7)
 ```
 
-(`--at` lat,lon of the centre, `--span` view height in degrees; `--theme genshtab` (any id from
-`src/SeaPowerTopo/Render/Theme.cs`; without it Standard by day, `--dark` Midnight), `--theme-file my.ini` or
-`--themes-dir <folder>` + `--theme <id>` for theme files, `--check-themes` to test them, `--chart-safety 50`;
-`--danger 1200` adds the aircraft highlight, `--interval 100` a fixed contour step, `--nodepth` leaves the sea to the stock map,
-`--depth-factor 2` is the game's under-water depth factor, `--sub 120` what a submarine at 120 m sees - with a
-stand-in for the game's random layer depths, which need Unity - `--game <dir>` the game folder.)
+- `--at` is lat,lon of the centre, `--span` the view height in degrees, `--game <dir>` the game folder.
+- `--globe` uses the globe map's narrower pixels (0.9 and later); without it the flat map's (0.8.7).
+- `--theme <id>` takes any id from `src/SeaPowerTopo/Render/Theme.cs`; without it Standard by day, `--dark` Midnight.
+- `--theme-file my.ini`, or `--themes-dir <folder>` with `--theme <id>`, previews theme files; `--check-themes` tests them.
+- `--chart-safety 50`, `--danger 1200` (aircraft highlight), `--interval 100` (fixed contour step), `--nodepth` (sea left to the stock map).
+- `--depth-factor 2` is the game's under-water depth factor; `--sub 120` shows what a submarine at 120 m sees, with a stand-in for the game's random layer depths.
 
-## How it works
-
-The stock map is a Unity scene - a unit globe made of lon/lat tiles - that a map camera renders into the texture the
-map window shows (`SeaPower.LiveMap`, orthographic, looking at the view's centre). The mod adds meshes to that scene,
-so the overlay turns and zooms with the globe for free. Each overlay image (a lon/lat rectangle) is cut along the stock
-tiles' own 1° grid and the diagonal that splits each cell into two triangles, and every piece is placed in the plane of
-the stock triangle under it with texture coordinates linear in lon/lat like the stock ones (`Render/GlobeMesh.cs`) - so
-it lies exactly on the stock map at any zoom. The map texture has no depth buffer, so only the cells facing the camera
-are meshed (the mesh is remade once the view has turned past its margin). An image's pixels span cos(latitude) more
-degrees of longitude than of latitude, as wide on screen as high. The view, its scale and the part of the globe in
-sight come from the map camera; the layers from the largest live map control (`RenderedLayer`).
-
-Every layer is drawn the same way: heights copied out of the DEM on the main thread in 3 ms slices per frame, then
-resampled (Catmull-Rom when zoomed in past the DEM) and coloured on half the CPU cores (a 4K view in about 70 ms). The
-globe map keeps its terrain on the graphics card only, so the mod reads its own: the 3′ world grid (`lowres.raw`, 52 MB,
-once, `Terrain/LowresGrid.cs`) and the 30″ chunks of the view, read with the game's reader on a worker thread, the last
-eight kept (`Terrain/DemCache.cs`). On the globe build the mod never takes a handle on the 3D terrain's own chunks: the game
-keeps only 16, and handles held by the mod kept it from preloading the area around the units (land vanished); both
-from the files the game resolves, a mod's replacements included. The pre-drawn layers (mission area ×1, ×4, ×16 and the
-world at 0.1°, up to 8 megapixels each, with mipmaps) stand in for the live layer while the view's scale is within 1.4×
-zoomed in or 3× zoomed out of theirs. The live layer's image covers the view plus a margin (15-40 %, as much as an
-8-megapixel budget allows) and is redrawn when the view leaves it, when a pan has used up most of the margin, or when
-the zoom changes a lot. Layers in front cut holes into the ones behind (their mesh is the image minus the others'
-rectangles), so the translucent colours never stack. The mission editor's map is a flat map of its own (Noesis tiles,
-not the globe): there the live layer's image is a picture laid on its lon/lat rectangle by a `MapPanel` among the map's
-background elements (`Render/FlatMapRef.cs`). The thermal layer comes from the game's own tile cache where a tile is
-settled (`Environment._layerDepths`), otherwise from the same rule and the same seeded `UnityEngine.Random` draw, with
-the generator's state put back.
-A look is a plain parameter set (`Render/Theme.cs`): key colours spread over the height bands, in steps or
-blended, or one flat colour; relief strength with a tinted shadow and highlight; contour lines with an optional glow;
-a coastline; the sea's key colours or a chart's four depth shades; depth lines. The first release's look is one of
-them, drawn by its original rules (its output is byte for byte unchanged). Adding a look is adding such a block, or a
-theme file: `Render/ThemeIni.cs` reads and writes the file format and `Render/ThemeLibrary.cs` finds the files, resolves
-`Base=`, keeps the last working version of a file that breaks, and swaps the result into `Themes` when the folder changes
-(polled every 1.5 s); both are plain C# and tested offline by the preview tool's `--check-themes`.
-The title bar buttons, the look list, the legend and the cursor readout are Noesis elements: the buttons go into the map
-window's title bar button row (found like Pop-Out finds it), the look list is a popup under its button, the rest into a grid laid over the map control, handed over by a Harmony
-postfix on `RenderedLayer.OnRender` that is applied only once NoesisGUI runs; the editor's map is found through its view
-model. The few game internals the mod needs (the night state of the map's palette, a new Layers menu entry) are
-reached by reflection (`GameReflection`, from the shared skeleton).
-
-Depths are the simulation's: the DEM depth times the game's under-water depth factor, doubled once more where the DEM
-is shallower than 48 m (as every terrain lookup of the game does) - so a thin ring of shallower water can sit just
-outside a coastal strip. That is how the simulation sees the seabed, not a drawing error.
+## Layout
 
 ```
 src/SeaPowerTopo/
-  Plugin.cs, Hooks.cs        entry point (Anchor Chain plugin; ModEntry of the shared skeleton does the game version check,
+  Plugin.cs, Hooks.cs        entry point (the Anchor Chain entry, which Keel runs too; ModEntry of the shared skeleton does the game version check,
                              settings, hooks and host); the late map hook
   ModInfo.cs                 what the shared skeleton reads (GUID, name, version, log source)
   Settings.cs                the config entries (Bind), the change counter the overlay redraws on
@@ -202,7 +178,7 @@ src/SeaPowerTopo/
                              layers show and draw, pre-drawn areas from the units, title bar buttons/legend/readout, the
                              mission editor's map
   Terrain/HeightReader.cs    reads DEM chunks and the world grid (main thread), height under a point
-  Terrain/LowresGrid.cs      the 3′ world grid, read from the game's file
+  Terrain/LowresGrid.cs      the 3' world grid, read from the game's file
   Terrain/DemCache.cs        the DEM chunks the overlay draws from, read on a worker thread
   Terrain/EditorTerrain.cs   0.8.7 only: the mission editor's terrain folder, read by the mod itself
   Terrain/LayerMap.cs        the game's thermal layer per 0.2° tile
@@ -228,7 +204,8 @@ tools/anchorchain-beta-shim/ dev-only BepInEx plugin that starts Anchor Chain on
 workshop/                    Workshop description, preview.jpg, screenshots/
 ```
 
-## License
+## Licenses and credits
 
-[R.A.T.S. Source License](LICENSE): read it, fork it, send fixes; no re-uploads, no reuse in other projects. Not affiliated with Triassic Games or MicroProse. The mod reads the game's terrain data at runtime;
-nothing of the game is included in this repository or in the mod.
+- [R.A.T.S. Source License](LICENSE): read it, fork it, send fixes; no re-uploads, no reuse in other projects.
+- Not affiliated with Triassic Games or MicroProse.
+- The mod reads the game's terrain data at runtime. Nothing of the game is included in this repository or in the mod.
