@@ -126,7 +126,6 @@ internal static class ThemeLibrary
                 bool ok = ThemeIni.TryRead(text, Path.GetFileNameWithoutExtension(path), out ThemeFile file, messages);
                 foreach (string m in messages)
                     warn($"{name}: {m}");
-                if (messages.Count > 0)
                 if (!ok)
                     continue;
                 if (Themes.Builtin(file.Id) != null)
@@ -216,7 +215,6 @@ internal static class ThemeLibrary
         bool ok = ThemeIni.TryBuild(file, baseTheme, out Theme theme, messages);
         foreach (string m in messages)
             warn($"{file.FileName}.ini: {m}");
-        if (messages.Count > 0)
         if (!ok)
         {
             failed.Add(file.Id);
