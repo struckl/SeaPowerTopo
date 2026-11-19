@@ -41,32 +41,40 @@ internal static class GlobeMesh
         vertices.Clear();
         uvs.Clear();
         triangles.Clear();
+        var mesh = new Builder(image, vertices, uvs, triangles);
         double minDot = Math.Cos(Math.Min(90.0, radius) * Deg);
-        var poly = new double[16];
-        var clipped = new double[16];
         foreach (GeoRect part in parts)
-        {
-            int i0 = (int)Math.Floor(part.West), i1 = (int)Math.Ceiling(part.East);
-            int j0 = (int)Math.Floor(part.South), j1 = (int)Math.Ceiling(part.North);
-            // The stock formula's sines and cosines, once per grid line.
-            var lonCos = new float[i1 - i0 + 1];
-            var lonSin = new float[i1 - i0 + 1];
-            var latCos = new float[j1 - j0 + 1];
-            var latSin = new float[j1 - j0 + 1];
-            for (int i = i0; i <= i1; i++)
-            {
-                float lo = i * 0.0174532924f;
-                lonCos[i - i0] = Mathf.Cos(lo);
-                lonSin[i - i0] = Mathf.Sin(lo);
-            }
-            for (int j = j0; j <= j1; j++)
-            {
-                float la = j * 0.0174532924f;
-                latCos[j - j0] = Mathf.Cos(la);
-                latSin[j - j0] = Mathf.Sin(la);
-            }
-            Vector3 Grid(int j, int i) => new Vector3(latCos[j - j0] * lonCos[i - i0], latSin[j - j0], latCos[j - j0] * lonSin[i - i0]);
+            mesh.AddPart(part, centre, minDot);
+    }
 
+    // The lists one Build fills, and the scratch polygons for cut cells.
+    private sealed class Builder
+    {
+        private readonly GeoRect image;
+        private readonly List<Vector3> vertices;
+        private readonly List<Vector2> uvs;
+        private readonly List<int> triangles;
+        private readonly double[] poly = new double[16], clipped = new double[16];
+
+        // The stock formula's sines and cosines of the part being meshed, once per grid line from (i0, j0).
+        private int i0, j0;
+        private float[] lonCos, lonSin, latCos, latSin;
+
+        public Builder(GeoRect image, List<Vector3> vertices, List<Vector2> uvs, List<int> triangles)
+        {
+            this.image = image;
+            this.vertices = vertices;
+            this.uvs = uvs;
+            this.triangles = triangles;
+        }
+
+        public void AddPart(GeoRect part, Vector3 centre, double minDot)
+        {
+            i0 = (int)Math.Floor(part.West);
+            j0 = (int)Math.Floor(part.South);
+            int i1 = (int)Math.Ceiling(part.East), j1 = (int)Math.Ceiling(part.North);
+            Trig(i0, i1, out lonCos, out lonSin);
+            Trig(j0, j1, out latCos, out latSin);
             for (int j = j0; j < j1; j++)
             {
                 double y0 = Math.Max(0.0, part.South - j), y1 = Math.Min(1.0, part.North - j);
@@ -75,53 +83,75 @@ internal static class GlobeMesh
                 for (int i = i0; i < i1; i++)
                 {
                     double x0 = Math.Max(0.0, part.West - i), x1 = Math.Min(1.0, part.East - i);
-                    if (x1 <= x0)
-                        continue;
-                    Vector3 sw = Grid(j, i), se = Grid(j, i + 1), nw = Grid(j + 1, i), ne = Grid(j + 1, i + 1);
-                    // The cell's centre (the middle of its diagonal, a hair inside the sphere) in range.
-                    if (Dot(nw + se, centre) < 2.0 * minDot)
-                        continue;
-                    if (x0 == 0.0 && y0 == 0.0 && x1 == 1.0 && y1 == 1.0)
-                    {
-                        // A whole cell: the stock map's own two triangles.
-                        int b = vertices.Count;
-                        AddVertex(vertices, uvs, image, sw, i, j);
-                        AddVertex(vertices, uvs, image, se, i + 1, j);
-                        AddVertex(vertices, uvs, image, nw, i, j + 1);
-                        AddVertex(vertices, uvs, image, ne, i + 1, j + 1);
-                        triangles.Add(b);
-                        triangles.Add(b + 2);
-                        triangles.Add(b + 1);
-                        triangles.Add(b + 2);
-                        triangles.Add(b + 3);
-                        triangles.Add(b + 1);
-                        continue;
-                    }
-                    // Part of a cell: the rectangle cut by the diagonal, each half in its own triangle's plane.
-                    for (int half = 0; half < 2; half++)
-                    {
-                        int n = Rect(poly, x0, y0, x1, y1);
-                        n = ClipDiagonal(poly, n, clipped, below: half == 0);
-                        if (n < 3)
-                            continue;
-                        int b = vertices.Count;
-                        for (int k = 0; k < n; k++)
-                        {
-                            double x = clipped[2 * k], y = clipped[2 * k + 1];
-                            // South-west half: sw + x (se - sw) + y (nw - sw); north-east half: ne + (1 - x) (nw - ne) + (1 - y) (se - ne).
-                            Vector3 p = half == 0
-                                ? sw + (float)x * (se - sw) + (float)y * (nw - sw)
-                                : ne + (float)(1.0 - x) * (nw - ne) + (float)(1.0 - y) * (se - ne);
-                            AddVertex(vertices, uvs, image, p, i + x, j + y);
-                        }
-                        for (int k = 1; k + 1 < n; k++)
-                        {
-                            triangles.Add(b);
-                            triangles.Add(b + k + 1);
-                            triangles.Add(b + k);
-                        }
-                    }
+                    if (x1 > x0)
+                        AddCell(i, j, x0, y0, x1, y1, centre, minDot);
                 }
+            }
+        }
+
+        private static void Trig(int from, int to, out float[] cos, out float[] sin)
+        {
+            cos = new float[to - from + 1];
+            sin = new float[to - from + 1];
+            for (int k = from; k <= to; k++)
+            {
+                float a = k * 0.0174532924f;
+                cos[k - from] = Mathf.Cos(a);
+                sin[k - from] = Mathf.Sin(a);
+            }
+        }
+
+        private Vector3 Grid(int j, int i) => new Vector3(latCos[j - j0] * lonCos[i - i0], latSin[j - j0], latCos[j - j0] * lonSin[i - i0]);
+
+        // The part (x0, y0)..(x1, y1) of the 1-degree cell (i, j), if the cell's centre (the middle of its diagonal, a
+        // hair inside the sphere) is in range.
+        private void AddCell(int i, int j, double x0, double y0, double x1, double y1, Vector3 centre, double minDot)
+        {
+            Vector3 sw = Grid(j, i), se = Grid(j, i + 1), nw = Grid(j + 1, i), ne = Grid(j + 1, i + 1);
+            if (Dot(nw + se, centre) < 2.0 * minDot)
+                return;
+            if (x0 == 0.0 && y0 == 0.0 && x1 == 1.0 && y1 == 1.0)
+            {
+                // A whole cell: the stock map's own two triangles.
+                int b = vertices.Count;
+                AddVertex(vertices, uvs, image, sw, i, j);
+                AddVertex(vertices, uvs, image, se, i + 1, j);
+                AddVertex(vertices, uvs, image, nw, i, j + 1);
+                AddVertex(vertices, uvs, image, ne, i + 1, j + 1);
+                triangles.Add(b);
+                triangles.Add(b + 2);
+                triangles.Add(b + 1);
+                triangles.Add(b + 2);
+                triangles.Add(b + 3);
+                triangles.Add(b + 1);
+                return;
+            }
+            // Part of a cell: the rectangle cut by the diagonal, each half in its own triangle's plane.
+            for (int half = 0; half < 2; half++)
+            {
+                int n = ClipDiagonal(poly, Rect(poly, x0, y0, x1, y1), clipped, below: half == 0);
+                if (n >= 3)
+                    AddHalf(half == 0, n, i, j, sw, se, nw, ne);
+            }
+        }
+
+        private void AddHalf(bool southWest, int n, int i, int j, Vector3 sw, Vector3 se, Vector3 nw, Vector3 ne)
+        {
+            int b = vertices.Count;
+            for (int k = 0; k < n; k++)
+            {
+                double x = clipped[2 * k], y = clipped[2 * k + 1];
+                // South-west half: sw + x (se - sw) + y (nw - sw); north-east half: ne + (1 - x) (nw - ne) + (1 - y) (se - ne).
+                Vector3 p = southWest
+                    ? sw + (float)x * (se - sw) + (float)y * (nw - sw)
+                    : ne + (float)(1.0 - x) * (nw - ne) + (float)(1.0 - y) * (se - ne);
+                AddVertex(vertices, uvs, image, p, i + x, j + y);
+            }
+            for (int k = 1; k + 1 < n; k++)
+            {
+                triangles.Add(b);
+                triangles.Add(b + k + 1);
+                triangles.Add(b + k);
             }
         }
     }
