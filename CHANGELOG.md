@@ -9,6 +9,14 @@
   - Now Topo reads its own copies with the game's own reader, like the stock map, and never touches the game's blocks
   - The cursor height only uses blocks Topo has already read (shows "about" elsewhere) instead of reading new ones
 - The mod folder carries this CHANGELOG.md, so R.A.T.S. Keel's What's new can show what changed when there are no Workshop notes (a local copy, the GitHub zip).
+- Changed (internal): a theme file that fails to build is always skipped, also if no warning was written for it (before, such a file would have gone on half-built; no file reaches that today)
+- Changed (internal): the DEM chunk cache is one class for both game versions; only reading a chunk differs
+- Changed (internal): the look defaults (opacity, hill shading, bands, chart safety contour), the opacity and shading rules and the chart depths live in one place, so the legend and the map always agree and a default cannot drift from the themes' look
+- Changed (internal): the colouring code is split into named per-pixel steps; every theme draws exactly as before (each look rendered offline before and after, identical to the byte)
+- Changed (internal): the theme file keys are listed once (reading, writing and the known-key check); the theme library's loading is split into reading, building and base lookup
+- Changed (internal): the overlay renderer, globe mesh, map decoration and host split into smaller named steps; no change in what they do
+- Changed (internal): the offline preview compiles the plugin's own render files and plans its source grid, opacity and contour step like the plugin; new `--globe` for the globe map's narrower pixels
+- Changed (internal): tools/workshop-upload removed (the workspace's `modtool workshop` does its job)
 
 ## 1.6.2 - 2026-11-12 - in-game name R.A.T.S. Topographic Map
 

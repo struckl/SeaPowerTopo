@@ -137,9 +137,10 @@ Offline preview with the plugin's own colouring code and the game's terrain file
 
 ```bash
 dotnet run --project tools/topo-preview -c Release -- --at 61.5,8 --span 2 --size 1600x900 --out norway.png
+# --globe: the globe map's narrower pixels (0.9 and later); without it the flat map's (0.8.7)
 ```
 
-(`--at` lat,lon of the centre, `--span` view height in degrees; `--theme atlas` (any id from
+(`--at` lat,lon of the centre, `--span` view height in degrees; `--theme genshtab` (any id from
 `src/SeaPowerTopo/Render/Theme.cs`; without it Standard by day, `--dark` Midnight), `--theme-file my.ini` or
 `--themes-dir <folder>` + `--theme <id>` for theme files, `--check-themes` to test them, `--chart-safety 50`;
 `--danger 1200` adds the aircraft highlight, `--interval 100` a fixed contour step, `--nodepth` leaves the sea to the stock map,
