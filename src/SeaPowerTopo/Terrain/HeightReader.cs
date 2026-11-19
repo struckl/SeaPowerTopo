@@ -19,7 +19,7 @@ internal struct HeightSample
 }
 
 /// <summary>
-/// Reads terrain heights straight out of the game's DEM (<see cref="DemGrid"/>): the 20° chunks <see cref="DemCache"/>
+/// Reads terrain heights straight out of the game's DEM (<see cref="DemGrid"/>): the 20-degree chunks <see cref="DemCache"/>
 /// has read (on 0.8.7 also the ones the 3D terrain has loaded), and the 3 arc-minute world grid (<see cref="LowresGrid"/>)
 /// for everywhere else. Same data, same sample positions as the stock map draws.
 /// <para>Main thread only, and only within the frame it was created in: Unity may move a texture's CPU copy when

@@ -4,7 +4,7 @@ namespace SeaPowerTopo.Render;
 
 /// <summary>
 /// The game's two height grids and where their samples sit. Plain C#, shared with the offline preview.
-/// <para>DEM: 20° x 20° chunks of 2400 x 2400 int16 metres, one sample every 30 arc seconds; grid point (gx, gy) sits
+/// <para>DEM: 20 x 20 degree chunks of 2400 x 2400 int16 metres, one sample every 30 arc seconds; grid point (gx, gy) sits
 /// at lon = -180 + gx / 120, lat = 90 - gy / 120 (the stock map tiles' texel centres). World grid
 /// (<c>terrain/data/lowres.raw</c>): 7200 x 3600 int16 metres, 3 arc minutes; texel (lx, ly) at
 /// lon = -180 + (lx + 0.5) * 0.05, lat = 90 - (ly + 0.5) * 0.05.</para>

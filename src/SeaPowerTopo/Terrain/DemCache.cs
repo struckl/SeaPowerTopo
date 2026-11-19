@@ -13,7 +13,7 @@ using SeaPower;
 namespace SeaPowerTopo.Terrain;
 
 /// <summary>
-/// 20° DEM chunks the mod reads itself, on a worker thread, keeping the last few. Main thread only, apart from the reads.
+/// 20-degree DEM chunks the mod reads itself, on a worker thread, keeping the last few. Main thread only, apart from the reads.
 /// <para>Globe build: every chunk the overlay draws from. The mod never takes a handle on the game's own chunks (the game
 /// keeps only 16, and handles held by a mod starved the 3D terrain of its preloads); the game's own reader
 /// (<c>TerrainLoader.ReadDEMHeights</c>, the files a mod may replace included) reads them here instead.</para>
