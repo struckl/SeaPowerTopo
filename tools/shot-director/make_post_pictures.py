@@ -1,8 +1,8 @@
 """Dev tool: the pictures for the Reddit and Discord posts from the full-screen 4K grabs the Workshop screenshots were made from.
 
-    python tools/shot-director/make_post_pictures.py SHOTS GLOBES
+    python tools/shot-director/make_post_pictures.py SHOTS GLOBES [OUT]
 
-It writes workshop/reddit and workshop/discord, which git ignores: post pictures are kept in the private workspace, never here.
+It writes reddit/ and discord/ into OUT, by default the workspace's private posts/topo folder next to the mod folder: post pictures are kept in the private workspace, never in this public repo.
 
 SHOTS holds the 4K grabs named like workshop/screenshots (01-overview-standard.png ...), GLOBES the whole-globe grabs
 of the looks (t1-standard.png ...: shot director `symbols off`, `center 58 -18 3.55`, one per look). The game's
@@ -18,7 +18,8 @@ from PIL import Image, ImageDraw, ImageFont
 from make_preview import find_globe
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-WORKSHOP = os.path.normpath(os.path.join(HERE, '..', '..', 'workshop'))
+# The mod folder sits in the workspace next to posts/: tools/shot-director -> mod folder -> workspace.
+DEFAULT_OUT = os.path.normpath(os.path.join(HERE, '..', '..', '..', 'posts', 'topo'))
 FONTS = os.path.join(os.environ.get('WINDIR', r'C:\Windows'), 'Fonts')
 W, H = 1920, 1080
 BAND = (14, 18, 24)            # the title band of the Workshop preview
@@ -105,6 +106,7 @@ def title_bar(im):
 
 def main():
     shots, globes = sys.argv[1:3]
+    out_dir = sys.argv[3] if len(sys.argv) > 3 else DEFAULT_OUT
     shot = lambda name: Image.open(os.path.join(shots, name + '.png')).convert('RGB')
     reddit = {
         '1-globe-standard': full(shot('01-overview-standard')),
@@ -118,15 +120,15 @@ def main():
         '9-mission-editor': full(shot('08-editor')),
     }
     for folder in ('reddit', 'discord'):
-        os.makedirs(os.path.join(WORKSHOP, folder), exist_ok=True)
+        os.makedirs(os.path.join(out_dir, folder), exist_ok=True)
     for name, im in reddit.items():
-        path = os.path.join(WORKSHOP, 'reddit', name + '.jpg')
+        path = os.path.join(out_dir, 'reddit', name + '.jpg')
         im.save(path, 'JPEG', quality=92, optimize=True)
         print(path)
     # Discord shows four pictures in a grid under the message.
     for i, name in enumerate(('1-globe-standard', '4-title-bar', '9-mission-editor', '3-looks')):
-        path = os.path.join(WORKSHOP, 'discord', f'{i + 1}-{name.split("-", 1)[1]}.jpg')
-        shutil.copyfile(os.path.join(WORKSHOP, 'reddit', name + '.jpg'), path)
+        path = os.path.join(out_dir, 'discord', f'{i + 1}-{name.split("-", 1)[1]}.jpg')
+        shutil.copyfile(os.path.join(out_dir, 'reddit', name + '.jpg'), path)
         print(path)
 
 

@@ -115,10 +115,10 @@ Discord - and their pictures are in the private workspace (post texts and pictur
 whole globe (the preview's view, one grab per look):
 
 ```powershell
-python tools/shot-director/make_post_pictures.py <folder with the 4K grabs> <folder with the globe grabs>
+python tools/shot-director/make_post_pictures.py <folder with the 4K grabs> <folder with the globe grabs> [out folder]
 ```
 
-It paints the game's FPS/CPU/GPU overlay out of the title bar, numbers the title bar buttons, lays out the looks
+It writes into the workspace's private `posts/topo/` unless an out folder is given. It paints the game's FPS/CPU/GPU overlay out of the title bar, numbers the title bar buttons, lays out the looks
 grid, and cuts the aircraft and submarine shots from the 4K grab at full size so the readout stays legible.
 
 ## Testing the Workshop copy

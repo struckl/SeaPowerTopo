@@ -219,7 +219,7 @@ If the game was killed during a start, the next start asks whether to disable al
    along 180° or around the pole.
 7. Mouse over land and sea: "Terrain ..." / "Sea, ... deep"; off the edge of the globe: nothing.
 8. Select an aircraft in the air: terrain at or above its altitude hatched red, the readout gives the clearance.
-   Select a submarine: thermal layer tint and stripes, shallow water hatched red, layer depth and water under the keel
+   Select a submarine: thermal layer tint, shallow water hatched red, layer depth and water under the keel
    in the readout.
 9. Main menu > Mission Editor: the editor's map shows the layer (Standard look), the four buttons at its top right, the
    legend below them; north is up (Split's mainland north of its islands), the readout works. Zoom in: the view sharpens

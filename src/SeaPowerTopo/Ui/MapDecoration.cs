@@ -904,8 +904,8 @@ internal sealed class MapDecoration
                     : $"Layer from {HeightText.Format(edges[band - 1], units, 5)}";
                 legendBody.Children.Add(Row(new SolidColorBrush(Color.FromArgb(255, (byte)r, (byte)g, (byte)b)), label));
             }
-            Color stripes = dark ? Color.FromArgb(255, 40, 175, 170) : Color.FromArgb(255, 0, 190, 180);
-            legendBody.Children.Add(Row(new SolidColorBrush(stripes), $"Stripes: {who} is below the layer there", 3f));
+            Color tint = dark ? Color.FromArgb(255, 40, 175, 170) : Color.FromArgb(255, 0, 190, 180);
+            legendBody.Children.Add(Row(new SolidColorBrush(tint), $"Tint: {who} is below the layer there", 3f));
             legendBody.Children.Add(new TextBlock
             {
                 Text = $"No tint: no layer (water under {Raster.LayerMinSeaFeet:0} ft)",

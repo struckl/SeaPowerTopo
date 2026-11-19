@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- The legend row and the setting text for the submarine layer now say "tint" instead of "stripes" (the map draws a soft teal tint; the look is unchanged)
+- Changed (internal): `make_post_pictures.py` writes post pictures into the workspace's private `posts/topo/` (or a given folder), never into this public repo
 - **Fixed: land vanished or moved in missions** (land turned to sea, half of a Falklands island gone, units floating, ships on land; board bugs 8 and 10)
   - Cause: Topo borrowed the game's own terrain blocks to draw its map; the game keeps only 16 of them
   - While Topo held them, the game could not preload the area around the units, and a borrow cleared the game's "keep it" mark

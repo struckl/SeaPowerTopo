@@ -91,7 +91,7 @@ internal static class Settings
             "is hatched red, and the cursor readout shows the clearance.");
         SubmarineLayer = file.Bind("2. Overlay", "Thermal layer for selected submarine", true,
             "While a submarine is selected: the game's thermal layer (tinted by its depth, outlined where it ends), " +
-            "stripes where the submarine at its current depth is below it, water shallower than the submarine's " +
+            "a soft teal tint where the submarine at its current depth is below it, water shallower than the submarine's " +
             "depth hatched red, and layer and water under the keel in the cursor readout.");
         Resolution = file.Bind("2. Overlay", "Resolution", 1f,
             new ConfigDescription("Overlay resolution relative to the map's own. Lower is faster, higher is sharper.",
