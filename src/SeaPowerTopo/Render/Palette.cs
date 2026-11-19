@@ -6,7 +6,7 @@ namespace SeaPowerTopo.Render;
 
 /// <summary>
 /// A tint: height bands (land) or depth bands (sea) and their colours, from a theme's key colours spread evenly over
-/// the bands – in steps (every band one colour) or blended (the colour runs on through each band) – so any number of
+/// the bands - in steps (every band one colour) or blended (the colour runs on through each band) - so any number of
 /// bands stays distinct. Plain C# (no Unity types) so the offline preview renders with the very same code.
 /// </summary>
 internal sealed class Palette

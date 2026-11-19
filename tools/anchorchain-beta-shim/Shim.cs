@@ -21,7 +21,7 @@ namespace AnchorChainBetaShim;
 /// preloader managed on its own.
 /// <para>Anchor Chain 1.1.0 also never leaves its load loop once a plugin's entry point throws (it logs "Aborting
 /// chainload; unable to load any more plugins" and goes round again), which freezes the game on the beta where some
-/// mods fail to patch. While it loads, that log line is turned into an exception that ends the loop – everything that
+/// mods fail to patch. While it loads, that log line is turned into an exception that ends the loop - everything that
 /// could load has loaded by then.</para>
 /// <para>For testing one mod without the others the beta breaks: <c>BepInEx/config/dev.sewerlabs.anchorchainbetashim.only.txt</c>
 /// with one mod folder name per line (e.g. <c>SeaPowerTopo</c>, <c>ShotDirector</c>, a Workshop item id) limits Anchor

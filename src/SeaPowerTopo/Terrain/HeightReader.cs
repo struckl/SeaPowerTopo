@@ -43,9 +43,9 @@ internal sealed unsafe class HeightReader : IDisposable
     private readonly short* low;
     private readonly HashSet<string> missing;
 
-    /// <summary>The game's terrain height multiplier (Options → World), applied to land.</summary>
+    /// <summary>The game's terrain height multiplier (Options -> World), applied to land.</summary>
     public readonly float Multiplier;
-    /// <summary>The game's under-water depth factor (Options → World), applied to water.</summary>
+    /// <summary>The game's under-water depth factor (Options -> World), applied to water.</summary>
     public readonly float DepthFactor;
 
     public bool HasLowres => low != null;
@@ -144,7 +144,7 @@ internal sealed unsafe class HeightReader : IDisposable
     }
 
     // Land or water like the stock map shader decides it (half-way between a land and a water sample), then the
-    // height of the land part or the depth of the water part, from the corners as the simulation sees them – the
+    // height of the land part or the depth of the water part, from the corners as the simulation sees them - the
     // same values the overlay is drawn from, so the readout and the colour under the pointer agree.
     private HeightSample Classify(float a, float b, float c, float d, float tx, float ty, bool coarse)
     {

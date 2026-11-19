@@ -21,7 +21,7 @@ namespace SeaPowerTopo;
 /// buttons.
 /// <para>The overlay is several layers. At mission start the mission area (every unit of every side, plus as much
 /// again around it) is drawn once, then two areas four times larger each at a quarter of the detail, then the whole
-/// world. Whichever of them shows the view at about its own scale is all the map needs – zoomed out nothing is
+/// world. Whichever of them shows the view at about its own scale is all the map needs - zoomed out nothing is
 /// drawn while playing. Closer in, or while an aircraft's terrain highlight is on, the live layer draws the view on
 /// top, with the pre-drawn layers filling in around it while it catches up with a pan.</para>
 /// </summary>
@@ -95,7 +95,7 @@ internal sealed class TopoHost : MonoBehaviour
         {
             nextHookCheck = Time.unscaledTime + 1f;
             // A WindowHost registers itself with WindowHostManager when it is built, which only happens while
-            // NoesisGUI runs (the main menu view has one) – from then on Noesis types are safe to touch.
+            // NoesisGUI runs (the main menu view has one) - from then on Noesis types are safe to touch.
             if (Singleton<WindowHostManager>.InstanceExists())
                 ApplyMapHooks();
         }
@@ -426,7 +426,7 @@ internal sealed class TopoHost : MonoBehaviour
 
     /// <summary>
     /// The cursor readout off if it shows now, else on: with the layer (as by default) while the layer is on, always
-    /// while it is off – the readout appears either way.
+    /// while it is off - the readout appears either way.
     /// </summary>
     internal void ToggleReadout()
     {

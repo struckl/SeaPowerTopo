@@ -11,7 +11,7 @@ namespace SeaPowerTopo;
 
 /// <summary>
 /// Entry point. Loaded by Anchor Chain (the Sea Power community chainloader on top of BepInEx 5), which scans
-/// every mod folder — Steam Workshop items and <c>StreamingAssets/&lt;folder&gt;</c> — for classes implementing
+/// every mod folder - Steam Workshop items and <c>StreamingAssets/&lt;folder&gt;</c> - for classes implementing
 /// <see cref="IAnchorChainMod"/>.
 /// </summary>
 #if FLATMAP

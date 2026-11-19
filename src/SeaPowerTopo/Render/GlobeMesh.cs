@@ -19,7 +19,7 @@ internal readonly struct GlobeCap
 }
 
 /// <summary>
-/// Meshes an overlay image – a lon/lat rectangle, minus the rectangles of the layers in front – onto the stock map's
+/// Meshes an overlay image - a lon/lat rectangle, minus the rectangles of the layers in front - onto the stock map's
 /// globe. The stock map is the unit sphere cut into 1° cells (<c>MapUtils.MakeSphericalQuad</c>), each drawn as two
 /// flat triangles split along its north-west to south-east diagonal, with texture coordinates linear in lon/lat.
 /// Every piece here lies in the plane of the stock triangle it covers and is textured the same way, so the overlay

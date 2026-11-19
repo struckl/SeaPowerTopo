@@ -1,6 +1,6 @@
 # Releasing on the Steam Workshop
 
-The game uploads Workshop items itself: **Main menu → Mods → Create Mod**, signed in with the Steam account that
+The game uploads Workshop items itself: **Main menu > Mods > Create Mod**, signed in with the Steam account that
 owns the item. No SteamCMD needed.
 
 ## Before a release
@@ -12,7 +12,7 @@ other is for. `tools\package.ps1` builds the flat one in a temporary worktree ag
 `Sea Power_Data\Managed` (default `_gamerefs\SeaPower-0.8.7-public\Managed` next to the mod folders in the workspace, or
 `-FlatManagedDir`). With the installed game on
 0.8.7, give the globe build a saved copy of the globe version's assemblies with `-GlobeManagedDir`. Run
-the release checks on both game versions (Steam → Sea Power → Properties → Betas). 1.3.0 went up on 2026-10-27, tested
+the release checks on both game versions (Steam > Sea Power > Properties > Betas). 1.3.0 went up on 2026-10-27, tested
 on the beta (261026) and on 0.8.7 (261021); on 0.8.7 it could stop every mission from loading (a field of a globe-only
 type in the globe DLL, see CHANGELOG), and 1.3.1 (2026-10-28, run in the game on 0.8.7) replaced it. Once the globe map is on the default
 branch the flat-map build can go (`-NoFlat`).
@@ -33,7 +33,7 @@ branch the flat-map build can go (`-NoFlat`).
 
 ## Upload from the command line (no game needed)
 
-Updates an existing item through the running, signed-in Steam client – the same Steam calls as the game's Create Mod
+Updates an existing item through the running, signed-in Steam client - the same Steam calls as the game's Create Mod
 screen, without starting the game and without a password. Steam must be running and signed in with the account that owns
 the item (the tool refuses any other).
 
@@ -57,23 +57,23 @@ repos (1.2.0 of this mod went out with an in-game variant of it, 2026-10-25).
 
 ## Upload in the game
 
-Start Sea Power → Mods → Create Mod:
+Start Sea Power > Mods > Create Mod:
 
 | Field | Value |
 | --- | --- |
-| Existing item | pick *Sea Power Topographic Map* – Workshop item [3826122523](https://steamcommunity.com/sharedfiles/filedetails/?id=3826122523), first uploaded 2026-10-24 as 1.0.0 |
-| Folder | `StreamingAssets\SeaPowerTopo` (the folder `package.ps1 -Install` filled). **Double-click** `SeaPowerTopo` so the picker is *inside* it, then confirm: the picker takes the folder it is in, a single click only highlights. Confirming in `StreamingAssets` itself gets "… is a forbidden path!" (the game refuses `StreamingAssets` and `StreamingAssets\original`) |
+| Existing item | pick *Sea Power Topographic Map* - Workshop item [3826122523](https://steamcommunity.com/sharedfiles/filedetails/?id=3826122523), first uploaded 2026-10-24 as 1.0.0 |
+| Folder | `StreamingAssets\SeaPowerTopo` (the folder `package.ps1 -Install` filled). **Double-click** `SeaPowerTopo` so the picker is *inside* it, then confirm: the picker takes the folder it is in, a single click only highlights. Confirming in `StreamingAssets` itself gets "... is a forbidden path!" (the game refuses `StreamingAssets` and `StreamingAssets\original`) |
 | Name | Sea Power Topographic Map |
 | Description | [workshop/description.bbcode](../workshop/description.bbcode) |
 | Preview image | `StreamingAssets\SeaPowerTopo\preview.jpg` (put there by `package.ps1`: the picker only browses StreamingAssets and only takes .jpg; Steam wants it under 1 MB) |
 | Tags | Scripting |
-| Dependencies | `3380210757` (Anchor Chain) – shows as a required item on the Workshop page |
+| Dependencies | `3380210757` (Anchor Chain) - shows as a required item on the Workshop page |
 | Visibility | first upload **Hidden** (or Friends only); Public once the subscribed copy is tested |
-| Change log | [workshop/changenote.txt](../workshop/changenote.txt) – a few lines, plain ASCII. The Create Mod screen's change log field becomes unusable with long text (the full CHANGELOG entry froze it), so keep it short; details belong in CHANGELOG.md and the description |
+| Change log | [workshop/changenote.txt](../workshop/changenote.txt) - a few lines, plain ASCII. The Create Mod screen's change log field becomes unusable with long text (the full CHANGELOG entry froze it), so keep it short; details belong in CHANGELOG.md and the description |
 
 After the first upload the Workshop link went into the README. Add the screenshots from
 [workshop/screenshots/](../workshop/screenshots) on the Workshop page itself: open the item while signed in as its
-owner (Steam client or browser) → right column **Owner Controls** → **Add/edit images & videos** → choose the files
+owner (Steam client or browser) -> right column **Owner Controls** > **Add/edit images & videos** -> choose the files
 (one at a time or several), then drag them into their numbered order:
 
 | Image | Shows |
@@ -82,7 +82,7 @@ owner (Steam client or browser) → right column **Owner Controls** → **Add/ed
 | 02-overview-combat | the same in Combat display (night map), depth readout over the Black Sea shelf |
 | 03-closeup-standard | the Lyngen Alps and the fjords around Tromsø, readout "Terrain 1,090 m" |
 | 04-closeup-combat | Lofoten and the shelf edge in Combat display, legend open, depth readout |
-| 05-aircraft | an F-4E held at 1,200 m: terrain above it hatched red, readout "88 m above F-4E …" |
+| 05-aircraft | an F-4E held at 1,200 m: terrain above it hatched red, readout "88 m above F-4E ..." |
 | 06-submarine | a Kobben held at 100 m: thermal layer, shallow water hatched red, layer and keel readout |
 | 07-controls | the title bar buttons with the night map's look list open (top right, full resolution) |
 | 08-editor | the mission editor's map over the Adriatic in Standard, depth readout |
@@ -101,8 +101,8 @@ depths), not in-game captures.
 ## Remaking the screenshots
 
 [tools/shot-director](../tools/shot-director) is a dev-only Anchor Chain plugin (never shipped) that takes commands
-from `<Sea Power>\BepInEx\shotdirector.cmd` – load a mission, set the map centre and zoom, select a unit, hold it at
-an altitude or depth, switch the theme, open the legend, move the mouse – and logs to `shotdirector.log`; the full
+from `<Sea Power>\BepInEx\shotdirector.cmd` - load a mission, set the map centre and zoom, select a unit, hold it at
+an altitude or depth, switch the theme, open the legend, move the mouse - and logs to `shotdirector.log`; the full
 command list is at the top of `Director.cs` (it also drives in-game tests: `waitload`, `play` to leave the briefing, `press TEXT` for a button or menu entry, `tree` to dump the UI). Build it with `dotnet build tools/shot-director -c Release` (deploys to
 `StreamingAssets\ShotDirector\`), start the game, write commands into the file, and grab the main monitor at full
 resolution (the game's own `ScreenCapture` fails while the pop-out monitor is active). The current set was taken in
@@ -112,8 +112,8 @@ held at 1,200 m, S315 Kaura held at 100 m, map centres e.g. `center 69.45 19.45 
 
 ## Posts for Reddit and Discord
 
-The 1.3.0 posts – Reddit gallery with captions, the Steam modding forum, BuOrd's `#sp-mods` and the MicroProse
-Discord – and their pictures are in the private workspace (post texts and pictures are not kept in this repo). The pictures come from the 4K grabs of the screenshots above and of the looks on the
+The 1.3.0 posts - Reddit gallery with captions, the Steam modding forum, BuOrd's `#sp-mods` and the MicroProse
+Discord - and their pictures are in the private workspace (post texts and pictures are not kept in this repo). The pictures come from the 4K grabs of the screenshots above and of the looks on the
 whole globe (the preview's view, one grab per look):
 
 ```powershell

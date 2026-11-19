@@ -10,9 +10,9 @@ namespace SeaPowerTopo.Terrain;
 
 /// <summary>
 /// The game's thermal layer (<c>Environment.getLayerHeight</c>): the world is cut into 0.2° tiles; a tile whose
-/// water is deeper than 500 ft has a layer 250–450 ft deep, drawn for the tile from a random number seeded by its
+/// water is deeper than 500 ft has a layer 250-450 ft deep, drawn for the tile from a random number seeded by its
 /// coordinates; a mission can switch the layer off. The game settles a tile the first time anything asks about it
-/// (a sonar, the depth shown for the selected unit) – those tiles are read from its cache. The others are worked out
+/// (a sonar, the depth shown for the selected unit) - those tiles are read from its cache. The others are worked out
 /// the same way here, from the tile's centre, without touching the game's state (the random generator is put back).
 /// Main thread only.
 /// </summary>

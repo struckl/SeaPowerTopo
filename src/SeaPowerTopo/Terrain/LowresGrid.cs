@@ -11,7 +11,7 @@ namespace SeaPowerTopo.Terrain;
 
 /// <summary>
 /// The game's 3 arc-minute world height grid (<c>terrain/data/lowres.raw</c>, 7200 × 3600 int16 metres), read once
-/// from the file the game itself uses – a mod's own file where one replaces it. The map keeps its copy on the
+/// from the file the game itself uses - a mod's own file where one replaces it. The map keeps its copy on the
 /// graphics card only, so the mod reads its own (52 MB) on a worker thread at the first mission, and again only if
 /// the file the game resolves changes. Pinned, so <see cref="HeightReader"/> can read it through a pointer.
 /// </summary>

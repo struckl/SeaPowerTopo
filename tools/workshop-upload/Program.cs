@@ -1,4 +1,4 @@
-// Updates the mod's Steam Workshop item through the running Steam client – the same calls the game's
+// Updates the mod's Steam Workshop item through the running Steam client - the same calls the game's
 // Mods > Create Mod makes for an existing item (CreateModMenuViewModel.SubmitToWorkshop), minus everything this
 // update doesn't touch: title, tags, visibility, dependencies and the compatibility metadata stay as they are on the
 // item. Needs Steam running, signed in with the account that owns the item; no password.

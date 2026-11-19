@@ -279,7 +279,7 @@ internal sealed class MapSceneRef : OverlayTarget
 #endif
 
 /// <summary>
-/// One overlay layer. The stock map is a Unity scene – a unit globe of lon/lat tiles – that the map camera renders
+/// One overlay layer. The stock map is a Unity scene - a unit globe of lon/lat tiles - that the map camera renders
 /// into the texture the map window shows; one more mesh in that scene, laid exactly on the stock tiles
 /// (<see cref="GlobeMesh"/>) and drawn after them, carries our image and so turns and zooms with the globe for free.
 /// On a flat map (the mission editor's, <see cref="FlatMapRef"/>) the image is a picture laid on its lon/lat

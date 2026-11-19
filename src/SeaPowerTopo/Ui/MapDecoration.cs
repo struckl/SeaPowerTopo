@@ -9,8 +9,8 @@ using SeaPowerTopo.Terrain;
 namespace SeaPowerTopo.Ui;
 
 /// <summary>
-/// The mod's controls on one map control: a framed group of icon buttons in the map window's title bar – Topography
-/// on/off, the look, the legend, the cursor readout on/off – the look list, the legend and short notices dropping down below it
+/// The mod's controls on one map control: a framed group of icon buttons in the map window's title bar - Topography
+/// on/off, the look, the legend, the cursor readout on/off - the look list, the legend and short notices dropping down below it
 /// at the top right of the map, and the readout next to the pointer.
 /// <para>The buttons go into the title bar's button row, left of the window menu (≡), like the game's own map
 /// controls. A map without such a title bar (the mission editor, a map in another window) gets the same row at its

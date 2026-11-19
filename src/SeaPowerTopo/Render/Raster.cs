@@ -127,7 +127,7 @@ internal static class Raster
 
     /// <summary>
     /// A raw DEM value in metres as the simulation uses it: land times the height multiplier, water depth times the
-    /// under-water depth factor (Options → World) – and doubled once more where the DEM is shallower than 48 m, as
+    /// under-water depth factor (Options -> World) - and doubled once more where the DEM is shallower than 48 m, as
     /// every terrain lookup of the game does (TerrainUtils.GetHeightAt, the 3D terrain). So a thin ring of water
     /// just past the DEM's 48 m line is shallower than the water inshore of it.
     /// </summary>
@@ -626,8 +626,8 @@ internal static class Raster
         return stopped == 0;
     }
 
-    // What a selected submarine needs on a water pixel: the thermal layer's tile in teal – clearly where the
-    // submarine, at its depth, is below the layer, faintly where the layer is deeper than the submarine – with a line
+    // What a selected submarine needs on a water pixel: the thermal layer's tile in teal - clearly where the
+    // submarine, at its depth, is below the layer, faintly where the layer is deeper than the submarine - with a line
     // where the layer area ends; and red hatching with a solid edge where the water is shallower than the submarine.
     private static void ShadeSubmarine(RasterJob job, int[] layerCols, int x, int y, int i, int tileY, int tileYAbove,
                                        int layerJ0, float layerFy, byte[] px, int o)
@@ -803,7 +803,7 @@ internal static class Raster
     }
 
     // A chart's water: the four depth shades of the theme, contours at the standard chart depths with the safety
-    // contour bold in its own colour. No relief – a chart shows depths, not the shape of the sea floor.
+    // contour bold in its own colour. No relief - a chart shows depths, not the shape of the sea floor.
     private static void ShadeChartWater(RasterJob job, int i, bool lines, byte[] px, int o)
     {
         Theme theme = job.Palette.Theme;

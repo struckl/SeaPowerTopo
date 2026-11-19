@@ -33,7 +33,7 @@ internal abstract class OverlayTarget
 /// <summary>
 /// A flat lon/lat map: the mission editor's (a Noesis map control drawing the stock tiles as pictures, not the globe
 /// scene). The overlay goes into it as a picture of its own, laid on a lon/lat rectangle by a <c>MapPanel</c> among
-/// the map's background elements – above the tiles, below the unit symbols.
+/// the map's background elements - above the tiles, below the unit symbols.
 /// </summary>
 internal sealed class FlatMapRef : OverlayTarget
 {

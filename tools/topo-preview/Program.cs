@@ -17,13 +17,13 @@ namespace SeaPowerTopo.Preview;
 /// dotnet run --project tools/topo-preview -- --at 61.5,8 --span 2 --size 1600x900 [--danger 1200] [--dark]
 ///     [--interval 100] [--nodepth] [--depth-factor 2] [--out preview.png] [--game "E:\Games\steamapps\common\Sea Power"]
 /// </code>
-/// --theme picks the look (atlas, midnight, ecdis-day, ... – see Theme.cs; the map theme follows from it, --dark picks the
+/// --theme picks the look (atlas, midnight, ecdis-day, ... - see Theme.cs; the map theme follows from it, --dark picks the
 /// default night look), --chart-safety the safety contour of the chart themes in metres.
 /// --themes-dir loads a folder of theme files (as the mod does from BepInEx/config/SeaPowerTopo/themes; --theme then
 /// takes their ids), --theme-file one such file. --check-themes tests the theme files: every built-in look written out and
 /// read back, and a file with only a Base, must draw exactly what the original does.
 /// --at is the centre (lat,lon), --span the view height in degrees, --size the map's pixel size; --nodepth leaves
-/// the sea to the stock map, --depth-factor is the game's under-water depth factor (Options → World, default 2).
+/// the sea to the stock map, --depth-factor is the game's under-water depth factor (Options -> World, default 2).
 /// --sub 120 draws what a selected submarine at 120 m sees: the thermal layer (with a stand-in for the game's
 /// random layer depths, which need Unity) and water shallower than the submarine.
 /// </summary>
