@@ -1,82 +1,57 @@
-<#
+﻿<#
 .SYNOPSIS
     Builds a release of Sea Power Topographic Map and stages the folder that goes to the Steam Workshop.
 
 .DESCRIPTION
     Release builds without the automatic deploy, then dist\SeaPowerTopo\ with exactly what players get:
     SeaPowerTopo.dll (the globe build), SeaPowerTopoFlat.dll (the flat-map build for Sea Power 0.8.7, the same source
-    with FLATMAP defined), _info.ini, LICENSE.txt, CHANGELOG.md and preview.jpg – the Workshop preview, which the game's upload
-    screen only lets you pick from inside StreamingAssets. Each build stays off on the game version the other is for.
-    The flat-map build is compiled against the 0.8.7 assemblies in
-    -FlatManagedDir (a copy of 0.8.7's Sea Power_Data\Managed); -NoFlat leaves it out.
-    With -Install the staged folder also replaces <GameDir>\Sea Power_Data\StreamingAssets\SeaPowerTopo\, the folder
-    to pick in the game's Create Mod screen. Sea Power must be closed for that.
-
+    with FLATMAP defined), _info.ini, LICENSE.txt, CHANGELOG.md and preview.jpg (the Workshop preview, which the game's upload
+    screen only lets you pick from inside StreamingAssets). Each build stays off on the game version the other is for.
+    The flat-map build is compiled against the 0.8.7 assemblies in -FlatManagedDir (a copy of 0.8.7's Sea Power_Data\Managed;
+    default: _gamerefs in the workspace), the globe build against the globe game's (-GlobeManagedDir when the installed game is
+    0.8.7); -NoFlat leaves the flat build out.
+    Every DLL is checked against both games' assemblies with the workspace's tools\compat-check.
+    With -Install the staged folder also replaces <GameDir>\Sea Power_Data\StreamingAssets\SeaPowerTopo\, the folder to pick in
+    the game's Create Mod screen. Sea Power must be closed for that. -Zip also writes dist\SeaPowerTopo-<version>.zip.
+    The steps are the shared ones of every R.A.T.S. mod (SeaPowerKeel\shared\tools\RatsPackage.psm1); the workspace is found
+    above this repo, -Workspace names it for a clone elsewhere, -RatsShared another copy of the shared folder.
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File tools\package.ps1 -Install
 #>
 param(
     [string]$GameDir = $(if ($env:GameDir) { $env:GameDir } else { 'E:\Games\steamapps\common\Sea Power' }),
-    [string]$FlatManagedDir = $(if ($env:FlatManagedDir) { $env:FlatManagedDir } else { [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\_gamerefs\SeaPower-0.8.7-public\Managed')) }),
+    [string]$Workspace = $env:RatsWorkspace,
+    [string]$RatsShared = $env:RatsShared,
+    [string]$FlatManagedDir = $env:FlatManagedDir,
     # The globe build's game assemblies when the installed game isn't the globe version (a saved copy of its Managed).
     [string]$GlobeManagedDir = $env:GlobeManagedDir,
     [switch]$NoFlat,
-    [switch]$Install
+    [switch]$Install,
+    [switch]$Zip
 )
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
-$project = Join-Path $root 'src\SeaPowerTopo\SeaPowerTopo.csproj'
-$dist = Join-Path $root 'dist\SeaPowerTopo'
-
-$globeRefs = @()
-if ($GlobeManagedDir) { $globeRefs = @("-p:ManagedDir=$GlobeManagedDir") }
-dotnet build $project -c Release -p:Deploy=false -p:GameDir="$GameDir" @globeRefs
-if ($LASTEXITCODE -ne 0) { throw 'Build failed (with the game on 0.8.7, pass -GlobeManagedDir with the globe version''s assemblies).' }
-
-$out = Join-Path $root 'src\SeaPowerTopo\bin\Release\netstandard2.1'
-if (Test-Path $dist) { Remove-Item -Recurse -Force $dist }
-New-Item -ItemType Directory -Force $dist | Out-Null
-Copy-Item (Join-Path $out 'SeaPowerTopo.dll') $dist
-
-if (-not $NoFlat) {
-    if (-not (Test-Path (Join-Path $FlatManagedDir 'Seapower-Scripts.dll'))) { throw "No 0.8.7 assemblies in $FlatManagedDir (or pass -NoFlat)." }
-    # The same source with FLATMAP defined, against 0.8.7's assemblies, under its own assembly name (SeaPowerTopoFlat.dll) next to the globe one.
-    dotnet build $project -c Release -p:Deploy=false -p:GameDir="$GameDir" -p:GameBuild=Flat -p:FlatManagedDir="$FlatManagedDir" --no-incremental
-    if ($LASTEXITCODE -ne 0) { throw 'Flat-map build failed.' }
-    Copy-Item (Join-Path $out 'SeaPowerTopoFlat.dll') $dist
+if (-not $Workspace) {
+    $Workspace = $root
+    while ($Workspace -and -not (Test-Path (Join-Path $Workspace 'mods.json'))) { $Workspace = Split-Path -Parent $Workspace }
+    if (-not $Workspace) { throw 'No workspace (a folder with mods.json) above this repo - pass -Workspace.' }
 }
-# Each DLL against both games' assemblies (the workspace's compat-check): nothing missing on its own game, and on the other
-# game its entry point and every type's base/interfaces/fields (--classload: Unity's ECS start-up loads every type of every
-# loaded assembly, so one field of a type the other game lacks stops all missions from loading there although the DLL
-# stays off - found 2026-10-28).
-$tool = Join-Path $root '..\tools\compat-check'
-if (Test-Path $tool) {
-    dotnet build $tool -c Release -v q | Out-Null
-    $globeManaged = if ($GlobeManagedDir) { $GlobeManagedDir } else { Join-Path $GameDir 'Sea Power_Data\Managed' }
-    $gates = @('--gate', 'SeaPowerTopo.Plugin::TriggerEntryPoint', '--gate', 'SeaPowerTopo.Plugin::.ctor')
-    foreach ($b in @(@('SeaPowerTopo.dll', $globeManaged, $FlatManagedDir), @('SeaPowerTopoFlat.dll', $FlatManagedDir, $globeManaged))) {
-        $dll = Join-Path $dist $b[0]
-        if (-not (Test-Path $dll)) { continue }
-        dotnet run --project $tool -c Release --no-build -- $dll --against $b[1] --quiet
-        if ($LASTEXITCODE -ne 0) { throw "$($b[0]) references things its own game does not have." }
-        dotnet run --project $tool -c Release --no-build -- $dll --against $b[2] --quiet --classload @gates
-        if ($LASTEXITCODE -ne 0) { throw "$($b[0]): the entry point or a type's fields would fail on the other game." }
-    }
-}
-else { Write-Warning 'tools\compat-check not found (the workspace next to this repo) - the DLLs were not checked against both games.' }
-Copy-Item (Join-Path $root 'src\SeaPowerTopo\mod\_info.ini') $dist
-Copy-Item (Join-Path $root 'LICENSE') (Join-Path $dist 'LICENSE.txt')
-Copy-Item (Join-Path $root 'CHANGELOG.md') $dist   # Keel's What's new shows its newest lines when there are no Workshop notes (local copies, GitHub zips)
-Copy-Item (Join-Path $root 'workshop\preview.jpg') $dist
+if (-not $RatsShared) { $RatsShared = Join-Path $Workspace 'SeaPowerKeel\shared' }
+Import-Module (Join-Path $RatsShared 'tools\RatsPackage.psm1') -Force
 
-$version = (Select-String -Path (Join-Path $root 'src\SeaPowerTopo\Plugin.cs') -Pattern 'Version = "([^"]+)"').Matches[0].Groups[1].Value
+$name = 'SeaPowerTopo'
+$project = Join-Path $root "src\$name\$name.csproj"
+$dist = Join-Path $root "dist\$name"
+if (-not $FlatManagedDir) { $FlatManagedDir = Join-Path $Workspace '_gamerefs\SeaPower-0.8.7-public\Managed' }
+if (-not $GlobeManagedDir) { $GlobeManagedDir = Join-Path $GameDir 'Sea Power_Data\Managed' }
+
+$env:RatsShared = $RatsShared.TrimEnd('\') + '\'      # the csproj's -p:RatsShared, also for the flat build
+Build-RatsMod -Project $project -Dist $dist -GameDir $GameDir -GlobeManagedDir $GlobeManagedDir -FlatManagedDir $FlatManagedDir -Workspace $Workspace -NoFlat:$NoFlat | Out-Null
+Test-RatsCompat -Workspace $Workspace -Dist $dist -RootNamespace $name -GlobeManagedDir $GlobeManagedDir -FlatManagedDir $FlatManagedDir
+Copy-RatsCommon -Root $root -Dist $dist -InfoIni (Join-Path $root "src\$name\mod\_info.ini")
+$version = Get-RatsModVersion -PluginFile (Join-Path $root "src\$name\Plugin.cs")
 Write-Host "Staged Sea Power Topographic Map $version in $dist"
-
-if ($Install) {
-    if (Get-Process -Name 'Sea Power' -ErrorAction SilentlyContinue) { throw 'Sea Power is running - close it first.' }
-    $target = Join-Path $GameDir 'Sea Power_Data\StreamingAssets\SeaPowerTopo'
-    if (Test-Path $target) { Remove-Item -Recurse -Force $target }
-    Copy-Item -Recurse $dist $target
-    Write-Host "Installed to $target - pick this folder in Mods > Create Mod."
-}
+Show-RatsStage -Dist $dist
+if ($Zip) { New-RatsZip -Dist $dist -Version $version }
+if ($Install) { Install-RatsMod -Dist $dist -GameDir $GameDir }
