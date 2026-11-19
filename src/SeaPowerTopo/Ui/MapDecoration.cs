@@ -619,7 +619,7 @@ internal sealed class MapDecoration
         });
         pickerList.Children.Add(ActionRow("Save this look as a theme file", "Writes the look on the map as a file you can edit; the map follows when you save it.",
                                           () => TopoHost.Instance?.SaveLook()));
-        pickerList.Children.Add(ActionRow("Open the themes folder", "Where the theme files live (BepInEx/config/SeaPowerTopo/themes).",
+        pickerList.Children.Add(ActionRow("Open the themes folder", $"Where the theme files live ({ThemeLibrary.FolderShown}).",
                                           () => TopoHost.Instance?.OpenThemeFolder()));
     }
 

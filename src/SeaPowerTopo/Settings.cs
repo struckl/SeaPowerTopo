@@ -54,7 +54,7 @@ internal static class Settings
     // "id (Name: note), ..." for a config description; your own theme files are chosen by their Id as well.
     private static string Describe(bool dark) =>
         string.Join("; ", Themes.Of(dark).FindAll(t => !t.Custom).ConvertAll(t => $"{t.Id} ({t.Name}: {t.Note})")) +
-        ". Theme files in BepInEx/config/SeaPowerTopo/themes add their own: use their Id";
+        $". Theme files in {ThemeLibrary.FolderShown} add their own: use their Id";
 
     public static void Init()
     {

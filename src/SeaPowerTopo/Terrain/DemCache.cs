@@ -1,11 +1,14 @@
-using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Threading.Tasks;
-using SeaPower;
-using SeaPowerTopo.Render;
 using Unity.Collections;
 using UnityEngine;
+#if FLATMAP
+using System;
+using System.IO;
+using SeaPowerTopo.Render;
+#else
+using SeaPower;
+#endif
 
 namespace SeaPowerTopo.Terrain;
 

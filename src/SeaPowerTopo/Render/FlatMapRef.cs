@@ -1,8 +1,10 @@
 using System;
 using MapControl;
 using Noesis;
+#if FLATMAP
 using SeaPower;
 using SeaPower.LiveMap;
+#endif
 using SeapowerUI;
 using MapPanel = MapControl.MapPanel;
 using GeoPosition = SeaPower.GeoPosition;

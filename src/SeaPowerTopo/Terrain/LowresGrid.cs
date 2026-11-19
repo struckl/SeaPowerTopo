@@ -2,11 +2,14 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
-using SeaPower;
 using SeaPowerTopo.Render;
+#if FLATMAP
 using UnityEngine;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
+#else
+using SeaPower;
+#endif
 
 namespace SeaPowerTopo.Terrain;
 

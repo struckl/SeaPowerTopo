@@ -25,6 +25,9 @@ internal static class ThemeLibrary
 
     public static string Folder => folder;
 
+    /// <summary>Where the themes folder is, as the mod's texts name it to the player (Plugin sets the real path).</summary>
+    public const string FolderShown = "BepInEx/config/SeaPowerTopo/themes";
+
     public static void SetFolder(string path) => folder = path;
 
     /// <summary>Makes sure the folder is there and holds the documented example.</summary>

@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.IO;
 using MapControl;
 using SeaPower;
-using SeaPower.LiveMap;
 using SeapowerUI;
 using SeapowerUI.ViewModels;
 using SeaPowerTopo.Render;
@@ -503,7 +502,7 @@ internal sealed class TopoHost : MonoBehaviour
             Settings.Touch();
             (saved.Dark ? Settings.NightLook : Settings.DayLook).Value = saved.Id;
             ModLog.Info($"Saved the look as {path}");
-            Notify($"Saved {Path.GetFileName(path)} in BepInEx/config/SeaPowerTopo/themes. Edit it, the map follows when you save.", 7f);
+            Notify($"Saved {Path.GetFileName(path)} in {ThemeLibrary.FolderShown}. Edit it, the map follows when you save.", 7f);
         }
         catch (Exception ex)
         {

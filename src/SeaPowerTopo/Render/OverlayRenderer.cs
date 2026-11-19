@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using MapControl;
+#if FLATMAP
 using SeaPower;
+#endif
 using SeaPower.LiveMap;
 using SeaPowerTopo.Terrain;
 using UnityEngine;
