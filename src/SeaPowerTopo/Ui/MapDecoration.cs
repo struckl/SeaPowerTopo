@@ -66,12 +66,7 @@ internal sealed class MapDecoration
     private bool loggedFailure;
     private bool? shownOpen;
 
-    private bool legendBuilt;
-    private Palette legendPalette, legendSea;
-    private float legendInterval, legendDanger, legendKeel;
-    private bool legendLayer;
-    private string legendAircraft, legendSubmarine;
-    private HeightUnits legendUnits;
+    private LegendKey? legendShown;
 
     /// <summary>Decorates the map, or returns null if its template isn't laid out as expected.</summary>
     public static MapDecoration TryAttach(MapBase map, Describe describe) =>
@@ -86,85 +81,28 @@ internal sealed class MapDecoration
         textBrush = new SolidColorBrush(Color.FromArgb(255, 236, 236, 236));
         warningBrush = new SolidColorBrush(Color.FromArgb(255, 255, 110, 90));
         dangerBrush = new SolidColorBrush(Color.FromArgb(255, 220, 34, 26));
+        activeBrush = new SolidColorBrush(IconActive);
 
         readoutText = new TextBlock { Foreground = textBrush, FontSize = 13 };
-        readout = new Border
-        {
-            Background = panelBrush,
-            CornerRadius = new CornerRadius(3),
-            Padding = new Thickness(6, 3, 6, 3),
-            Child = readoutText,
-            Visibility = Visibility.Collapsed,
-            IsHitTestVisible = false,
-        };
+        readout = DarkPanel(readoutText, new Thickness(6, 3, 6, 3));
+        readout.IsHitTestVisible = false;
         var cursorLayer = new Canvas { IsHitTestVisible = false };
         cursorLayer.Children.Add(readout);
 
         legendBody = new StackPanel { Orientation = Orientation.Vertical };
-        legend = new Border
-        {
-            Background = panelBrush,
-            CornerRadius = new CornerRadius(3),
-            Padding = new Thickness(8, 6, 8, 6),
-            Margin = new Thickness(0, Gap, 0, 0),
-            HorizontalAlignment = HorizontalAlignment.Left,
-            Child = legendBody,
-            Visibility = Visibility.Collapsed,
-        };
+        legend = DarkPanel(legendBody, new Thickness(8, 6, 8, 6));
+        legend.Margin = new Thickness(0, Gap, 0, 0);
+        legend.HorizontalAlignment = HorizontalAlignment.Left;
         legend.MouseLeftButtonDown += (sender, args) =>
         {
             args.Handled = true;
             Settings.LegendOpen.Value = false;
         };
 
-        activeBrush = new SolidColorBrush(IconActive);
-
-        // One kebab button (three dots) in the title bar's button row, in the game's own button style like Pop-Out's; it opens a
-        // list with the mod's switches. A lit entry has an orange icon and text.
-        topoToggle = Segment(Labelled(Icon(("M0.5,12.5 L5,4 L7.5,8 L9.5,5.5 L13.5,12.5 Z", 1.2f), ("M3.2,9.3 H10.9", 1f)), "Topography", toggle: true));
-        topoToggle.ToolTip = $"Topography: land heights and sea depths on the map ({Settings.ToggleKey.Value}). Also in the map menu under Map Layers.";
-        topoToggle.Click += (sender, args) =>
-        {
-            args.Handled = true;
-            TopoHost.Instance?.ToggleLayer();
-        };
-
-        // The look button shows the theme on the map as three swatches; a click opens the list of themes.
-        lookSwatches = new Border { VerticalAlignment = VerticalAlignment.Center };
-        var lookContent = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        lookContent.Children.Add(lookSwatches);
-        lookContent.Children.Add(new TextBlock { Text = "Look", FontSize = 13, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center });
-        Grid chevron = Icon(("M0.5,1 L3.5,4 L0.5,7", 1.2f));
-        chevron.Width = 5f;
-        chevron.Margin = new Thickness(10, 0, 0, 0);
-        lookContent.Children.Add(chevron);
-        lookButton = Segment(lookContent);
-        lookButton.Visibility = Visibility.Collapsed;
-        lookButton.Click += (sender, args) =>
-        {
-            args.Handled = true;
-            ShowLooks();                                    // the list of looks takes the menu's place, with a Back row
-        };
-
-        legendButton = Segment(Labelled(Icon(("M1,2.5 H3.8 M1,7 H3.8 M1,11.5 H3.8", 2.4f), ("M5.8,2.5 H13 M5.8,7 H13 M5.8,11.5 H11", 1.2f)), "Legend", toggle: true));
-        legendButton.Visibility = Visibility.Collapsed;
-        legendButton.Click += (sender, args) =>
-        {
-            args.Handled = true;
-            Settings.LegendOpen.Value = !Settings.LegendOpen.Value;
-        };
-
-        var crosshair = Icon(("M7,0.5 V4 M7,10 V13.5 M0.5,7 H4 M10,7 H13.5", 1.2f));
-        if (Noesis.GUI.ParseXaml($"<Ellipse {Ns} Width=\"6\" Height=\"6\" StrokeThickness=\"1.2\" {FollowButton}/>") is Ellipse ring)
-            crosshair.Children.Add(ring);
-        readoutToggle = Segment(Labelled(crosshair, "Cursor height", toggle: true));
-        readoutToggle.ToolTip = "Cursor height: terrain height or sea depth next to the mouse pointer; lit while it shows, click to switch it off or on (also with Topography off)";
-        readoutToggle.Click += (sender, args) =>
-        {
-            args.Handled = true;
-            TopoHost.Instance?.ToggleReadout();
-        };
-
+        topoToggle = TopoEntry();
+        lookButton = LookEntry(out lookSwatches);
+        legendButton = LegendEntry();
+        readoutToggle = ReadoutEntry();
         // The look and legend entries come and go with the layer.
         menuList = new StackPanel { Orientation = Orientation.Vertical };
         menuList.Children.Add(topoToggle);
@@ -180,36 +118,8 @@ internal sealed class MapDecoration
             Padding = new Thickness(4),
             Child = menuList,
         };
-        menuPopup = new Popup
-        {
-            Child = menuFrame,
-            Placement = PlacementMode.Bottom,
-            StaysOpen = false,
-        };
-        menuPopup.Closed += (sender, args) =>
-        {
-            ClosePicker();                                  // next time it opens on the menu again
-            (VisualTreeHelper.GetParent(menuPopup) as Panel)?.Children.Remove(menuPopup);
-        };
-
-        kebab = new Button
-        {
-            Focusable = false,
-            Padding = new Thickness(0),
-            Margin = new Thickness(0),
-            MinWidth = 28,
-            Content = new Viewbox { Width = 18, Height = 18, Child = Icon(("M0.5,12.5 L5,4 L7.5,8 L9.5,5.5 L13.5,12.5 Z", 1.4f), ("M3.2,9.3 H10.9", 1.2f)) },
-            ToolTip = "Topography menu",
-        };
-        kebab.Click += (sender, args) =>
-        {
-            args.Handled = true;
-            if (menuPopup.IsOpen)
-                CloseMenu();
-            else
-                OpenMenu();
-        };
-        menuPopup.PlacementTarget = kebab;
+        menuPopup = MenuPopup(menuFrame);
+        kebab = Kebab(menuPopup);
 
         // Only used where the map has no title bar (the editor): the kebab in a row at the dock's top.
         bar = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Left };
@@ -218,30 +128,12 @@ internal sealed class MapDecoration
         pickerList = new StackPanel { Orientation = Orientation.Vertical, Margin = new Thickness(2) };
 
         noticeText = new TextBlock { Foreground = textBrush, FontSize = 12, TextWrapping = TextWrapping.Wrap, MaxWidth = 360 };
-        notice = new Border
-        {
-            Background = panelBrush,
-            CornerRadius = new CornerRadius(3),
-            Padding = new Thickness(7, 3, 7, 3),
-            Margin = new Thickness(0, Gap, 0, 0),
-            HorizontalAlignment = HorizontalAlignment.Left,
-            Child = noticeText,
-            Visibility = Visibility.Collapsed,
-            IsHitTestVisible = false,
-        };
+        notice = DarkPanel(noticeText, new Thickness(7, 3, 7, 3));
+        notice.Margin = new Thickness(0, Gap, 0, 0);
+        notice.HorizontalAlignment = HorizontalAlignment.Left;
+        notice.IsHitTestVisible = false;
 
-        // Top left of the map, below the title bar, fixed: the legend and short notices, newest notice first. Away from the
-        // game's own controls in the top right corner, and it never moves when buttons come and go.
-        dock = new StackPanel
-        {
-            Orientation = Orientation.Vertical,
-            HorizontalAlignment = HorizontalAlignment.Left,
-            VerticalAlignment = VerticalAlignment.Top,
-            Margin = new Thickness(Inset, 0, 0, 0),
-        };
-        dock.Children.Add(notice);
-        dock.Children.Add(legend);
-
+        dock = Dock(notice, legend);
         // No background: hit tests fall through it to the map everywhere but on the dock.
         root = new Grid();
         root.Children.Add(dock);
@@ -253,6 +145,135 @@ internal sealed class MapDecoration
         host.PreviewMouseMove += moveHandler;
         host.MouseLeave += leaveHandler;
         PlaceBar();
+    }
+
+    // Top left of the map, below the title bar, fixed: the legend and short notices, newest notice first. Away from the
+    // game's own controls in the top right corner, and it never moves when buttons come and go.
+    private static StackPanel Dock(Border notice, Border legend)
+    {
+        var dock = new StackPanel
+        {
+            Orientation = Orientation.Vertical,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(Inset, 0, 0, 0),
+        };
+        dock.Children.Add(notice);
+        dock.Children.Add(legend);
+        return dock;
+    }
+
+    // A dark rounded panel (readout, legend, notice), hidden until it has something to show.
+    private Border DarkPanel(UIElement child, Thickness padding) => new Border
+    {
+        Background = panelBrush,
+        CornerRadius = new CornerRadius(3),
+        Padding = padding,
+        Child = child,
+        Visibility = Visibility.Collapsed,
+    };
+
+    // The menu's entries; a lit entry has an orange icon and text.
+    private Button TopoEntry()
+    {
+        Button entry = ToggleEntry(Icon(("M0.5,12.5 L5,4 L7.5,8 L9.5,5.5 L13.5,12.5 Z", 1.2f), ("M3.2,9.3 H10.9", 1f)), "Topography");
+        entry.ToolTip = $"Topography: land heights and sea depths on the map ({Settings.ToggleKey.Value}). Also in the map menu under Map Layers.";
+        entry.Click += (sender, args) =>
+        {
+            args.Handled = true;
+            TopoHost.Instance?.ToggleLayer();
+        };
+        return entry;
+    }
+
+    // The look entry shows the theme on the map as three swatches; a click opens the list of themes in the menu's place,
+    // with a Back row.
+    private Button LookEntry(out Border swatches)
+    {
+        swatches = new Border { VerticalAlignment = VerticalAlignment.Center };
+        var content = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        content.Children.Add(swatches);
+        content.Children.Add(new TextBlock { Text = "Look", FontSize = 13, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center });
+        Grid chevron = Icon(("M0.5,1 L3.5,4 L0.5,7", 1.2f));
+        chevron.Width = 5f;
+        chevron.Margin = new Thickness(10, 0, 0, 0);
+        content.Children.Add(chevron);
+        Button entry = Segment(content);
+        entry.Visibility = Visibility.Collapsed;
+        entry.Click += (sender, args) =>
+        {
+            args.Handled = true;
+            ShowLooks();
+        };
+        return entry;
+    }
+
+    private Button LegendEntry()
+    {
+        Button entry = ToggleEntry(Icon(("M1,2.5 H3.8 M1,7 H3.8 M1,11.5 H3.8", 2.4f), ("M5.8,2.5 H13 M5.8,7 H13 M5.8,11.5 H11", 1.2f)), "Legend");
+        entry.Visibility = Visibility.Collapsed;
+        entry.Click += (sender, args) =>
+        {
+            args.Handled = true;
+            Settings.LegendOpen.Value = !Settings.LegendOpen.Value;
+        };
+        return entry;
+    }
+
+    private Button ReadoutEntry()
+    {
+        Grid crosshair = Icon(("M7,0.5 V4 M7,10 V13.5 M0.5,7 H4 M10,7 H13.5", 1.2f));
+        if (Noesis.GUI.ParseXaml($"<Ellipse {Ns} Width=\"6\" Height=\"6\" StrokeThickness=\"1.2\" {FollowButton}/>") is Ellipse ring)
+            crosshair.Children.Add(ring);
+        Button entry = ToggleEntry(crosshair, "Cursor height");
+        entry.ToolTip = "Cursor height: terrain height or sea depth next to the mouse pointer; lit while it shows, click to switch it off or on (also with Topography off)";
+        entry.Click += (sender, args) =>
+        {
+            args.Handled = true;
+            TopoHost.Instance?.ToggleReadout();
+        };
+        return entry;
+    }
+
+    private Popup MenuPopup(Border frame)
+    {
+        var popup = new Popup
+        {
+            Child = frame,
+            Placement = PlacementMode.Bottom,
+            StaysOpen = false,
+        };
+        popup.Closed += (sender, args) =>
+        {
+            ClosePicker();                                  // next time it opens on the menu again
+            (VisualTreeHelper.GetParent(popup) as Panel)?.Children.Remove(popup);
+        };
+        return popup;
+    }
+
+    // One button (the mod's mountain icon) in the title bar's button row, in the game's own button style like Pop-Out's;
+    // it opens the menu with the mod's switches.
+    private Button Kebab(Popup popup)
+    {
+        var button = new Button
+        {
+            Focusable = false,
+            Padding = new Thickness(0),
+            Margin = new Thickness(0),
+            MinWidth = 28,
+            Content = new Viewbox { Width = 18, Height = 18, Child = Icon(("M0.5,12.5 L5,4 L7.5,8 L9.5,5.5 L13.5,12.5 Z", 1.4f), ("M3.2,9.3 H10.9", 1.2f)) },
+            ToolTip = "Topography menu",
+        };
+        button.Click += (sender, args) =>
+        {
+            args.Handled = true;
+            if (popup.IsOpen)
+                CloseMenu();
+            else
+                OpenMenu();
+        };
+        popup.PlacementTarget = button;
+        return button;
     }
 
     /// <summary>False once the map has left the visual tree (window closed, mission over).</summary>
@@ -284,20 +305,14 @@ internal sealed class MapDecoration
     {
         if (header == null && headerSearches < HeaderSearches && UnityEngine.Time.unscaledTime >= nextHeaderSearch)
             PlaceBar();
-
-        readoutAllowed = readoutOn;
-        if (!readoutOn && readout.Visibility == Visibility.Visible)
-            readout.Visibility = Visibility.Collapsed;
-        SetLit(topoToggle, overlayOn);
-        SetLit(readoutToggle, readoutOn);
-
-        bool drawn = overlayOn && overlay != null && overlay.Palette != null && overlay.HasImage;
-        SetVisible(lookButton, drawn);
-        SetVisible(legendButton, drawn && Settings.Legend.Value);
-        SetLit(lookButton, drawn && pickerOpen);
-        SetLit(legendButton, drawn && Settings.LegendOpen.Value);
         if (notice.Visibility == Visibility.Visible && UnityEngine.Time.unscaledTime > noticeUntil)
             notice.Visibility = Visibility.Collapsed;
+
+        readoutAllowed = readoutOn;
+        if (!readoutOn)
+            Hide();
+        bool drawn = overlayOn && overlay != null && overlay.Palette != null && overlay.HasImage;
+        UpdateEntries(overlayOn, readoutOn, drawn);
         if (!drawn)
         {
             ClosePicker();
@@ -305,11 +320,24 @@ internal sealed class MapDecoration
             shownOpen = null;
             return;
         }
+        if (overlay.Theme != null)
+            RefreshLookButton(overlay.Theme);
+        UpdateLegend(overlay, aircraft, submarine);
+    }
 
-        Theme theme = overlay.Theme;
-        if (theme != null)
-            RefreshLookButton(theme);
+    // The menu's entries lit or shown as the switches stand; look and legend only while the layer is drawn.
+    private void UpdateEntries(bool overlayOn, bool readoutOn, bool drawn)
+    {
+        SetLit(topoToggle, overlayOn);
+        SetLit(readoutToggle, readoutOn);
+        SetVisible(lookButton, drawn);
+        SetVisible(legendButton, drawn && Settings.Legend.Value);
+        SetLit(lookButton, drawn && pickerOpen);
+        SetLit(legendButton, drawn && Settings.LegendOpen.Value);
+    }
 
+    private void UpdateLegend(OverlayRenderer overlay, string aircraft, string submarine)
+    {
         bool open = Settings.LegendOpen.Value && Settings.Legend.Value;
         if (shownOpen != open)
         {
@@ -321,7 +349,8 @@ internal sealed class MapDecoration
             RefreshLegend(overlay, aircraft, submarine);
     }
 
-    // A lit button: orange icon. The icons' strokes are bound to the button's Foreground, so that is all it takes.
+    // A lit button: orange icon. The icons' strokes are bound to the button's Foreground, so that is all it takes; an
+    // entry that switches something also says On or Off.
     private void SetLit(Button button, bool on)
     {
         if (ReferenceEquals(button.Foreground, activeBrush) == on)
@@ -330,12 +359,10 @@ internal sealed class MapDecoration
             button.Foreground = activeBrush;
         else
             button.ClearValue(Control.ForegroundProperty);
-        // The entries that switch something show it in words too: the last text of icon, name, state.
-        if (button.Content is StackPanel row && row.Children.Count == 3 && row.Children[2] is TextBlock state)
+        if (button.Tag is TextBlock state)
             state.Text = on ? "On" : "Off";
     }
 
-    // An entry of the menu list: a plain Button in the game's own style, icon and name left aligned.
     private Button Segment(UIElement content)
     {
         return new Button
@@ -350,21 +377,19 @@ internal sealed class MapDecoration
         };
     }
 
-    // Icon and name, and for the entries that switch something a third text with the state (On / Off).
-    private static UIElement Labelled(Grid icon, string label, bool toggle = false)
+    // An entry that switches something: icon, name and its state (On / Off), which SetLit finds through the Tag.
+    private Button ToggleEntry(Grid icon, string label)
     {
         var row = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
         row.Children.Add(icon);
-        var name = new TextBlock { Text = label, FontSize = 13, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
-        if (toggle)
-            name.Width = 118f;
-        row.Children.Add(name);
-        if (toggle)
-            row.Children.Add(new TextBlock { Text = "Off", FontSize = 12, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center });
-        return row;
+        row.Children.Add(new TextBlock { Text = label, FontSize = 13, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, Width = 118f });
+        var state = new TextBlock { Text = "Off", FontSize = 12, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+        row.Children.Add(state);
+        Button entry = Segment(row);
+        entry.Tag = state;
+        return entry;
     }
 
-    // A Back row for the top of the look list: back to the menu.
     private Button BackRow()
     {
         var content = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
@@ -428,7 +453,7 @@ internal sealed class MapDecoration
         menuFrame.Child = pickerList;
     }
 
-    // Back to the menu itself (also what the popup shows whenever it opens).
+    // The popup shows the menu again whenever it opens.
     private void ClosePicker()
     {
         pickerOpen = false;
@@ -487,16 +512,8 @@ internal sealed class MapDecoration
             DependencyObject d = queue.Dequeue();
             if (ReferenceEquals(d, Map))
                 continue;
-            if (d is Button close && close.Name == "CloseButton" && VisualTreeHelper.GetParent(close) is Panel buttonsRow)
-            {
-                menuIndex = 0;                                  // the left end of the row, like Pop-Out's buttons
-                return buttonsRow;
-            }
-            if (d is Menu menu && VisualTreeHelper.GetParent(menu) is Panel row && !ReferenceEquals(row, dock))
-            {
-                menuIndex = row.Children.IndexOf(menu);
+            if (HeaderRowOf(d, ref menuIndex) is Panel row)
                 return menuIndex >= 0 ? row : null;
-            }
             if (d is Visual v)
             {
                 int n = VisualTreeHelper.GetChildrenCount(v);
@@ -507,8 +524,25 @@ internal sealed class MapDecoration
         return null;
     }
 
+    // The row a title bar element sits in: the window buttons' row (at its left end, like Pop-Out's buttons), or the
+    // row of the window menu (left of it).
+    private Panel HeaderRowOf(DependencyObject d, ref int menuIndex)
+    {
+        if (d is Button close && close.Name == "CloseButton" && VisualTreeHelper.GetParent(close) is Panel buttonsRow)
+        {
+            menuIndex = 0;
+            return buttonsRow;
+        }
+        if (d is Menu menu && VisualTreeHelper.GetParent(menu) is Panel row && !ReferenceEquals(row, dock))
+        {
+            menuIndex = row.Children.IndexOf(menu);
+            return row;
+        }
+        return null;
+    }
+
     /// <summary>A line of text below the buttons for a few seconds (the theme that was just chosen).</summary>
-    public void ShowNotice(string text, float seconds = 2.5f)
+    public void ShowNotice(string text, float seconds)
     {
         noticeText.Text = text;
         notice.Visibility = Visibility.Visible;
@@ -709,33 +743,43 @@ internal sealed class MapDecoration
             readout.Visibility = Visibility.Collapsed;
     }
 
+    // What the legend was last built from; it is built again only when one of these changes.
+    private readonly struct LegendKey : IEquatable<LegendKey>
+    {
+        public readonly Palette Palette, Sea;
+        public readonly float Interval, Danger, Keel;
+        public readonly bool Layer;
+        public readonly string Aircraft, Submarine;
+        public readonly HeightUnits Units;
+
+        public LegendKey(OverlayRenderer overlay, string aircraft, string submarine, HeightUnits units)
+        {
+            Palette = overlay.Palette;
+            Sea = overlay.SeaPalette;
+            Interval = overlay.ShownInterval;
+            Danger = overlay.ShownDanger;
+            Keel = overlay.ShownKeel;
+            Layer = overlay.ShownLayer;
+            Aircraft = aircraft;
+            Submarine = submarine;
+            Units = units;
+        }
+
+        // NaN (off) equals NaN here.
+        public bool Equals(LegendKey o) =>
+            Palette == o.Palette && Sea == o.Sea && Interval == o.Interval && Danger.Equals(o.Danger) && Keel.Equals(o.Keel) &&
+            Layer == o.Layer && Aircraft == o.Aircraft && Submarine == o.Submarine && Units == o.Units;
+    }
+
     private void RefreshLegend(OverlayRenderer overlay, string aircraft, string submarine)
     {
-        Palette palette = overlay.Palette, sea = overlay.SeaPalette;
-        float interval = overlay.ShownInterval, danger = overlay.ShownDanger, keel = overlay.ShownKeel;
-        bool layer = overlay.ShownLayer;
-        HeightUnits units = Settings.Units.Value;
-        bool sameDanger = float.IsNaN(danger) ? float.IsNaN(legendDanger) : danger == legendDanger;
-        bool sameKeel = float.IsNaN(keel) ? float.IsNaN(legendKeel) : keel == legendKeel;
-        if (legendBuilt && palette == legendPalette && sea == legendSea && interval == legendInterval && sameDanger &&
-            sameKeel && layer == legendLayer && aircraft == legendAircraft && submarine == legendSubmarine &&
-            units == legendUnits)
-        {
+        var key = new LegendKey(overlay, aircraft, submarine, Settings.Units.Value);
+        if (legendShown.HasValue && legendShown.Value.Equals(key))
             return;
-        }
-        legendBuilt = true;
-        legendPalette = palette;
-        legendSea = sea;
-        legendInterval = interval;
-        legendDanger = danger;
-        legendKeel = keel;
-        legendLayer = layer;
-        legendAircraft = aircraft;
-        legendSubmarine = submarine;
-        legendUnits = units;
+        legendShown = key;
 
         legendBody.Children.Clear();
-        Theme theme = palette.Theme;
+        Theme theme = key.Palette.Theme;
         legendBody.Children.Add(new TextBlock
         {
             Text = $"{theme.Name} · {theme.Note}",
@@ -744,42 +788,46 @@ internal sealed class MapDecoration
             Margin = new Thickness(0, 0, 0, 5),
         });
         if (theme.IsChart)
-        {
-            AddChartRows(theme, interval, units);
-        }
+            AddChartRows(theme, key.Interval, key.Units);
         else
-        {
-            var columns = new StackPanel { Orientation = Orientation.Horizontal };
-            columns.Children.Add(Column("Terrain height", palette, units, highestFirst: true));
-            if (sea != null)
-            {
-                StackPanel seaColumn = Column("Sea depth", sea, units, highestFirst: false);
-                seaColumn.Margin = new Thickness(14, 0, 0, 0);
-                columns.Children.Add(seaColumn);
-            }
-            legendBody.Children.Add(columns);
-        }
-
-        if (!float.IsNaN(danger))
+            AddColumns(key.Palette, key.Sea, key.Units);
+        if (!float.IsNaN(key.Danger))
         {
             string who = string.IsNullOrEmpty(aircraft) ? "selected aircraft" : aircraft;
-            legendBody.Children.Add(Row(dangerBrush, $"As high as {who} ({HeightText.Format(danger, units, 10)}) or higher", 6f));
+            legendBody.Children.Add(Row(dangerBrush, $"As high as {who} ({HeightText.Format(key.Danger, key.Units, 10)}) or higher", 6f));
         }
-        if (!float.IsNaN(keel))
-            AddSubmarineRows(keel, layer, palette.Dark, string.IsNullOrEmpty(submarine) ? "the submarine" : submarine, units);
-        if (interval > 0f && !theme.IsChart)
+        if (!float.IsNaN(key.Keel))
+            AddSubmarineRows(key.Keel, key.Layer, key.Palette.Dark, string.IsNullOrEmpty(submarine) ? "the submarine" : submarine, key.Units);
+        if (key.Interval > 0f && !theme.IsChart)
+            AddContourText(key.Interval, key.Sea != null, key.Units);
+    }
+
+    // Land heights and sea depths side by side.
+    private void AddColumns(Palette palette, Palette sea, HeightUnits units)
+    {
+        var columns = new StackPanel { Orientation = Orientation.Horizontal };
+        columns.Children.Add(Column("Terrain height", palette, units, highestFirst: true));
+        if (sea != null)
         {
-            string text = $"Contours every {HeightText.Format(interval, units)}\nBold every {HeightText.Format(interval * 5f, units)}";
-            if (sea != null)
-                text += "\nDepth lines at the band edges";
-            legendBody.Children.Add(new TextBlock
-            {
-                Text = text,
-                Foreground = textBrush,
-                FontSize = 11,
-                Margin = new Thickness(0, 6, 0, 0),
-            });
+            StackPanel seaColumn = Column("Sea depth", sea, units, highestFirst: false);
+            seaColumn.Margin = new Thickness(14, 0, 0, 0);
+            columns.Children.Add(seaColumn);
         }
+        legendBody.Children.Add(columns);
+    }
+
+    private void AddContourText(float interval, bool depthLines, HeightUnits units)
+    {
+        string text = $"Contours every {HeightText.Format(interval, units)}\nBold every {HeightText.Format(interval * 5f, units)}";
+        if (depthLines)
+            text += "\nDepth lines at the band edges";
+        legendBody.Children.Add(new TextBlock
+        {
+            Text = text,
+            Foreground = textBrush,
+            FontSize = 11,
+            Margin = new Thickness(0, 6, 0, 0),
+        });
     }
 
     // A chart theme's key: land, coastline, the four water shades by the shallow, safety and deep contours, and the lines.
