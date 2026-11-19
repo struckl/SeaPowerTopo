@@ -785,8 +785,7 @@ internal sealed class MapDecoration
     // A chart theme's key: land, coastline, the four water shades by the shallow, safety and deep contours, and the lines.
     private void AddChartRows(Theme theme, float interval, HeightUnits units)
     {
-        float safety = Settings.ChartSafety.Value;
-        float shallow = Math.Max(2f, safety / 6f), deep = safety * 100f / 30f;
+        Look.ChartDepths(Settings.ChartSafety.Value, out float shallow, out float safety, out float deep);
         string F(float metres) => HeightText.Format(metres, units, 10);
         legendBody.Children.Add(Row(Solid(theme.LandFlat), "Land"));
         if (theme.Coast != null)

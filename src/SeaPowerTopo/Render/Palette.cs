@@ -13,8 +13,8 @@ internal sealed class Palette
 {
     private const int LutMax = 9000;
 
-    public static readonly float[] DefaultLimits = { 0, 50, 100, 200, 300, 500, 750, 1000, 1500, 2000, 2500, 3000, 4000 };
-    public static readonly float[] DefaultDepthLimits = { 0, 50, 100, 200, 300, 500, 1000, 1500, 2000, 3000, 4000, 6000 };
+    public static readonly float[] DefaultLimits = ParseLimits(Look.DefaultHeightBands);
+    public static readonly float[] DefaultDepthLimits = ParseLimits(Look.DefaultDepthBands);
 
     /// <summary>Lower edge of every band in metres (height or depth), ascending; the first is 0.</summary>
     public readonly float[] Limits;
@@ -42,7 +42,7 @@ internal sealed class Palette
         bool stepped = sea ? theme.SeaStepped : theme.LandStepped;
         if (keys == null)
         {
-            Theme standard = Themes.Of(theme.Dark).Find(t => t.Legacy);
+            Theme standard = Themes.Builtin(Themes.StandardId(theme.Dark));
             keys = sea ? standard.SeaKeys : standard.LandKeys;
             bright = sea ? 1f : standard.LandBright;
             stepped = true;

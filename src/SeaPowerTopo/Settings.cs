@@ -67,10 +67,10 @@ internal static class Settings
             "Layers menu or with the toggle key.");
         ToggleKey = file.Bind("2. Overlay", "Toggle key", new KeyboardShortcut(KeyCode.F6),
             "Turns the Topography map layer on and off (same as its entry in the map's Layers menu).");
-        Opacity = file.Bind("2. Overlay", "Opacity", 0.7f,
+        Opacity = file.Bind("2. Overlay", "Opacity", Look.DefaultOpacity,
             new ConfigDescription("How strongly the height colours cover the stock map (0 = invisible, 1 = opaque).",
                                   new AcceptableValueRange<float>(0.1f, 1f)));
-        Hillshade = file.Bind("2. Overlay", "Hill shading", 0.6f,
+        Hillshade = file.Bind("2. Overlay", "Hill shading", Look.DefaultHillshade,
             new ConfigDescription("Strength of the relief shading (light from the north-west). 0 turns it off.",
                                   new AcceptableValueRange<float>(0f, 1f)));
         Contours = file.Bind("2. Overlay", "Contour lines", true,
@@ -79,13 +79,13 @@ internal static class Settings
             new ConfigDescription("Height step between contour lines in metres. 0 = automatic: the step grows as " +
                                   "you zoom out so the lines stay readable (20 m up to 1000 m).",
                                   new AcceptableValueRange<int>(0, 5000)));
-        Bands = file.Bind("2. Overlay", "Height bands", "0,50,100,200,300,500,750,1000,1500,2000,2500,3000,4000",
+        Bands = file.Bind("2. Overlay", "Height bands", Look.DefaultHeightBands,
             "Lower edges of the colour bands in metres, ascending, starting at 0. Each band gets its own colour " +
             "from green (low) over yellow and brown to white (high).");
         SeaDepth = file.Bind("2. Overlay", "Sea depth", true,
             "Shade the sea by depth – the stock map's water colour, lighter near the coast, darker the deeper – " +
             "with a thin depth line at every band edge (drawn with the contour lines) and faint seabed relief.");
-        DepthBands = file.Bind("2. Overlay", "Depth bands", "0,50,100,200,300,500,1000,1500,2000,3000,4000,6000",
+        DepthBands = file.Bind("2. Overlay", "Depth bands", Look.DefaultDepthBands,
             "The depth each of the sea's colour bands starts at, in metres, ascending, starting at 0. Depths as the simulation " +
             "has them: the DEM's depth times the game's under-water depth factor (Options → World), and doubled " +
             "again where the DEM is shallower than 48 m.");
@@ -113,7 +113,7 @@ internal static class Settings
             "on the map and by the look key. Themes: " + Describe(true));
         LookKey = file.Bind("2. Overlay", "Look key", new KeyboardShortcut(KeyCode.F6, KeyCode.LeftShift),
             "Switches to the next theme of the map's current theme (day or night), or turns the layer on if it is off.");
-        ChartSafety = file.Bind("2. Overlay", "Chart safety contour", 30,
+        ChartSafety = file.Bind("2. Overlay", "Chart safety contour", Look.DefaultChartSafety,
             new ConfigDescription("For the chart themes (ECDIS, paper chart): the depth in metres drawn as the bold safety contour " +
                                   "and where the shallow water ends; the shallowest shade ends at a sixth of it, the deepest begins at " +
                                   "three and a third times it. Depths as the simulation has them.",

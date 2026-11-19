@@ -24,8 +24,8 @@ internal sealed class Theme
     /// <summary>Read from a theme file by the player (not one that ships).</summary>
     public bool Custom;
     /// <summary>
-    /// How much of the stock map the theme covers at the default opacity setting (0.7); the user's setting scales it
-    /// (a setting of 0.35 halves it). The Standard themes use the setting as it is.
+    /// How much of the stock map the theme covers at the default opacity setting (<see cref="Look.DefaultOpacity"/>);
+    /// the user's setting scales it (half the default halves it). The Standard themes use the setting as it is.
     /// </summary>
     public float Opacity = 1f;
 
@@ -78,6 +78,9 @@ internal static class Themes
 
     public static string DefaultId(bool dark) => dark ? "midnight" : "standard-day";
 
+    /// <summary>The first release's look of a map theme, whose colours stand in where a theme has no tint of its own.</summary>
+    public static string StandardId(bool dark) => dark ? "standard-night" : "standard-day";
+
     /// <summary>The theme that ships with this id (of either map theme), or null.</summary>
     public static Theme Builtin(string id) => Light.Find(t => !t.Custom && t.Id == id) ?? Dark.Find(t => !t.Custom && t.Id == id);
 
@@ -115,8 +118,6 @@ internal static class Themes
         int at = list.IndexOf(current);
         return list[(at + 1) % list.Count];
     }
-
-    public static string[] Ids(bool dark) => Of(dark).ConvertAll(t => t.Id).ToArray();
 
     // Day-for-night grading of a palette: saturation, a tint pulled over it, then brightness.
     private static int[][] Grade(int[][] keys, float bright, float sat, int[] tint, float tintAmt)

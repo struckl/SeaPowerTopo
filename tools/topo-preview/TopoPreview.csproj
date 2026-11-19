@@ -17,6 +17,8 @@
     <Compile Include="..\..\src\SeaPowerTopo\Render\ThemeLibrary.cs" Link="Shared\ThemeLibrary.cs" />
     <Compile Include="..\..\src\SeaPowerTopo\Render\Palette.cs" Link="Shared\Palette.cs" />
     <Compile Include="..\..\src\SeaPowerTopo\Render\Raster.cs" Link="Shared\Raster.cs" />
+    <Compile Include="..\..\src\SeaPowerTopo\Render\RasterShade.cs" Link="Shared\RasterShade.cs" />
+    <Compile Include="..\..\src\SeaPowerTopo\Render\Look.cs" Link="Shared\Look.cs" />
   </ItemGroup>
 
   <ItemGroup>

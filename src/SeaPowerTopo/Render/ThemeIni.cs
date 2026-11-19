@@ -94,9 +94,9 @@ internal static class ThemeIni
             ? baseTheme.Clone()
             : new Theme { Opacity = 1f, LandMinor = 0.3f, LandMajor = 0.7f, SeaLineAmt = 0.5f };
         t.Custom = true;
-        // The Standard looks shade the seabed at half the strength of the land, which they have no setting of their own for.
+        // The Standard looks have no SeaRelief of their own: they shade the seabed by their own rule.
         if (baseTheme != null && baseTheme.Legacy)
-            t.SeaShade = 0.3f;
+            t.SeaShade = Look.LegacySeaRelief;
         t.Legacy = false;
         t.Id = file.Id;
         t.Name = file.Values.TryGetValue("Name", out string name) && name.Length > 0 ? name : file.Id;
@@ -264,6 +264,9 @@ internal static class ThemeIni
 
     private static string B(bool v) => v ? "true" : "false";
 
+    // The upper band edge of the default bands, as the file's comments name it.
+    private static string Top(float[] limits) => limits[limits.Length - 1].ToString("0", CultureInfo.InvariantCulture);
+
     /// <summary>The whole definition of a theme as a theme file (no Base), ready to edit; <paramref name="savedFrom"/> names the look it was made from.</summary>
     public static string Write(Theme t, string savedFrom)
     {
@@ -283,7 +286,7 @@ internal static class ThemeIni
         Line("Dark", B(t.Dark));
         Line("Opacity", F(t.Opacity));
         sb.Append('\n');
-        Comment("Land: key colours spread over the height bands (0 to 4000 m), or one flat colour");
+        Comment($"Land: key colours spread over the height bands (0 to {Top(Palette.DefaultLimits)} m), or one flat colour");
         Line("LandColours", CL(t.LandKeys));
         Line("LandStepped", B(t.LandStepped));
         Line("LandBrightness", F(t.LandBright));
@@ -305,13 +308,12 @@ internal static class ThemeIni
         Line("Coast", C(t.Coast));
         Line("CoastStrength", F(t.CoastAmt));
         sb.Append('\n');
-        Comment("Sea: key colours spread over the depth bands (0 to 6000 m), or the four shades of a chart");
+        Comment($"Sea: key colours spread over the depth bands (0 to {Top(Palette.DefaultDepthLimits)} m), or the four shades of a chart");
         Line("SeaColours", CL(t.SeaKeys));
         Line("SeaStepped", B(t.SeaStepped));
         if (t.Zones != null)
             Line("SeaZones", CL(t.Zones));
-        // The Standard looks shade the seabed at half the strength of the land.
-        Line("SeaRelief", F(t.Legacy ? 0.3f : t.SeaShade));
+        Line("SeaRelief", F(t.Legacy ? Look.LegacySeaRelief : t.SeaShade));
         Line("SeaLines", C(t.SeaLine));
         Line("SeaLinesStrength", F(t.SeaLineAmt));
         Line("SeaLinesGlow", F(t.SeaLineHalo));

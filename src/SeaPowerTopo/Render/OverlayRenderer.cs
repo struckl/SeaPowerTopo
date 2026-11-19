@@ -1022,9 +1022,7 @@ internal sealed class OverlayRenderer
         job.DppX = plan.DppX;
         job.Palette = palette;
         job.Sea = seaPalette;
-        // A theme covers the stock map as much as it wants at the default setting (0.7); the setting scales that.
-        job.Opacity = palette.Theme.Legacy ? Settings.Opacity.Value
-            : Math.Min(1f, palette.Theme.Opacity * Settings.Opacity.Value / 0.7f);
+        job.Opacity = Look.Opacity(palette.Theme, Settings.Opacity.Value);
         job.ChartSafety = Settings.ChartSafety.Value;
         job.Hillshade = Settings.Hillshade.Value;
         job.Interval = plan.Interval;
