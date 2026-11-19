@@ -860,7 +860,7 @@ internal sealed class MapDecoration
             legendBody.Children.Add(Row(new SolidColorBrush(stripes), $"Stripes: {who} is below the layer there", 3f));
             legendBody.Children.Add(new TextBlock
             {
-                Text = "No tint: no layer (water under 500 ft)",
+                Text = $"No tint: no layer (water under {Raster.LayerMinSeaFeet:0} ft)",
                 Foreground = textBrush,
                 FontSize = 11,
             });

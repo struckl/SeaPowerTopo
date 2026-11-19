@@ -18,8 +18,7 @@ namespace SeaPowerTopo.Terrain;
 /// </summary>
 internal static class LayerMap
 {
-    private const float MetresPerUnit = 67.200066f, FeetToMetres = 0.3048f;
-    private const float MinSeaFeet = 500f;
+    private const float MetresPerUnit = 67.200066f;
 
     private static readonly AccessTools.FieldRef<SeaPower.Environment, Dictionary<Vector2Int, float>> GameCache =
         AccessTools.FieldRefAccess<SeaPower.Environment, Dictionary<Vector2Int, float>>("_layerDepths");
@@ -45,17 +44,17 @@ internal static class LayerMap
                 return height < 0f ? -height * MetresPerUnit : float.NaN;
         }
         Raster.LayerTileCentre(tileX, tileY, out double lon, out double lat);
-        if (!(seaDepthAt(lon, lat) / FeetToMetres > MinSeaFeet))
+        if (!(seaDepthAt(lon, lat) / Raster.FeetToMetres > Raster.LayerMinSeaFeet))
             return float.NaN;
         int seed = tileX * tileX + tileY * tileY;
         if (!FeetBySeed.TryGetValue(seed, out float feet))
         {
             Random.State saved = Random.state;
             Random.InitState(seed);
-            feet = Random.Range(250f, 450f);
+            feet = Random.Range(Raster.LayerMinFeet, Raster.LayerMaxFeet);
             Random.state = saved;
             FeetBySeed[seed] = feet;
         }
-        return feet * FeetToMetres;
+        return feet * Raster.FeetToMetres;
     }
 }

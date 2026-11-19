@@ -336,14 +336,14 @@ internal sealed class TopoHost : MonoBehaviour
         double south = Min(lats), north = Max(lats);
         double cx = (west + east) / 2, cy = (south + north) / 2;
         double halfW = Math.Max(MinMissionSpan, (east - west) * 2) / 2, halfH = Math.Max(MinMissionSpan / 2, (north - south) * 2) / 2;
-        double dpp = Math.Max(1.0 / HeightReader.DemPerDegree / 4, Math.Sqrt(4 * halfW * halfH / LayerPixels));
+        double dpp = Math.Max(1.0 / DemGrid.DemPerDegree / 4, Math.Sqrt(4 * halfW * halfH / LayerPixels));
 
         float z = -0.045f;
         for (int k = 0; k < 3 && dpp < WorldDpp / 1.5; k++)
         {
             double hw = Math.Min(180.0, halfW), s = Math.Max(-90.0, cy - halfH), n = Math.Min(90.0, cy + halfH);
             var level = new OverlayRenderer(map, $"mission x{1 << (2 * k)}", z);
-            level.SetArea(new GeoRect(cx - hw, s, cx + hw, n), dpp, dem: dpp < 1.5 / HeightReader.DemPerDegree);
+            level.SetArea(new GeoRect(cx - hw, s, cx + hw, n), dpp, dem: dpp < 1.5 / DemGrid.DemPerDegree);
             drawn.Add(level);
             ModLog.Info($"Pre-drawn layer {drawn.Count}: {new GeoRect(cx - hw, s, cx + hw, n)}, " +
                         $"{dpp * Raster.MetresPerDegree:0} m per pixel");

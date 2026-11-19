@@ -19,25 +19,22 @@ internal struct HeightSample
 }
 
 /// <summary>
-/// Reads terrain heights straight out of the game's DEM: the 20° × 20° chunks (2400 × 2400 int16 metres, one
-/// sample every 30 arc seconds) <see cref="DemCache"/> has read (on 0.8.7 also the ones the 3D terrain has loaded), and the 3 arc-minute
-/// world grid (<see cref="LowresGrid"/>) for everywhere else. Same data, same sample positions as the stock map draws.
+/// Reads terrain heights straight out of the game's DEM (<see cref="DemGrid"/>): the 20° chunks <see cref="DemCache"/>
+/// has read (on 0.8.7 also the ones the 3D terrain has loaded), and the 3 arc-minute world grid (<see cref="LowresGrid"/>)
+/// for everywhere else. Same data, same sample positions as the stock map draws.
 /// <para>Main thread only, and only within the frame it was created in: Unity may move a texture's CPU copy when
-/// the game uploads it (which happens on the main thread), so pointers are never kept across frames. Dispose
-/// releases the cache handles that keep the chunks from being evicted meanwhile.</para>
+/// the game uploads it (which happens on the main thread), so pointers are never kept across frames.</para>
 /// </summary>
 internal sealed unsafe class HeightReader : IDisposable
 {
-    public const int ChunkSize = 2400, ChunksX = 18, ChunksY = 9;
-    public const int DemCols = ChunkSize * ChunksX, DemRows = ChunkSize * ChunksY;
-    public const double DemPerDegree = 120.0;
-    public const int LowCols = 7200, LowRows = 3600;
-    public const double LowCell = 0.05;
+    private const int ChunkSize = DemGrid.ChunkSize, ChunksX = DemGrid.ChunksX, ChunksY = DemGrid.ChunksY;
+    private const int DemCols = DemGrid.DemCols, DemRows = DemGrid.DemRows;
+    private const int LowCols = DemGrid.LowCols, LowRows = DemGrid.LowRows;
 
-    // DEM grid point (gx, gy) sits at lon = -180 + gx / 120, lat = 90 - gy / 120 (the stock map tiles' texel
-    // centres); world grid texel (lx, ly) at lon = -180 + (lx + 0.5) * 0.05, lat = 90 - (ly + 0.5) * 0.05.
-
+#if FLATMAP
+    // The game's cache handles on the chunks the 3D terrain has loaded, which keep them from being evicted meanwhile.
     private readonly DEMHandle[] handles = new DEMHandle[ChunksX * ChunksY];
+#endif
     private readonly short*[] chunks = new short*[ChunksX * ChunksY];
     private readonly byte[] state = new byte[ChunksX * ChunksY];   // 0 = not looked up, 1 = loaded, 2 = missing
     private readonly short* low;
@@ -97,6 +94,10 @@ internal sealed unsafe class HeightReader : IDisposable
         return true;
     }
 
+    /// <summary>Raw DEM metres at a DEM grid point, from the world grid where its chunk isn't loaded.</summary>
+    public float Dem(int gx, int gy) =>
+        TryDem(gx, gy, out short raw) ? raw : LowAt(-180.0 + gx / DemGrid.DemPerDegree, 90.0 - gy / DemGrid.DemPerDegree);
+
     /// <summary>Raw metres of a world grid texel (0 without the grid).</summary>
     public short Low(int lx, int ly)
     {
@@ -114,18 +115,14 @@ internal sealed unsafe class HeightReader : IDisposable
     {
         if (low == null)
             return -1f;
-        double u = (lon + 180.0) / LowCell - 0.5, v = (90.0 - lat) / LowCell - 0.5;
-        int i = (int)Math.Floor(u), j = (int)Math.Floor(v);
-        float tx = (float)(u - i), ty = (float)(v - j);
-        float top = Low(i, j) + (Low(i + 1, j) - Low(i, j)) * tx;
-        float bottom = Low(i, j + 1) + (Low(i + 1, j + 1) - Low(i, j + 1)) * tx;
-        return top + (bottom - top) * ty;
+        DemGrid.LowCell4(lon, lat, out int i, out int j, out float tx, out float ty);
+        return DemGrid.Bilerp(Low(i, j), Low(i + 1, j), Low(i, j + 1), Low(i + 1, j + 1), tx, ty);
     }
 
     /// <summary>Terrain under a point for the cursor readout: fine DEM where loaded, the world grid elsewhere.</summary>
     public HeightSample Sample(double lon, double lat)
     {
-        double u = (lon + 180.0) * DemPerDegree, v = (90.0 - lat) * DemPerDegree;
+        double u = (lon + 180.0) * DemGrid.DemPerDegree, v = (90.0 - lat) * DemGrid.DemPerDegree;
         int i = (int)Math.Floor(u), j = (int)Math.Floor(v);
         float tx = (float)(u - i), ty = (float)(v - j);
         if (TryDem(i, j, out short a) && TryDem(i + 1, j, out short b) &&
@@ -135,12 +132,8 @@ internal sealed unsafe class HeightReader : IDisposable
         }
         if (low == null)
             return default;
-        u = (lon + 180.0) / LowCell - 0.5;
-        v = (90.0 - lat) / LowCell - 0.5;
-        i = (int)Math.Floor(u);
-        j = (int)Math.Floor(v);
-        return Classify(Low(i, j), Low(i + 1, j), Low(i, j + 1), Low(i + 1, j + 1),
-                        (float)(u - i), (float)(v - j), coarse: true);
+        DemGrid.LowCell4(lon, lat, out i, out j, out tx, out ty);
+        return Classify(Low(i, j), Low(i + 1, j), Low(i, j + 1), Low(i + 1, j + 1), tx, ty, coarse: true);
     }
 
     // Land or water like the stock map shader decides it (half-way between a land and a water sample), then the
@@ -148,15 +141,15 @@ internal sealed unsafe class HeightReader : IDisposable
     // same values the overlay is drawn from, so the readout and the colour under the pointer agree.
     private HeightSample Classify(float a, float b, float c, float d, float tx, float ty, bool coarse)
     {
-        float land = Bilerp(a >= 0 ? 1 : 0, b >= 0 ? 1 : 0, c >= 0 ? 1 : 0, d >= 0 ? 1 : 0, tx, ty);
+        float land = DemGrid.Bilerp(a >= 0 ? 1 : 0, b >= 0 ? 1 : 0, c >= 0 ? 1 : 0, d >= 0 ? 1 : 0, tx, ty);
         var s = new HeightSample { Known = true, Coarse = coarse };
         if (land >= 0.5f)
         {
-            s.Metres = Sim(Bilerp(Math.Max(a, 0), Math.Max(b, 0), Math.Max(c, 0), Math.Max(d, 0), tx, ty));
+            s.Metres = Sim(DemGrid.Bilerp(Math.Max(a, 0), Math.Max(b, 0), Math.Max(c, 0), Math.Max(d, 0), tx, ty));
             return s;
         }
         s.Water = true;
-        s.Metres = -Bilerp(Sim(Math.Min(a, 0)), Sim(Math.Min(b, 0)), Sim(Math.Min(c, 0)), Sim(Math.Min(d, 0)), tx, ty);
+        s.Metres = -DemGrid.Bilerp(Sim(Math.Min(a, 0)), Sim(Math.Min(b, 0)), Sim(Math.Min(c, 0)), Sim(Math.Min(d, 0)), tx, ty);
         return s;
     }
 
@@ -201,21 +194,14 @@ internal sealed unsafe class HeightReader : IDisposable
             missing?.Add(key);
     }
 
-    private static float Bilerp(float a, float b, float c, float d, float tx, float ty)
-    {
-        float top = a + (b - a) * tx, bottom = c + (d - c) * tx;
-        return top + (bottom - top) * ty;
-    }
-
     public void Dispose()
     {
-        for (int c = 0; c < handles.Length; c++)
+        for (int c = 0; c < chunks.Length; c++)
         {
-            if (handles[c] != null)
-            {
-                handles[c].Dispose();
-                handles[c] = null;
-            }
+#if FLATMAP
+            handles[c]?.Dispose();
+            handles[c] = null;
+#endif
             chunks[c] = null;
             state[c] = 0;
         }

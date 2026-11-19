@@ -14,45 +14,6 @@ using Visibility = Noesis.Visibility;
 
 namespace SeaPowerTopo.Render;
 
-/// <summary>A lon/lat rectangle on the map, in degrees (longitudes may run past ±180 across the date line).</summary>
-internal readonly struct GeoRect : IEquatable<GeoRect>
-{
-    public readonly double West, South, East, North;
-
-    public GeoRect(double west, double south, double east, double north)
-    {
-        West = west;
-        South = south;
-        East = east;
-        North = north;
-    }
-
-    public double Width => East - West;
-    public double Height => North - South;
-    public double CentreLon => (West + East) / 2;
-
-    public bool Contains(GeoRect r) => r.West >= West && r.East <= East && r.South >= South && r.North <= North;
-
-    /// <summary>Holds <paramref name="r"/> in any turn of longitude; a rectangle all the way round holds any longitudes.</summary>
-    public bool Holds(GeoRect r) => r.South >= South && r.North <= North &&
-                                    (Width >= 360.0 - 1e-9 || Contains(r.Near(CentreLon)));
-
-    /// <summary>The same rectangle a whole number of turns east or west, nearest <paramref name="lon"/>.</summary>
-    public GeoRect Near(double lon)
-    {
-        double turns = Math.Round((lon - CentreLon) / 360.0) * 360.0;
-        return turns == 0 ? this : new GeoRect(West + turns, South, East + turns, North);
-    }
-
-    /// <summary>cos of the latitude nearest the equator: how wide a degree of longitude gets anywhere in it.</summary>
-    public double MaxCosLat => South <= 0 && North >= 0 ? 1.0
-        : Math.Cos(Math.Min(Math.Abs(South), Math.Abs(North)) * Math.PI / 180.0);
-
-    public bool Equals(GeoRect r) => r.West == West && r.South == South && r.East == East && r.North == North;
-
-    public override string ToString() => $"{South:0.0}..{North:0.0}°N {West:0.0}..{East:0.0}°E";
-}
-
 #if FLATMAP
 /// <summary>
 /// The live map the overlay draws into on 0.8.7: the map scene (<c>MapScene</c>), a Unity scene of lon/lat quads on
@@ -86,7 +47,7 @@ internal sealed class MapSceneRef : OverlayTarget
         Lowres = null;
         foreach (MapRect rect in Scene.GetComponentsInChildren<MapRect>(true))
         {
-            if (rect.Width >= 359f && rect.heightmap != null && rect.heightmap.width == HeightReader.LowCols)
+            if (rect.Width >= 359f && rect.heightmap != null && rect.heightmap.width == DemGrid.LowCols)
             {
                 Lowres = rect.heightmap;
                 break;
@@ -300,10 +261,8 @@ internal sealed class OverlayRenderer
     private const double MinMargin = 0.15, MaxMargin = 0.4;
     private const double PrefetchAt = 0.4;           // redraw ahead of a pan once this share of a margin is left
     private const int MaxPixels = 8_000_000, MaxSide = 8192;
-    private const double DemLimitDpp = 0.04;         // beyond ~5 DEM samples per pixel the world grid is enough
     private const float SettleSeconds = 0.12f;
     private const int MaxLayerTiles = 40_000;        // further out the thermal layer is left off (main-thread work)
-    private const double MinCosLat = 0.05;           // a pixel is at most 20 times wider (in degrees) than high
 
     private enum Phase { Idle, Filling, Shading }
 
@@ -313,7 +272,7 @@ internal sealed class OverlayRenderer
 #if FLATMAP
         1.0;
 #else
-        1.0 / Math.Max(MinCosLat, rect.MaxCosLat);
+        rect.GlobeLonStretch;
 #endif
 
     private sealed class Plan
@@ -370,7 +329,7 @@ internal sealed class OverlayRenderer
 
     private Phase phase;
     private readonly SourceGrid source = new SourceGrid();
-    private int fillRow, fillX0, fillY0, fillStep, fillStepX;
+    private int fillRow;
     private RasterJob building, shown, spare;
     private Plan buildingPlan, shownPlan;
     private HashSet<string> buildingMissing = new HashSet<string>(), shownMissing = new HashSet<string>();
@@ -933,7 +892,7 @@ internal sealed class OverlayRenderer
             MarginLat = spanLat * margin,
             Width = Math.Max(2, width),
             Height = Math.Max(2, height),
-            Dem = dpp < DemLimitDpp,
+            Dem = dpp < DemGrid.DemLimitDpp,
             Dark = dark,
             ThemeId = palette.Theme.Id,
             Danger = danger,
@@ -945,35 +904,10 @@ internal sealed class OverlayRenderer
         Begin(plan);
     }
 
-    // Source grid: DEM samples (every n-th when zoomed out) or world grid texels, with two cells of margin around
-    // the image for the interpolation. Then the main-thread fill starts.
+    // The source grid for the plan, then the main-thread fill starts.
     private void Begin(Plan plan)
     {
-        double dpp = plan.Dpp, dppX = plan.DppX, west = plan.West, north = plan.North;
-        if (plan.Dem)
-        {
-            fillStep = Math.Max(1, (int)Math.Round(dpp * HeightReader.DemPerDegree));
-            fillStepX = Math.Max(1, (int)Math.Round(dppX * HeightReader.DemPerDegree));
-            fillX0 = (int)Math.Floor((west + 180.0) * HeightReader.DemPerDegree) - 2 * fillStepX;
-            fillY0 = (int)Math.Floor((90.0 - north) * HeightReader.DemPerDegree) - 2 * fillStep;
-            source.Lon0 = -180.0 + fillX0 / HeightReader.DemPerDegree;
-            source.Lat0 = 90.0 - fillY0 / HeightReader.DemPerDegree;
-            source.Cell = fillStep / HeightReader.DemPerDegree;
-            source.CellX = fillStepX / HeightReader.DemPerDegree;
-        }
-        else
-        {
-            fillStep = Math.Max(1, (int)Math.Round(dpp / HeightReader.LowCell));
-            fillStepX = Math.Max(1, (int)Math.Round(dppX / HeightReader.LowCell));
-            fillX0 = (int)Math.Floor((west + 180.0) / HeightReader.LowCell - 0.5) - 2 * fillStepX;
-            fillY0 = (int)Math.Floor((90.0 - north) / HeightReader.LowCell - 0.5) - 2 * fillStep;
-            source.Lon0 = -180.0 + (fillX0 + 0.5) * HeightReader.LowCell;
-            source.Lat0 = 90.0 - (fillY0 + 0.5) * HeightReader.LowCell;
-            source.Cell = fillStep * HeightReader.LowCell;
-            source.CellX = fillStepX * HeightReader.LowCell;
-        }
-        source.Allocate((int)Math.Ceiling((plan.East - source.Lon0) / source.CellX) + 3,
-                        (int)Math.Ceiling((source.Lat0 - plan.South) / source.Cell) + 3);
+        source.Plan(plan.Dem, plan.Dpp, plan.DppX, plan.West, plan.North, plan.East, plan.South);
 
         building = TakeJob();
         if (shown != null && building.Heights == shown.Heights)
@@ -1116,23 +1050,16 @@ internal sealed class OverlayRenderer
     {
         float[] v = source.V;
         int nx = source.Nx, o = j * nx;
+        int y = source.Y0 + j * source.Step;
         if (buildingPlan.Dem)
         {
-            int gy = fillY0 + j * fillStep;
-            double lat = 90.0 - gy / HeightReader.DemPerDegree;
             for (int i = 0; i < nx; i++)
-            {
-                int gx = fillX0 + i * fillStepX;
-                v[o + i] = reader.TryDem(gx, gy, out short raw)
-                    ? reader.Sim(raw)
-                    : reader.Sim(reader.LowAt(-180.0 + gx / HeightReader.DemPerDegree, lat));
-            }
+                v[o + i] = reader.Sim(reader.Dem(source.X0 + i * source.StepX, y));
         }
         else
         {
-            int ly = fillY0 + j * fillStep;
             for (int i = 0; i < nx; i++)
-                v[o + i] = reader.Sim(reader.Low(fillX0 + i * fillStepX, ly));
+                v[o + i] = reader.Sim(reader.Low(source.X0 + i * source.StepX, y));
         }
     }
 
@@ -1221,7 +1148,7 @@ internal sealed class OverlayRenderer
         Place(job);
 #endif
         ModLog.Debug($"Overlay {name} {job.Width}x{job.Height} (margin {shownPlan.Margin:0.00}), {(shownPlan.Dem ? "DEM" : "world grid")}, " +
-                     $"{shownPlan.Dpp * HeightReader.DemPerDegree:0.00} DEM cells/px, contours {shownPlan.Interval:0} m, " +
+                     $"{shownPlan.Dpp * DemGrid.DemPerDegree:0.00} DEM cells/px, contours {shownPlan.Interval:0} m, " +
                      $"{shownMissing.Count} chunk(s) missing, {timer.ElapsedMilliseconds} ms");
         if (area != null)
         {

@@ -10,130 +10,86 @@ using SeaPowerTopo.Render;
 namespace SeaPowerTopo.Preview;
 
 /// <summary>
-/// Renders one map view the way the plugin does: DEM samples copied onto a source grid (every n-th when zoomed
-/// out, the world grid where no DEM chunk exists), resampled and coloured by the plugin's own Raster code, over a
-/// flat stand-in for the stock map.
+/// Renders one map view the way the plugin does: DEM samples copied onto the plugin's source grid (every n-th when
+/// zoomed out, the world grid where no DEM chunk exists), resampled and coloured by the plugin's own Raster code at the
+/// default settings (Look), over a flat stand-in for the stock map.
 /// <code>
-/// dotnet run --project tools/topo-preview -- --at 61.5,8 --span 2 --size 1600x900 [--danger 1200] [--dark]
+/// dotnet run --project tools/topo-preview -- --at 61.5,8 --span 2 --size 1600x900 [--danger 1200] [--dark] [--globe]
 ///     [--interval 100] [--nodepth] [--depth-factor 2] [--out preview.png] [--game "E:\Games\steamapps\common\Sea Power"]
 /// </code>
-/// --theme picks the look (atlas, midnight, ecdis-day, ... - see Theme.cs; the map theme follows from it, --dark picks the
-/// default night look), --chart-safety the safety contour of the chart themes in metres.
+/// --theme picks the look (midnight, ecdis-day, genshtab, ... - see Theme.cs; the map theme follows from it, --dark picks
+/// the default night look), --chart-safety the safety contour of the chart themes in metres.
 /// --themes-dir loads a folder of theme files (as the mod does from BepInEx/config/SeaPowerTopo/themes; --theme then
 /// takes their ids), --theme-file one such file. --check-themes tests the theme files: every built-in look written out and
 /// read back, and a file with only a Base, must draw exactly what the original does.
 /// --at is the centre (lat,lon), --span the view height in degrees, --size the map's pixel size; --nodepth leaves
-/// the sea to the stock map, --depth-factor is the game's under-water depth factor (Options -> World, default 2).
+/// the sea to the stock map, --depth-factor is the game's under-water depth factor (Options > World, default 2).
+/// --globe draws the narrower pixels of the globe map (0.9 and later); without it the flat map's square ones (0.8.7).
 /// --sub 120 draws what a selected submarine at 120 m sees: the thermal layer (with a stand-in for the game's
 /// random layer depths, which need Unity) and water shallower than the submarine.
 /// </summary>
 internal static class Program
 {
-    private const int ChunkSize = 2400, DemCols = 43200, DemRows = 21600, LowCols = 7200, LowRows = 3600;
-    private const double DemPerDegree = 120.0, LowCell = 0.05, DemLimitDpp = 0.04;
+    private sealed class Options
+    {
+        public double Lat = 61.5, Lon = 8, Span = 2;
+        public int Width = 1600, Height = 900;
+        public float Danger = float.NaN, Interval = -1, DepthFactor = 2, Keel = float.NaN;
+        public float ChartSafety = Look.DefaultChartSafety;
+        public bool Dark, Depth = true, Check, Globe;
+        public string ThemeId, ThemesDir, ThemeFile;
+        public string Output = "preview.png", Game = @"E:\Games\steamapps\common\Sea Power";
+    }
 
-    private static string dataDir;
-    private static short[] lowres;
-    private static readonly Dictionary<int, short[]> Chunks = new Dictionary<int, short[]>();
+    // Each option and what it sets; the ones with a value take the next argument.
+    private static readonly Dictionary<string, Action<Options, string>> WithValue = new Dictionary<string, Action<Options, string>>
+    {
+        ["--at"] = (o, v) => { string[] p = v.Split(','); o.Lat = D(p[0]); o.Lon = D(p[1]); },
+        ["--span"] = (o, v) => o.Span = D(v),
+        ["--size"] = (o, v) => { string[] s = v.Split('x'); o.Width = int.Parse(s[0]); o.Height = int.Parse(s[1]); },
+        ["--danger"] = (o, v) => o.Danger = (float)D(v),
+        ["--sub"] = (o, v) => o.Keel = (float)D(v),
+        ["--interval"] = (o, v) => o.Interval = (float)D(v),
+        ["--depth-factor"] = (o, v) => o.DepthFactor = (float)D(v),
+        ["--theme"] = (o, v) => o.ThemeId = v,
+        ["--themes-dir"] = (o, v) => o.ThemesDir = v,
+        ["--theme-file"] = (o, v) => o.ThemeFile = v,
+        ["--chart-safety"] = (o, v) => o.ChartSafety = (float)D(v),
+        ["--out"] = (o, v) => o.Output = v,
+        ["--game"] = (o, v) => o.Game = v,
+    };
+
+    private static readonly Dictionary<string, Action<Options>> Flags = new Dictionary<string, Action<Options>>
+    {
+        ["--dark"] = o => o.Dark = true,
+        ["--nodepth"] = o => o.Depth = false,
+        ["--check-themes"] = o => o.Check = true,
+        ["--globe"] = o => o.Globe = true,
+    };
 
     private static int Main(string[] args)
     {
-        double lat = 61.5, lon = 8, span = 2;
-        int width = 1600, height = 900;
-        float danger = float.NaN, interval = -1, depthFactor = 2, keel = float.NaN;
-        bool dark = false, depth = true;
-        string themeId = null, themesDir = null, themeFile = null;
-        bool check = false;
-        float chartSafety = 30f;
-        string output = "preview.png", game = @"E:\Games\steamapps\common\Sea Power";
-        for (int i = 0; i < args.Length; i++)
-        {
-            string a = args[i];
-            string next = i + 1 < args.Length ? args[i + 1] : null;
-            switch (a)
-            {
-                case "--at":
-                    string[] p = next.Split(',');
-                    lat = D(p[0]);
-                    lon = D(p[1]);
-                    i++;
-                    break;
-                case "--span": span = D(next); i++; break;
-                case "--size":
-                    string[] s = next.Split('x');
-                    width = int.Parse(s[0]);
-                    height = int.Parse(s[1]);
-                    i++;
-                    break;
-                case "--danger": danger = (float)D(next); i++; break;
-                case "--sub": keel = (float)D(next); i++; break;
-                case "--interval": interval = (float)D(next); i++; break;
-                case "--dark": dark = true; break;
-                case "--nodepth": depth = false; break;
-                case "--depth-factor": depthFactor = (float)D(next); i++; break;
-                case "--theme": themeId = next; i++; break;
-                case "--themes-dir": themesDir = next; i++; break;
-                case "--theme-file": themeFile = next; i++; break;
-                case "--check-themes": check = true; break;
-                case "--chart-safety": chartSafety = (float)D(next); i++; break;
-                case "--out": output = next; i++; break;
-                case "--game": game = next; i++; break;
-                default:
-                    Console.Error.WriteLine($"Unknown option {a}");
-                    return 1;
-            }
-        }
+        Options o = Parse(args);
+        if (o == null)
+            return 1;
+        LoadThemeFiles(o);
+        var terrain = new Terrain(o.Game);
+        if (o.Check)
+            return ThemeCheck.Run(terrain, o.DepthFactor);
 
-        if (themeFile != null)
-        {
-            // One file on its own: a folder of one.
-            themesDir = Path.Combine(Path.GetTempPath(), "topo-preview-theme");
-            if (Directory.Exists(themesDir))
-                Directory.Delete(themesDir, true);
-            Directory.CreateDirectory(themesDir);
-            File.Copy(themeFile, Path.Combine(themesDir, Path.GetFileName(themeFile)));
-        }
-        if (themesDir != null)
-        {
-            ThemeLibrary.SetFolder(themesDir);
-            ThemeLibrary.Load(Console.WriteLine, m => Console.Error.WriteLine("warning: " + m));
-            if (themeFile != null && themeId == null && ThemeLibrary.Loaded > 0)
-                themeId = Themes.Light.Concat(Themes.Dark).First(t => t.Custom).Id;
-        }
-        if (check)
-            return CheckThemes(game, depthFactor);
-
-        Theme theme = themeId == null ? Themes.Get(null, dark) : Themes.Find(themeId);
+        Theme theme = o.ThemeId == null ? Themes.Get(null, o.Dark) : Themes.Find(o.ThemeId);
         if (theme == null)
         {
-            Console.Error.WriteLine($"Unknown theme {themeId}");
+            Console.Error.WriteLine($"Unknown theme {o.ThemeId}");
             return 1;
         }
-        dark = theme.Dark;
-        dataDir = Path.Combine(game, "Sea Power_Data", "StreamingAssets", "original", "terrain", "data");
-        lowres = ReadShorts(Path.Combine(dataDir, "lowres.raw"), LowCols * LowRows);
-
-        double dpp = span / height;
-        var job = new RasterJob
-        {
-            Width = width,
-            Height = height,
-            Dpp = dpp,
-            West = lon - dpp * width / 2,
-            North = lat + span / 2,
-            Palette = new Palette(Palette.DefaultLimits, theme),
-            Sea = depth || theme.IsChart ? new Palette(Palette.DefaultDepthLimits, theme, sea: true) : null,
-            Opacity = Math.Min(1f, theme.Opacity),
-            ChartSafety = chartSafety,
-            Hillshade = 0.6f,
-            Interval = interval >= 0 ? interval : Raster.AutoInterval(dpp * Raster.MetresPerDegree),
-            Danger = danger,
-            Keel = keel,
-        };
+        RasterJob job = NewJob(theme, o.Lat, o.Lon, o.Span, o.Width, o.Height, o.Globe, o.Depth, o.ChartSafety, o.Danger, o.Keel);
+        if (o.Interval >= 0)
+            job.Interval = o.Interval;
 
         var watch = System.Diagnostics.Stopwatch.StartNew();
-        SourceGrid src = Fill(job, depthFactor, out bool dem);
-        if (!float.IsNaN(keel))
+        SourceGrid src = terrain.Fill(job, o.DepthFactor, out bool dem);
+        if (!float.IsNaN(o.Keel))
             job.Layer = StandInLayer(job, src);
         long fillMs = watch.ElapsedMilliseconds;
         Raster.Resample(src, job, () => false);
@@ -141,135 +97,77 @@ internal static class Program
         Raster.Shade(job, () => false);
         long shadeMs = watch.ElapsedMilliseconds - fillMs - resampleMs;
 
-        WritePng(output, width, height, Composite(job, dark));
-        Console.WriteLine($"{output}: {width}x{height}, {(dem ? "DEM" : "world grid")}, {dpp * DemPerDegree:0.00} DEM cells/px, " +
+        Png.Write(o.Output, job.Width, job.Height, Composite(job, theme.Dark));
+        Console.WriteLine($"{o.Output}: {job.Width}x{job.Height}, {(dem ? "DEM" : "world grid")}, {job.Dpp * DemGrid.DemPerDegree:0.00} DEM cells/px, " +
                           $"contours {job.Interval:0} m, fill {fillMs} ms, resample {resampleMs} ms, shade {shadeMs} ms");
         return 0;
     }
 
-    // The round trip: every built-in look as a theme file, read back, and a file that only names its Base, must come out
-    // of the real Raster code exactly as the original does (the Standard looks may differ by a rounding error at most).
-    private static int CheckThemes(string game, float depthFactor)
+    private static Options Parse(string[] args)
     {
-        dataDir = Path.Combine(game, "Sea Power_Data", "StreamingAssets", "original", "terrain", "data");
-        lowres = ReadShorts(Path.Combine(dataDir, "lowres.raw"), LowCols * LowRows);
-
-        var views = new[] { (lat: 61.5, lon: 8.0, span: 2.0, danger: float.NaN), (lat: 36.0, lon: -5.5, span: 3.0, danger: 600f) };
-        int failures = 0, checks = 0;
-        failures += CheckSaving(ref checks);
-        foreach (Theme original in Themes.Light.Concat(Themes.Dark).Where(t => !t.Custom).ToList())
+        var o = new Options();
+        for (int i = 0; i < args.Length; i++)
         {
-            var warnings = new List<string>();
-            string text = ThemeIni.Write(original, original.Name);
-            Theme copy = null;
-            bool ok = ThemeIni.TryRead(text, original.Id, out ThemeFile file, warnings) && ThemeIni.TryBuild(file, null, out copy, warnings);
-            var onlyBase = new ThemeFile { FileName = "x", Id = "x", BaseId = original.Id };
-            Theme inherited = null;
-            ok = ok && ThemeIni.TryBuild(onlyBase, original, out inherited, warnings);
-            if (!ok || warnings.Count > 0)
+            if (WithValue.TryGetValue(args[i], out Action<Options, string> set) && i + 1 < args.Length)
+                set(o, args[++i]);
+            else if (Flags.TryGetValue(args[i], out Action<Options> flag))
+                flag(o);
+            else
             {
-                Console.WriteLine($"FAIL {original.Id}: {string.Join("; ", warnings)}");
-                failures++;
-                continue;
-            }
-
-            foreach (var v in views)
-            {
-                byte[] reference = Draw(original, v.lat, v.lon, v.span, v.danger, depthFactor);
-                foreach ((string what, Theme other) in new[] { ("written and read back", copy), ("Base only", inherited) })
-                {
-                    checks++;
-                    int different = 0, worst = 0;
-                    byte[] pixels = Draw(other, v.lat, v.lon, v.span, v.danger, depthFactor);
-                    for (int i = 0; i < reference.Length; i++)
-                    {
-                        int d = Math.Abs(reference[i] - pixels[i]);
-                        if (d > 0)
-                            different++;
-                        worst = Math.Max(worst, d);
-                    }
-                    bool pass = different == 0 || (original.Legacy && worst <= 1);
-                    if (!pass)
-                        failures++;
-                    Console.WriteLine($"{(pass ? "ok  " : "FAIL")} {original.Id,-16} {what,-22} view {v.lat},{v.lon}: {different} values differ, worst {worst}");
-                }
+                Console.Error.WriteLine($"Unknown option {args[i]}");
+                return null;
             }
         }
-        Console.WriteLine(failures == 0 ? $"All {checks} checks pass." : $"{failures} failures.");
-        return failures == 0 ? 0 : 1;
+        return o;
     }
 
-    // "Save this look as a theme file": a free id each time, the file read back as a theme of its own, the example left alone.
-    private static int CheckSaving(ref int checks)
+    // A folder of theme files, or one file on its own as a folder of one.
+    private static void LoadThemeFiles(Options o)
     {
-        string dir = Path.Combine(Path.GetTempPath(), "topo-preview-saving");
-        if (Directory.Exists(dir))
-            Directory.Delete(dir, true);
-        ThemeLibrary.SetFolder(dir);
-        ThemeLibrary.Prepare();
-        ThemeLibrary.Load(m => { }, m => Console.WriteLine("  " + m));
-        int failures = 0, count = 0;
-        void Expect(bool pass, string what)
+        if (o.ThemeFile != null)
         {
-            count++;
-            if (!pass)
-                failures++;
-            Console.WriteLine($"{(pass ? "ok  " : "FAIL")} saving: {what}");
+            o.ThemesDir = Path.Combine(Path.GetTempPath(), "topo-preview-theme");
+            if (Directory.Exists(o.ThemesDir))
+                Directory.Delete(o.ThemesDir, true);
+            Directory.CreateDirectory(o.ThemesDir);
+            File.Copy(o.ThemeFile, Path.Combine(o.ThemesDir, Path.GetFileName(o.ThemeFile)));
         }
-
-        Expect(File.Exists(Path.Combine(dir, "_example.ini")) && ThemeLibrary.Loaded == 0, "the example file is written and not loaded");
-        var warnings = new List<string>();
-        Theme black = Themes.Builtin("black");
-        Theme first = ThemeLibrary.Save(black, m => { }, m => warnings.Add(m), out string path, out string error);
-        Expect(first != null && first.Id == "my-black" && first.Name == "My Black" && first.Custom && Path.GetFileName(path) == "my-black.ini", "a built-in look is saved as my-black");
-        Theme second = ThemeLibrary.Save(black, m => { }, m => warnings.Add(m), out path, out error);
-        Expect(second != null && second.Id == "my-black-2" && second.Name == "My Black 2" && Themes.Dark.Contains(first) == false && Themes.Dark.Exists(t => t.Id == "my-black"), "saving again takes a free id");
-        Theme third = ThemeLibrary.Save(Themes.Find("my-black-2"), m => { }, m => warnings.Add(m), out path, out error);
-        Expect(third != null && third.Id == "my-black-2-2", "saving a file theme makes another file");
-        Expect(ThemeLibrary.Loaded == 3 && warnings.Count == 0 && !ThemeLibrary.Changed(), "all three are loaded, no warnings, nothing left to reload");
-        File.AppendAllText(Path.Combine(dir, "my-black.ini"), "LandLines=1,2,3\n");
-        Expect(ThemeLibrary.Changed(), "an edited file is noticed");
-        ThemeLibrary.Load(m => { }, m => { });
-        Expect(Themes.Find("my-black").LandLine[0] == 1 && Themes.Dark.Count(t => t.Custom) == 3, "an edited file is read again");
-        File.WriteAllText(Path.Combine(dir, "my-black.ini"), "Id=my-black\nBase=nowhere\n");
-        ThemeLibrary.Load(m => { }, m => { });
-        Expect(Themes.Find("my-black") != null && Themes.Find("my-black").LandLine[0] == 1 && ThemeLibrary.Problems == 1, "a file that breaks keeps the last version that worked");
-        File.Delete(Path.Combine(dir, "my-black.ini"));
-        ThemeLibrary.Load(m => { }, m => { });
-        Expect(Themes.Find("my-black") == null && Themes.Dark.Count(t => t.Custom) == 2, "a deleted file's theme is gone");
-        ThemeLibrary.SetFolder(null);
-        ThemeLibrary.Load(m => { }, m => { });
-        checks += count;
-        return failures;
+        if (o.ThemesDir == null)
+            return;
+        ThemeLibrary.SetFolder(o.ThemesDir);
+        ThemeLibrary.Load(Console.WriteLine, m => Console.Error.WriteLine("warning: " + m));
+        if (o.ThemeFile != null && o.ThemeId == null && ThemeLibrary.Loaded > 0)
+            o.ThemeId = Themes.Light.Concat(Themes.Dark).First(t => t.Custom).Id;
     }
 
-    private static byte[] Draw(Theme theme, double lat, double lon, double span, float danger, float depthFactor)
+    /// <summary>
+    /// The image the plugin would draw for this view at the default settings: its palettes, opacity, hill shading and
+    /// contour step; on the globe with pixels as much wider in degrees as the plugin makes them.
+    /// </summary>
+    internal static RasterJob NewJob(Theme theme, double lat, double lon, double span, int width, int height, bool globe,
+                                     bool depth, float chartSafety, float danger, float keel)
     {
-        const int width = 640, height = 360;
         double dpp = span / height;
-        var job = new RasterJob
+        double dppX = globe ? dpp * new GeoRect(lon - 1, lat - span / 2, lon + 1, lat + span / 2).GlobeLonStretch : dpp;
+        return new RasterJob
         {
             Width = width,
             Height = height,
             Dpp = dpp,
-            West = lon - dpp * width / 2,
+            DppX = dppX,
+            West = lon - dppX * width / 2,
             North = lat + span / 2,
             Palette = new Palette(Palette.DefaultLimits, theme),
-            Sea = new Palette(Palette.DefaultDepthLimits, theme, sea: true),
-            Opacity = Math.Min(1f, theme.Opacity),
-            ChartSafety = 30f,
-            Hillshade = 0.6f,
-            Interval = Raster.AutoInterval(dpp * Raster.MetresPerDegree),
+            Sea = depth || theme.IsChart ? new Palette(Palette.DefaultDepthLimits, theme, sea: true) : null,
+            Opacity = Look.Opacity(theme, Look.DefaultOpacity),
+            ChartSafety = chartSafety,
+            Hillshade = Look.DefaultHillshade,
+            Interval = Raster.AutoInterval(dpp * Raster.MetresPerDegree * theme.LandIntervalScale),
             Danger = danger,
-            Keel = float.NaN,
+            Keel = keel,
         };
-        SourceGrid src = Fill(job, depthFactor, out _);
-        Raster.Resample(src, job, () => false);
-        Raster.Shade(job, () => false);
-        return job.Rgba;
     }
 
-    // Same source grid as OverlayRenderer.StartFull / FillRow.
     // The game's tiles and its 500 ft rule, but a hash for the layer depth instead of Unity's seeded random.
     private static LayerTiles StandInLayer(RasterJob job, SourceGrid src)
     {
@@ -277,104 +175,21 @@ internal static class Program
         int x0 = Raster.LayerTileX(job.West) - 1, nx = Raster.LayerTileX(job.East) - x0 + 2;
         int y0 = Raster.LayerTileY(job.North) - 1, ny = Raster.LayerTileY(job.South) - y0 + 2;
         var tiles = new LayerTiles { X0 = x0, Y0 = y0, Nx = nx, Ny = ny, Depth = new float[nx * ny] };
+        float span = Raster.LayerMaxFeet - Raster.LayerMinFeet;
         for (int j = 0; j < ny; j++)
         {
             for (int i = 0; i < nx; i++)
             {
                 Raster.LayerTileCentre(x0 + i, y0 + j, out double lon, out double lat);
-                int si = Math.Max(0, Math.Min(src.Nx - 1, (int)Math.Round((lon - src.Lon0) / src.Cell)));
+                int si = Math.Max(0, Math.Min(src.Nx - 1, (int)Math.Round((lon - src.Lon0) / src.CellLon)));
                 int sj = Math.Max(0, Math.Min(src.Ny - 1, (int)Math.Round((src.Lat0 - lat) / src.Cell)));
                 float sea = -src.V[sj * src.Nx + si];
                 uint hash = (uint)((x0 + i) * 73856093) ^ (uint)((y0 + j) * 19349663);
-                tiles.Depth[j * nx + i] = sea / 0.3048f > 500f ? (250f + hash % 200) * 0.3048f : float.NaN;
+                tiles.Depth[j * nx + i] = sea / Raster.FeetToMetres > Raster.LayerMinSeaFeet
+                    ? (Raster.LayerMinFeet + hash % (uint)span) * Raster.FeetToMetres : float.NaN;
             }
         }
         return tiles;
-    }
-
-    private static SourceGrid Fill(RasterJob job, float depthFactor, out bool dem)
-    {
-        var src = new SourceGrid();
-        double dpp = job.Dpp;
-        dem = dpp < DemLimitDpp;
-        int step, x0, y0;
-        if (dem)
-        {
-            step = Math.Max(1, (int)Math.Round(dpp * DemPerDegree));
-            x0 = (int)Math.Floor((job.West + 180.0) * DemPerDegree) - 2 * step;
-            y0 = (int)Math.Floor((90.0 - job.North) * DemPerDegree) - 2 * step;
-            src.Lon0 = -180.0 + x0 / DemPerDegree;
-            src.Lat0 = 90.0 - y0 / DemPerDegree;
-            src.Cell = step / DemPerDegree;
-        }
-        else
-        {
-            step = Math.Max(1, (int)Math.Round(dpp / LowCell));
-            x0 = (int)Math.Floor((job.West + 180.0) / LowCell - 0.5) - 2 * step;
-            y0 = (int)Math.Floor((90.0 - job.North) / LowCell - 0.5) - 2 * step;
-            src.Lon0 = -180.0 + (x0 + 0.5) * LowCell;
-            src.Lat0 = 90.0 - (y0 + 0.5) * LowCell;
-            src.Cell = step * LowCell;
-        }
-        src.Allocate((int)Math.Ceiling((job.East - src.Lon0) / src.Cell) + 3, (int)Math.Ceiling((src.Lat0 - job.South) / src.Cell) + 3);
-        for (int j = 0; j < src.Ny; j++)
-        {
-            for (int i = 0; i < src.Nx; i++)
-            {
-                float raw = dem
-                    ? Dem(x0 + i * step, y0 + j * step)
-                    : Low(x0 + i * step, y0 + j * step);
-                src.V[j * src.Nx + i] = Raster.SimHeight(raw, 1f, depthFactor);
-            }
-        }
-        return src;
-    }
-
-    private static float Dem(int gx, int gy)
-    {
-        gx = ((gx % DemCols) + DemCols) % DemCols;
-        gy = Math.Max(0, Math.Min(DemRows - 1, gy));
-        int cx = gx / ChunkSize, cy = gy / ChunkSize;
-        short[] chunk = Chunk(cx, cy);
-        if (chunk == null)
-        {
-            double lon = -180.0 + gx / DemPerDegree, lat = 90.0 - gy / DemPerDegree;
-            double u = (lon + 180.0) / LowCell - 0.5, v = (90.0 - lat) / LowCell - 0.5;
-            int i = (int)Math.Floor(u), j = (int)Math.Floor(v);
-            float tx = (float)(u - i), ty = (float)(v - j);
-            float top = Low(i, j) + (Low(i + 1, j) - Low(i, j)) * tx;
-            float bottom = Low(i, j + 1) + (Low(i + 1, j + 1) - Low(i, j + 1)) * tx;
-            return top + (bottom - top) * ty;
-        }
-        return chunk[(gy - cy * ChunkSize) * ChunkSize + (gx - cx * ChunkSize)];
-    }
-
-    private static short Low(int lx, int ly)
-    {
-        lx = ((lx % LowCols) + LowCols) % LowCols;
-        ly = Math.Max(0, Math.Min(LowRows - 1, ly));
-        return lowres[ly * LowCols + lx];
-    }
-
-    private static short[] Chunk(int cx, int cy)
-    {
-        int key = cy * 18 + cx;
-        if (Chunks.TryGetValue(key, out short[] cached))
-            return cached;
-        string path = Path.Combine(dataDir, $"y{cy + 1}x{cx + 1:00}.lz4");
-        short[] chunk = null;
-        if (File.Exists(path))
-        {
-            // LZ4 block with the uncompressed length as a 4-byte footer (the game's LZ4.decompressBufferFixed).
-            byte[] packed = File.ReadAllBytes(path);
-            int length = BitConverter.ToInt32(packed, packed.Length - 4);
-            var bytes = new byte[length];
-            LZ4Codec.Decode(packed, 0, packed.Length - 4, bytes, 0, length);
-            chunk = new short[ChunkSize * ChunkSize];
-            Buffer.BlockCopy(bytes, 0, chunk, 0, chunk.Length * 2);
-        }
-        Chunks[key] = chunk;
-        return chunk;
     }
 
     // Stand-in for the stock map underneath: flat tan land, blue-grey water (day) or near-black (night).
@@ -401,17 +216,89 @@ internal static class Program
         return rgb;
     }
 
-    private static short[] ReadShorts(string path, int count)
+    private static double D(string s) => double.Parse(s, CultureInfo.InvariantCulture);
+}
+
+/// <summary>The game's terrain files read the way the game reads them, and the plugin's source grid filled from them.</summary>
+internal sealed class Terrain
+{
+    private readonly string dataDir;
+    private readonly short[] lowres;
+    private readonly Dictionary<int, short[]> chunks = new Dictionary<int, short[]>();
+
+    public Terrain(string game)
     {
-        byte[] bytes = File.ReadAllBytes(path);
-        var values = new short[count];
-        Buffer.BlockCopy(bytes, 0, values, 0, Math.Min(bytes.Length, count * 2));
-        return values;
+        dataDir = Path.Combine(game, "Sea Power_Data", "StreamingAssets", "original", "terrain", "data");
+        byte[] bytes = File.ReadAllBytes(Path.Combine(dataDir, "lowres.raw"));
+        lowres = new short[DemGrid.LowCols * DemGrid.LowRows];
+        Buffer.BlockCopy(bytes, 0, lowres, 0, Math.Min(bytes.Length, lowres.Length * 2));
     }
 
-    private static double D(string s) => double.Parse(s, CultureInfo.InvariantCulture);
+    /// <summary>The source grid for the image as the plugin plans it (OverlayRenderer.Begin), with the heights as the simulation has them.</summary>
+    public SourceGrid Fill(RasterJob job, float depthFactor, out bool dem)
+    {
+        var src = new SourceGrid();
+        dem = job.Dpp < DemGrid.DemLimitDpp;
+        src.Plan(dem, job.Dpp, job.DppLon, job.West, job.North, job.East, job.South);
+        for (int j = 0; j < src.Ny; j++)
+        {
+            int y = src.Y0 + j * src.Step;
+            for (int i = 0; i < src.Nx; i++)
+            {
+                int x = src.X0 + i * src.StepX;
+                float raw = dem ? Dem(x, y) : Low(x, y);
+                src.V[j * src.Nx + i] = Raster.SimHeight(raw, 1f, depthFactor);
+            }
+        }
+        return src;
+    }
 
-    private static void WritePng(string path, int width, int height, byte[] rgb)
+    private float Dem(int gx, int gy)
+    {
+        gx = ((gx % DemGrid.DemCols) + DemGrid.DemCols) % DemGrid.DemCols;
+        gy = Math.Max(0, Math.Min(DemGrid.DemRows - 1, gy));
+        int cx = gx / DemGrid.ChunkSize, cy = gy / DemGrid.ChunkSize;
+        short[] chunk = Chunk(cx, cy);
+        if (chunk != null)
+            return chunk[(gy - cy * DemGrid.ChunkSize) * DemGrid.ChunkSize + (gx - cx * DemGrid.ChunkSize)];
+        DemGrid.LowCell4(-180.0 + gx / DemGrid.DemPerDegree, 90.0 - gy / DemGrid.DemPerDegree, out int i, out int j, out float tx, out float ty);
+        return DemGrid.Bilerp(Low(i, j), Low(i + 1, j), Low(i, j + 1), Low(i + 1, j + 1), tx, ty);
+    }
+
+    private short Low(int lx, int ly)
+    {
+        lx = ((lx % DemGrid.LowCols) + DemGrid.LowCols) % DemGrid.LowCols;
+        ly = Math.Max(0, Math.Min(DemGrid.LowRows - 1, ly));
+        return lowres[ly * DemGrid.LowCols + lx];
+    }
+
+    // A chunk's file by the game's name for it (Utils.getDEMFileName: y1x01.lz4 ...), null where there is none.
+    private short[] Chunk(int cx, int cy)
+    {
+        int key = cy * DemGrid.ChunksX + cx;
+        if (chunks.TryGetValue(key, out short[] cached))
+            return cached;
+        string path = Path.Combine(dataDir, $"y{cy + 1}x{cx + 1:00}.lz4");
+        short[] chunk = null;
+        if (File.Exists(path))
+        {
+            // LZ4 block with the uncompressed length as a 4-byte footer (the game's LZ4.decompressBufferFixed).
+            byte[] packed = File.ReadAllBytes(path);
+            int length = BitConverter.ToInt32(packed, packed.Length - 4);
+            var bytes = new byte[length];
+            LZ4Codec.Decode(packed, 0, packed.Length - 4, bytes, 0, length);
+            chunk = new short[DemGrid.ChunkSize * DemGrid.ChunkSize];
+            Buffer.BlockCopy(bytes, 0, chunk, 0, chunk.Length * 2);
+        }
+        chunks[key] = chunk;
+        return chunk;
+    }
+}
+
+/// <summary>A plain RGB PNG writer, so the preview needs no imaging library.</summary>
+internal static class Png
+{
+    public static void Write(string path, int width, int height, byte[] rgb)
     {
         using var file = File.Create(path);
         file.Write(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 });

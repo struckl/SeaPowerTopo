@@ -16,7 +16,44 @@ internal sealed class SourceGrid
     /// <summary>Heights in metres as the simulation uses them (<see cref="Raster.SimHeight"/>); negative = water.</summary>
     public float[] V;
 
-    public void Allocate(int nx, int ny)
+    /// <summary>
+    /// The first sample's grid position and the step between samples (south, and east), in DEM grid points or in
+    /// world grid texels: cell (i, j) holds the sample at (X0 + i * StepX, Y0 + j * Step).
+    /// </summary>
+    public int X0, Y0, Step, StepX;
+
+    /// <summary>
+    /// Plans the grid for an image: DEM samples (every n-th when zoomed out) or world grid texels at about the image's
+    /// pixel size, with two cells of margin around it for the interpolation.
+    /// </summary>
+    public void Plan(bool dem, double dpp, double dppX, double west, double north, double east, double south)
+    {
+        if (dem)
+        {
+            Step = Math.Max(1, (int)Math.Round(dpp * DemGrid.DemPerDegree));
+            StepX = Math.Max(1, (int)Math.Round(dppX * DemGrid.DemPerDegree));
+            X0 = (int)Math.Floor((west + 180.0) * DemGrid.DemPerDegree) - 2 * StepX;
+            Y0 = (int)Math.Floor((90.0 - north) * DemGrid.DemPerDegree) - 2 * Step;
+            Lon0 = -180.0 + X0 / DemGrid.DemPerDegree;
+            Lat0 = 90.0 - Y0 / DemGrid.DemPerDegree;
+            Cell = Step / DemGrid.DemPerDegree;
+            CellX = StepX / DemGrid.DemPerDegree;
+        }
+        else
+        {
+            Step = Math.Max(1, (int)Math.Round(dpp / DemGrid.LowCell));
+            StepX = Math.Max(1, (int)Math.Round(dppX / DemGrid.LowCell));
+            X0 = (int)Math.Floor((west + 180.0) / DemGrid.LowCell - 0.5) - 2 * StepX;
+            Y0 = (int)Math.Floor((90.0 - north) / DemGrid.LowCell - 0.5) - 2 * Step;
+            Lon0 = -180.0 + (X0 + 0.5) * DemGrid.LowCell;
+            Lat0 = 90.0 - (Y0 + 0.5) * DemGrid.LowCell;
+            Cell = Step * DemGrid.LowCell;
+            CellX = StepX * DemGrid.LowCell;
+        }
+        Allocate((int)Math.Ceiling((east - Lon0) / CellX) + 3, (int)Math.Ceiling((Lat0 - south) / Cell) + 3);
+    }
+
+    private void Allocate(int nx, int ny)
     {
         Nx = nx;
         Ny = ny;
@@ -108,6 +145,9 @@ internal static partial class Raster
     /// <summary>The game's thermal layer tiles: 0.2° squares, numbered from 180° W and from the north pole.</summary>
     public const int LayerTilesX = 1800;
     private const float LayerTile = 0.2f, LayerOffset = 1f / 120f;
+    /// <summary>The game's thermal layer: only where the water is deeper than this many feet, at 250 to 450 ft.</summary>
+    public const float LayerMinSeaFeet = 500f, LayerMinFeet = 250f, LayerMaxFeet = 450f;
+    public const float FeetToMetres = 0.3048f;
     /// <summary>Upper edges of the layer depth bands in metres (300, 350 and 400 ft); the last band is deeper.</summary>
     public static readonly float[] LayerBands = { 91.44f, 106.68f, 121.92f };
     /// <summary>Strength of the layer's teal where the submarine is below the layer, and where it is above.</summary>

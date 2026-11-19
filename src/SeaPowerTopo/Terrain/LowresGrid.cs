@@ -3,6 +3,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using SeaPower;
+using SeaPowerTopo.Render;
 using UnityEngine;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
@@ -37,10 +38,10 @@ internal static unsafe class LowresGrid
         {
             Texture2D t = Scene;
             if (t != null && t.isReadable && t.format == TextureFormat.R16 &&
-                t.width == HeightReader.LowCols && t.height == HeightReader.LowRows)
+                t.width == DemGrid.LowCols && t.height == DemGrid.LowRows)
             {
                 NativeArray<short> raw = t.GetRawTextureData<short>();
-                if (raw.IsCreated && raw.Length >= HeightReader.LowCols * HeightReader.LowRows)
+                if (raw.IsCreated && raw.Length >= DemGrid.LowCols * DemGrid.LowRows)
                     return (short*)NativeArrayUnsafeUtility.GetUnsafeReadOnlyPtr(raw);
             }
             return data == null ? null : (short*)pin.AddrOfPinnedObject();
@@ -89,7 +90,7 @@ internal static unsafe class LowresGrid
 
     private static short[] Read(string file)
     {
-        var grid = new short[HeightReader.LowCols * HeightReader.LowRows];
+        var grid = new short[DemGrid.LowCols * DemGrid.LowRows];
         Span<byte> bytes = MemoryMarshal.AsBytes(grid.AsSpan());
         using (FileStream stream = File.OpenRead(file))
         {

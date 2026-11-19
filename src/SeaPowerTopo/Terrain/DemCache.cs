@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using SeaPower;
+using SeaPowerTopo.Render;
 using Unity.Collections;
 using UnityEngine;
 
@@ -21,7 +22,7 @@ internal static class DemCache
 {
 #if FLATMAP
     private const int MaxChunks = 6;                  // 11.5 MB each
-    private const int ChunkBytes = HeightReader.ChunkSize * HeightReader.ChunkSize * 2;
+    private const int ChunkBytes = DemGrid.ChunkSize * DemGrid.ChunkSize * 2;
 #else
     private const int MaxChunks = 8;                  // 11.5 MB each
 #endif
