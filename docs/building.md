@@ -48,7 +48,7 @@ src/SeaPowerTopo/
   Terrain/LowresGrid.cs      the 3' world grid, read from the game's file
   Terrain/DemCache.cs        the DEM chunks the overlay draws from, read on a worker thread
   Terrain/EditorTerrain.cs   0.8.7 only: the mission editor's terrain folder, read by the mod itself
-  Terrain/LayerMap.cs        the game's thermal layer per 0.2° tile
+  Terrain/LayerMap.cs        the game's thermal layer per 0.2 degree tile
   Render/OverlayRenderer.cs  one overlay layer (live or pre-drawn): the map camera's view, mesh in the globe scene (or
                              a picture on the editor's map), redraw pipeline, holes
   Render/GlobeMesh.cs        an image's mesh on the stock map's globe
