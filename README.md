@@ -129,7 +129,7 @@ dotnet build src/SeaPowerTopo/SeaPowerTopo.csproj -c Release -p:GameDir="C:\Prog
 ```
 
 The build copies the mod into `<Sea Power>\Sea Power_Data\StreamingAssets\SeaPowerTopo\` (`-p:Deploy=false` to
-skip). The release package (`tools/package.ps1`) adds the flat-map build (`-p:GameBuild=Flat`, `FLATMAP`), compiled against
+skip). The common project part, log, hooks, settings, Layers-menu entry and package steps are the shared R.A.T.S. skeleton (`SeaPowerKeel\shared`, compiled into the DLL). The release package (`tools/package.ps1`) adds the flat-map build (`-p:GameBuild=Flat`, `FLATMAP`), compiled against
 a copy of 0.8.7's `Sea Power_Data\Managed` (`-FlatManagedDir`). `GameDir` can also be set as an environment variable. Release packaging and the Workshop upload are described
 in [docs/workshop.md](docs/workshop.md); in-game test checklists are in [docs/testing.md](docs/testing.md).
 
@@ -186,7 +186,7 @@ The title bar buttons, the look list, the legend and the cursor readout are Noes
 window's title bar button row (found like Pop-Out finds it), the look list is a popup under its button, the rest into a grid laid over the map control, handed over by a Harmony
 postfix on `RenderedLayer.OnRender` that is applied only once NoesisGUI runs; the editor's map is found through its view
 model. The few game internals the mod needs (the night state of the map's palette, a new Layers menu entry) are
-reached by reflection in `GameApi.cs`.
+reached by reflection (`GameReflection`, from the shared skeleton).
 
 Depths are the simulation's: the DEM depth times the game's under-water depth factor, doubled once more where the DEM
 is shallower than 48 m (as every terrain lookup of the game does) - so a thin ring of shallower water can sit just
@@ -194,13 +194,13 @@ outside a coastal strip. That is how the simulation sees the seabed, not a drawi
 
 ```
 src/SeaPowerTopo/
-  Plugin.cs, Patches.cs      entry point (Anchor Chain plugin, game version check); mission start/end hooks, the late
-                             map hook
-  GameApi.cs                 the game internals reached by reflection
-  TopoHost.cs                per-frame driver: layer entry, keys, selected aircraft / submarine, which overlay layers
-                             show and draw, pre-drawn areas from the units, title bar buttons/legend/readout, the
+  Plugin.cs, Hooks.cs        entry point (Anchor Chain plugin; ModEntry of the shared skeleton does the game version check,
+                             settings, hooks and host); the late map hook
+  ModInfo.cs                 what the shared skeleton reads (GUID, name, version, log source)
+  Settings.cs                the config entries (Bind), the change counter the overlay redraws on
+  TopoHost.cs                per-frame driver (ModHost): layer entry, keys, selected aircraft / submarine, which overlay
+                             layers show and draw, pre-drawn areas from the units, title bar buttons/legend/readout, the
                              mission editor's map
-  TopoLayer.cs               the Topography entry in the map's Layers menu
   Terrain/HeightReader.cs    reads DEM chunks and the world grid (main thread), height under a point
   Terrain/LowresGrid.cs      the 3′ world grid, read from the game's file
   Terrain/DemCache.cs        the DEM chunks the overlay draws from, read on a worker thread

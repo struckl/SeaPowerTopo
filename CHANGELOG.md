@@ -9,6 +9,12 @@
   - Now Topo reads its own copies with the game's own reader, like the stock map, and never touches the game's blocks
   - The cursor height only uses blocks Topo has already read (shows "about" elsewhere) instead of reading new ones
 - The mod folder carries this CHANGELOG.md, so R.A.T.S. Keel's What's new can show what changed when there are no Workshop notes (a local copy, the GitHub zip).
+- Changed (internal): the mod runs on the shared R.A.T.S. skeleton (entry point, log, hooks, settings, Layers-menu entry, host, project part, package steps); its own copies are gone
+  - Config sections, keys and defaults are unchanged
+  - Mod Manager: a mod that is unticked there no longer starts under Anchor Chain
+  - Quit: the overlay, legend buttons and readout are taken down when the game closes, before Noesis goes
+  - The map hook is rolled back as a whole if one patch fails; at most five errors per host are logged
+  - The config file is written a moment after the last change instead of on every one
 - Changed (internal): a theme file that fails to build is always skipped, also if no warning was written for it (before, such a file would have gone on half-built; no file reaches that today)
 - Changed (internal): the DEM chunk cache is one class for both game versions; only reading a chunk differs
 - Changed (internal): the look defaults (opacity, hill shading, bands, chart safety contour), the opacity and shading rules and the chart depths live in one place, so the legend and the map always agree and a default cannot drift from the themes' look
