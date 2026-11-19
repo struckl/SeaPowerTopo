@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **Fixed: land vanished or moved in missions** (land turned to sea, half of a Falklands island gone, units floating, ships on land; board bugs 8 and 10)
+  - Cause: Topo borrowed the game's own terrain blocks to draw its map; the game keeps only 16 of them
+  - While Topo held them, the game could not preload the area around the units, and a borrow cleared the game's "keep it" mark
+  - The 3D terrain was then built without heights for that block (the Falklands sit on a block edge at 60° W)
+  - Now Topo reads its own copies with the game's own reader, like the stock map, and never touches the game's blocks
+  - The cursor height only uses blocks Topo has already read (shows "about" elsewhere) instead of reading new ones
 - The mod folder carries this CHANGELOG.md, so R.A.T.S. Keel's What's new can show what changed when there are no Workshop notes (a local copy, the GitHub zip).
 
 ## 1.6.2 – 2026-11-12 – in-game name R.A.T.S. Topographic Map

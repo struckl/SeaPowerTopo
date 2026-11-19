@@ -20,7 +20,7 @@ internal struct HeightSample
 
 /// <summary>
 /// Reads terrain heights straight out of the game's DEM: the 20° × 20° chunks (2400 × 2400 int16 metres, one
-/// sample every 30 arc seconds) the 3D terrain has loaded or <see cref="DemCache"/> has read, and the 3 arc-minute
+/// sample every 30 arc seconds) <see cref="DemCache"/> has read (on 0.8.7 also the ones the 3D terrain has loaded), and the 3 arc-minute
 /// world grid (<see cref="LowresGrid"/>) for everywhere else. Same data, same sample positions as the stock map draws.
 /// <para>Main thread only, and only within the frame it was created in: Unity may move a texture's CPU copy when
 /// the game uploads it (which happens on the main thread), so pointers are never kept across frames. Dispose
@@ -61,10 +61,14 @@ internal sealed unsafe class HeightReader : IDisposable
         return value > 0f ? value : 1f;
     }
 
+    private readonly bool load;
+
     /// <param name="missing">Collects the keys of DEM chunks that were needed but not loaded yet (they are being read).</param>
-    public HeightReader(HashSet<string> missing = null)
+    /// <param name="load">Start reading chunks that are not read yet (the overlay); the cursor readout only uses what is there.</param>
+    public HeightReader(HashSet<string> missing = null, bool load = true)
     {
         this.missing = missing;
+        this.load = load;
         Multiplier = Option(HeightMultiplierField, 1f);
         DepthFactor = Option(DepthFactorField, 2f);
         low = LowresGrid.Pointer;
@@ -162,6 +166,7 @@ internal sealed unsafe class HeightReader : IDisposable
         string key = Utils.getDEMFileName(cx + 1, cy + 1, withExtension: false);
         try
         {
+#if FLATMAP
             DEMHandle handle = TerrainLoader.TryGetCached(key);
             if (handle != null)
             {
@@ -175,7 +180,12 @@ internal sealed unsafe class HeightReader : IDisposable
                 }
                 handle.Dispose();
             }
-            if (DemCache.TryGet(key, out NativeArray<byte> own) && own.Length >= ChunkSize * ChunkSize * 2)
+#endif
+            // Globe build: never a handle on the game's own chunks. The game keeps 16 of them; a handle held by the mod
+            // keeps the game from preloading the area around the units ("DEM pool exhausted: skipping ... to preload")
+            // and clears the "just preloaded" mark that keeps a chunk from being evicted - the 3D terrain was then
+            // built without heights (land turned to sea, units floated, ships ran ashore). Own copies instead.
+            if (DemCache.TryGet(key, out NativeArray<byte> own, load) && own.Length >= ChunkSize * ChunkSize * 2)
             {
                 chunks[c] = (short*)NativeArrayUnsafeUtility.GetUnsafeReadOnlyPtr(own);
                 state[c] = 1;
@@ -187,7 +197,8 @@ internal sealed unsafe class HeightReader : IDisposable
             // A chunk on its way out of the cache refuses new handles.
             ModLog.Debug($"DEM chunk {key} not readable: {ex.Message}");
         }
-        missing?.Add(key);
+        if (load)
+            missing?.Add(key);
     }
 
     private static float Bilerp(float a, float b, float c, float d, float tx, float ty)

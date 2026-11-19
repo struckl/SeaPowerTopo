@@ -596,7 +596,7 @@ internal sealed class TopoHost : MonoBehaviour
 
     private HeightSample Sample(double lon, double lat)
     {
-        using (var reader = new HeightReader())
+        using (var reader = new HeightReader(load: false))
             return reader.Sample(lon, lat);
     }
 

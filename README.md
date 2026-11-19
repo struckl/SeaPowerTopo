@@ -161,8 +161,9 @@ sight come from the map camera; the layers from the largest live map control (`R
 Every layer is drawn the same way: heights copied out of the DEM on the main thread in 3 ms slices per frame, then
 resampled (Catmull-Rom when zoomed in past the DEM) and coloured on half the CPU cores (a 4K view in about 70 ms). The
 globe map keeps its terrain on the graphics card only, so the mod reads its own: the 3′ world grid (`lowres.raw`, 52 MB,
-once, `Terrain/LowresGrid.cs`) and the 30″ chunks of the view – from the 3D terrain's cache (`TerrainLoader.TryGetCached`)
-where it has them, else read with the game's reader on a worker thread, the last six kept (`Terrain/DemCache.cs`); both
+once, `Terrain/LowresGrid.cs`) and the 30″ chunks of the view, read with the game's reader on a worker thread, the last
+eight kept (`Terrain/DemCache.cs`). On the globe build the mod never takes a handle on the 3D terrain's own chunks: the game
+keeps only 16, and handles held by the mod kept it from preloading the area around the units (land vanished); both
 from the files the game resolves, a mod's replacements included. The pre-drawn layers (mission area ×1, ×4, ×16 and the
 world at 0.1°, up to 8 megapixels each, with mipmaps) stand in for the live layer while the view's scale is within 1.4×
 zoomed in or 3× zoomed out of theirs. The live layer's image covers the view plus a margin (15–40 %, as much as an
@@ -201,7 +202,7 @@ src/SeaPowerTopo/
   TopoLayer.cs               the Topography entry in the map's Layers menu
   Terrain/HeightReader.cs    reads DEM chunks and the world grid (main thread), height under a point
   Terrain/LowresGrid.cs      the 3′ world grid, read from the game's file
-  Terrain/DemCache.cs        DEM chunks the 3D terrain hasn't loaded, read on a worker thread
+  Terrain/DemCache.cs        the DEM chunks the overlay draws from, read on a worker thread
   Terrain/LayerMap.cs        the game's thermal layer per 0.2° tile
   Render/OverlayRenderer.cs  one overlay layer (live or pre-drawn): the map camera's view, mesh in the globe scene (or
                              a picture on the editor's map), redraw pipeline, holes

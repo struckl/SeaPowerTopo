@@ -33,13 +33,15 @@ internal static class DemCache
     public static bool Active;
 
     /// <summary>The chunk's heights if read, else starts reading it and returns false.</summary>
-    public static bool TryGet(string key, out NativeArray<byte> heights)
+    public static bool TryGet(string key, out NativeArray<byte> heights, bool load = true)
     {
         heights = default;
         if (!Active)
             return false;
         if (!entries.TryGetValue(key, out Entry e))
         {
+            if (!load)
+                return false;
             string dir = LowresGrid.TerrainDir();
             if (dir == null)
                 return false;
@@ -178,14 +180,14 @@ using UnityEngine;
 namespace SeaPowerTopo.Terrain;
 
 /// <summary>
-/// 20° DEM chunks the 3D terrain hasn't loaded. Since the globe map the stock map reads its chunks straight to the
-/// graphics card, so outside the 3D terrain's area the game holds no copy the mod could read. Those chunks are read
+/// Every 20° DEM chunk the overlay draws from. The mod never takes a handle on the game's own chunks (the game keeps
+/// only 16, and handles held by a mod starved the 3D terrain of its preloads). The chunks are read
 /// here with the game's own reader (<c>TerrainLoader.ReadDEMHeights</c>, the files a mod may replace included) on a
 /// worker thread, and the last few kept. Main thread only, apart from the reads.
 /// </summary>
 internal static class DemCache
 {
-    private const int MaxChunks = 6;                  // 11.5 MB each
+    private const int MaxChunks = 8;                  // 11.5 MB each
 
     private sealed class Entry
     {
@@ -198,11 +200,13 @@ internal static class DemCache
     private static readonly Dictionary<string, Entry> entries = new Dictionary<string, Entry>();
 
     /// <summary>The chunk's heights if read, else starts reading it and returns false.</summary>
-    public static bool TryGet(string key, out NativeArray<byte> heights)
+    public static bool TryGet(string key, out NativeArray<byte> heights, bool load = true)
     {
         heights = default;
         if (!entries.TryGetValue(key, out Entry e))
         {
+            if (!load)
+                return false;
             if (!Singleton<FileManager>.InstanceExists())
                 return false;
             // Captured as object: a closure field of type FileLayerSnapshot (not in 0.8.7) would make the closure class

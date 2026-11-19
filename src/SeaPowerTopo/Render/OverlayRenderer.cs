@@ -882,7 +882,11 @@ internal sealed class OverlayRenderer
         nextMissingCheck = Time.unscaledTime + 0.5f;
         foreach (string key in shownMissing)
         {
+#if FLATMAP
             if (TerrainLoader.IsDEMChunkAvailable(key) || DemCache.Has(key))
+#else
+            if (DemCache.Has(key))
+#endif
                 return true;
         }
         return false;
