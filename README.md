@@ -4,12 +4,13 @@ Land heights and sea depths on the tactical map of [Sea Power: Naval Combat in t
 
 | | |
 | --- | --- |
+| Questions | [R.A.T.S. Discord](https://discord.gg/CzuHd4f8Yf): help, ideas, talk; the first place to ask |
 | Version | `1.7.0` (2026-11-20) |
 | Game | Sea Power 0.9.1 (build 261112) under Keel tested in the game; flat map build (0.8.7) run in the game with 1.5.0; other 0.9.x checked offline |
 | Needs | a mod loader: [R.A.T.S. Keel](https://steamcommunity.com/sharedfiles/filedetails/?id=3835527459) or [Anchor Chain](https://steamcommunity.com/sharedfiles/filedetails/?id=3380210757), either one |
 | Get it | [Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3826122523) |
 | Settings | the map's title bar menu, or `BepInEx\config\dev.sewerlabs.seapowertopo.cfg` |
-| Feedback | [R.A.T.S. feedback board](https://hub.sewerlabs.dev/s/topo) |
+| Bug reports | [R.A.T.S. feedback board](https://hub.sewerlabs.dev/s/topo) |
 | Source | R.A.T.S. Source License, see `LICENSE` |
 
 ![The fjords around Tromso with the Topography layer](workshop/screenshots/03-closeup-standard.jpg)
