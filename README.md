@@ -64,7 +64,7 @@ Manual install: put `SeaPowerTopo.dll` and `_info.ini` into `<Sea Power>\Sea Pow
 dotnet build src/SeaPowerTopo/SeaPowerTopo.csproj -c Release -p:GameDir="C:\Program Files (x86)\Steam\steamapps\common\Sea Power"
 ```
 
-Details, the offline preview tool and the source layout: [docs/building.md](docs/building.md). Releases: [docs/workshop.md](docs/workshop.md); tests: [docs/testing.md](docs/testing.md); how the overlay is drawn: [docs/how-it-works.md](docs/how-it-works.md).
+Details, the offline preview tool and the source layout: [docs/building.md](docs/building.md). Releases: [docs/workshop.md](docs/workshop.md); how the overlay is drawn: [docs/how-it-works.md](docs/how-it-works.md).
 
 ## Credits and license
 

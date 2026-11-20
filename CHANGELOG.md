@@ -107,7 +107,7 @@ now (`-p:GameBuild=Flat`, `FLATMAP` defined; only the map drawing and a few game
 
 The live map of a mission is drawn as in 1.2.0 (a quad in the map's scene), with the 1.3 fixes of the layer code. The globe
 build is unchanged apart from the shared refactoring. Checked offline with `tools/compat-check` (own game: nothing missing;
-other game: entry point and class load fine, `--classload`); the in-game steps are in `docs/testing.md`.
+other game: entry point and class load fine, `--classload`); the in-game steps are in the private test checklist.
 
 ## 1.3.1 - 2026-10-28 - fix: 1.3.0 could stop every mission from loading on 0.8.7
 

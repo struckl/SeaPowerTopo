@@ -15,7 +15,7 @@ dotnet build src/SeaPowerTopo/SeaPowerTopo.csproj -c Release -p:GameDir="C:\Prog
 - The build copies the mod into `<Sea Power>\Sea Power_Data\StreamingAssets\SeaPowerTopo\` (`-p:Deploy=false` skips that).
 - `tools/package.ps1` builds the release package. It adds the flat-map build (`-p:GameBuild=Flat`, `FLATMAP`), compiled
   against a copy of 0.8.7's `Sea Power_Data\Managed` (`-FlatManagedDir`).
-- Packaging and the Workshop upload: [workshop.md](workshop.md). In-game test checklists: [testing.md](testing.md).
+- Packaging and the Workshop upload: [workshop.md](workshop.md).
 - How the overlay is drawn: [how-it-works.md](how-it-works.md).
 
 ## Offline preview
@@ -67,6 +67,6 @@ tools/topo-preview/          offline preview: compiles the plugin's plain C# Ren
 tools/package.ps1            release build -> dist/SeaPowerTopo/
 tools/shot-director/         dev-only plugin that scripts the Workshop screenshots and in-game tests, and the scripts
                              for the Workshop preview and the post pictures (workshop.md)
-tools/anchorchain-beta-shim/ dev-only BepInEx plugin that starts Anchor Chain on the globe beta (testing.md)
+tools/anchorchain-beta-shim/ dev-only BepInEx plugin that starts Anchor Chain on the globe beta
 workshop/                    Workshop description, preview.jpg, screenshots/
 ```
