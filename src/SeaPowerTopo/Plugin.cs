@@ -17,7 +17,7 @@ public class Plugin : IAnchorChainMod
 {
     public const string Guid = "dev.sewerlabs.seapowertopo";
     public const string Name = "R.A.T.S. Topographic Map";
-    public const string Version = "1.6.2";
+    public const string Version = "1.7.0";
 
 #if FLATMAP
     // Both loaders skip a plugin whose GUID they have already seen, so the two builds register under different ones.

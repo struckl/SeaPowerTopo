@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.7.0 - 2026-11-20 - shared skeleton, unticked stays off
 
 - The legend row and the setting text for the submarine layer now say "tint" instead of "stripes" (the map draws a soft teal tint; the look is unchanged)
 - Changed (internal): `make_post_pictures.py` writes post pictures into the workspace's private `posts/topo/` (or a given folder), never into this public repo
