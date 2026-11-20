@@ -4,7 +4,7 @@ Land heights and sea depths on the tactical map of [Sea Power: Naval Combat in t
 
 | | |
 | --- | --- |
-| Version | `1.6.2` (2026-11-12) |
+| Version | `1.7.0` (2026-11-20) |
 | Game | Sea Power 0.9.1 (build 261112) under Keel tested in the game; flat map build (0.8.7) run in the game with 1.5.0; other 0.9.x checked offline |
 | Needs | a mod loader: [R.A.T.S. Keel](https://steamcommunity.com/sharedfiles/filedetails/?id=3835527459) or [Anchor Chain](https://steamcommunity.com/sharedfiles/filedetails/?id=3380210757), either one |
 | Get it | [Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3826122523) |

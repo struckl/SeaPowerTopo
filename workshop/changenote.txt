@@ -1,1 +1,5 @@
-1.6.2: shows as "R.A.T.S. Topographic Map" in the game's mod list and in the mod loader's list (Keel or Anchor Chain), the same name on every game version. Runs on Sea Power 0.9.1.
+1.7.0: land stays where it belongs.
+- Fixed: land vanished or moved in missions (land turned to sea, half a Falklands island gone, units floating, ships on land; board bugs 8 and 10)
+- The mod stays off when it is unticked in the game's Mod Manager
+- The legend and the map always use the same look defaults
+- Inside: Topo runs on the shared R.A.T.S. mod skeleton; every look draws exactly as before
