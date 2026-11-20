@@ -19,3 +19,8 @@ workshop/posts-*/
 workshop/reddit/
 workshop/discord/
 workshop/promotion.md
+
+# test plans, records, checklists and test shots live in the private workspace (tests/<mod>/), never in this repo
+docs/test-*
+docs/testing.md
+**/test-shots*/
