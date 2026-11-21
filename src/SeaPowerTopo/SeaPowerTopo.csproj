@@ -1,8 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <!--The common part (framework, game references, the flat-map build with -p:GameBuild=Flat, deploy, the shared source files)
-      comes from the R.A.T.S. shared repo: SeaPowerShared\Rats.Mod.props in the workspace.
-      -p:RatsWorkspace=<workspace> builds from a clone outside it, -p:RatsShared=<folder>\ against another copy of the shared repo.-->
+      comes from the R.A.T.S. shared folder in the Keel repo: SeaPowerKeel\shared\Rats.Mod.props in the workspace.
+      -p:RatsWorkspace=<workspace> builds from a clone outside it, -p:RatsShared=<folder>\ against another copy of the shared folder.-->
   <PropertyGroup>
     <AssemblyName>SeaPowerTopo</AssemblyName>
     <RootNamespace>SeaPowerTopo</RootNamespace>
@@ -12,7 +12,7 @@
     <!--Terrain heights are read straight from the game's DEM buffers.-->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <RatsWorkspace Condition="'$(RatsWorkspace)' == ''">$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildProjectDirectory), mods.json))</RatsWorkspace>
-    <RatsShared Condition="'$(RatsShared)' == ''">$([MSBuild]::EnsureTrailingSlash('$(RatsWorkspace)'))SeaPowerShared\</RatsShared>
+    <RatsShared Condition="'$(RatsShared)' == ''">$([MSBuild]::EnsureTrailingSlash('$(RatsWorkspace)'))SeaPowerKeel\shared\</RatsShared>
   </PropertyGroup>
 
   <Import Project="$(RatsShared)Rats.Mod.props" />

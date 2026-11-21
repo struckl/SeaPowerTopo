@@ -4,8 +4,8 @@ Build notes, the offline preview and the source layout. Short form in the [READM
 
 ## Building
 
-- Needs the .NET SDK 8, Sea Power installed, and the R.A.T.S. Shared repo next to this one (`SeaPowerShared`): the build compiles
-  it into the DLL and takes Anchor Chain's library from its `lib/`.
+- Needs the .NET SDK 8, Sea Power installed, and the R.A.T.S. Keel repo next to this one: the build compiles
+  `SeaPowerKeel\shared\` into the DLL and takes `AnchorChain.dll` from Keel's copy.
 - `GameDir` can also be set as an environment variable.
 
 ```bash
