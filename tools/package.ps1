@@ -13,15 +13,15 @@
     Every DLL is checked against both games' assemblies with the workspace's tools\compat-check.
     With -Install the staged folder also replaces <GameDir>\Sea Power_Data\StreamingAssets\SeaPowerTopo\, the folder to pick in
     the game's Create Mod screen. Sea Power must be closed for that. -Zip also writes dist\SeaPowerTopo-<version>.zip.
-    The steps are the shared ones of every R.A.T.S. mod (SeaPowerCore\tools\RatsPackage.psm1); the workspace is found
-    above this repo, -Workspace names it for a clone elsewhere, -RatsCore another copy of the Core repo.
+    The steps are the shared ones of every R.A.T.S. mod (SeaPowerShared\tools\RatsPackage.psm1); the workspace is found
+    above this repo, -Workspace names it for a clone elsewhere, -RatsShared another copy of the shared repo.
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File tools\package.ps1 -Install
 #>
 param(
     [string]$GameDir = $(if ($env:GameDir) { $env:GameDir } else { 'E:\Games\steamapps\common\Sea Power' }),
     [string]$Workspace = $env:RatsWorkspace,
-    [string]$RatsCore = $env:RatsCore,
+    [string]$RatsShared = $env:RatsShared,
     [string]$FlatManagedDir = $env:FlatManagedDir,
     # The globe build's game assemblies when the installed game isn't the globe version (a saved copy of its Managed).
     [string]$GlobeManagedDir = $env:GlobeManagedDir,
@@ -37,8 +37,8 @@ if (-not $Workspace) {
     while ($Workspace -and -not (Test-Path (Join-Path $Workspace 'mods.json'))) { $Workspace = Split-Path -Parent $Workspace }
     if (-not $Workspace) { throw 'No workspace (a folder with mods.json) above this repo - pass -Workspace.' }
 }
-if (-not $RatsCore) { $RatsCore = Join-Path $Workspace 'SeaPowerCore' }
-Import-Module (Join-Path $RatsCore 'tools\RatsPackage.psm1') -Force
+if (-not $RatsShared) { $RatsShared = Join-Path $Workspace 'SeaPowerShared' }
+Import-Module (Join-Path $RatsShared 'tools\RatsPackage.psm1') -Force
 
 $name = 'SeaPowerTopo'
 $project = Join-Path $root "src\$name\$name.csproj"
@@ -46,7 +46,7 @@ $dist = Join-Path $root "dist\$name"
 if (-not $FlatManagedDir) { $FlatManagedDir = Join-Path $Workspace '_gamerefs\SeaPower-0.8.7-public\Managed' }
 if (-not $GlobeManagedDir) { $GlobeManagedDir = Join-Path $GameDir 'Sea Power_Data\Managed' }
 
-$env:RatsCore = $RatsCore.TrimEnd('\') + '\'      # the csproj's -p:RatsCore, also for the flat build
+$env:RatsShared = $RatsShared.TrimEnd('\') + '\'      # the csproj's -p:RatsShared, also for the flat build
 Build-RatsMod -Project $project -Dist $dist -GameDir $GameDir -GlobeManagedDir $GlobeManagedDir -FlatManagedDir $FlatManagedDir -Workspace $Workspace -NoFlat:$NoFlat | Out-Null
 Test-RatsCompat -Workspace $Workspace -Dist $dist -RootNamespace $name -GlobeManagedDir $GlobeManagedDir -FlatManagedDir $FlatManagedDir
 Copy-RatsCommon -Root $root -Dist $dist -InfoIni (Join-Path $root "src\$name\mod\_info.ini")

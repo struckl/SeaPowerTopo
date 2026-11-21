@@ -1,8 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <!--The common part (framework, game references, the flat-map build with -p:GameBuild=Flat, deploy, the shared source files)
-      comes from the R.A.T.S. Core repo: SeaPowerCore\Rats.Mod.props in the workspace.
-      -p:RatsWorkspace=<workspace> builds from a clone outside it, -p:RatsCore=<folder>\ against another copy of the Core repo.-->
+      comes from the R.A.T.S. shared repo: SeaPowerShared\Rats.Mod.props in the workspace.
+      -p:RatsWorkspace=<workspace> builds from a clone outside it, -p:RatsShared=<folder>\ against another copy of the shared repo.-->
   <PropertyGroup>
     <AssemblyName>SeaPowerTopo</AssemblyName>
     <RootNamespace>SeaPowerTopo</RootNamespace>
@@ -12,10 +12,10 @@
     <!--Terrain heights are read straight from the game's DEM buffers.-->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <RatsWorkspace Condition="'$(RatsWorkspace)' == ''">$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildProjectDirectory), mods.json))</RatsWorkspace>
-    <RatsCore Condition="'$(RatsCore)' == ''">$([MSBuild]::EnsureTrailingSlash('$(RatsWorkspace)'))SeaPowerCore\</RatsCore>
+    <RatsShared Condition="'$(RatsShared)' == ''">$([MSBuild]::EnsureTrailingSlash('$(RatsWorkspace)'))SeaPowerShared\</RatsShared>
   </PropertyGroup>
 
-  <Import Project="$(RatsCore)Rats.Mod.props" />
+  <Import Project="$(RatsShared)Rats.Mod.props" />
 
   <ItemGroup>
     <!--The game's LZ4 (DEM chunks the editor's map needs) lives here; only the flat-map build uses it.-->
