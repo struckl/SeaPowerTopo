@@ -5,17 +5,11 @@ owns the item. No SteamCMD needed.
 
 ## Before a release
 
-**Two builds in one package (1.3.0 on).** Sea Power 0.8.7 (flat map) and the globe map (public beta from 26 Oct 2026,
-the 11 November release) need different code, so the package carries both: `SeaPowerTopo.dll` from this branch and
-`SeaPowerTopoFlat.dll`, the 1.2.0 code with a version check, from the `flat-map` branch. Each stays off on the game the
-other is for. `tools\package.ps1` builds the flat one in a temporary worktree against a copy of 0.8.7's
-`Sea Power_Data\Managed` (default `_gamerefs\SeaPower-0.8.7-public\Managed` next to the mod folders in the workspace, or
-`-FlatManagedDir`). With the installed game on
-0.8.7, give the globe build a saved copy of the globe version's assemblies with `-GlobeManagedDir`. Run
-the release checks on both game versions (Steam > Sea Power > Properties > Betas). 1.3.0 went up on 2026-10-27, tested
-on the beta (261026) and on 0.8.7 (261021); on 0.8.7 it could stop every mission from loading (a field of a globe-only
-type in the globe DLL, see CHANGELOG), and 1.3.1 (2026-10-28, run in the game on 0.8.7) replaced it. Once the globe map is on the default
-branch the flat-map build can go (`-NoFlat`).
+**One build, for the game's current main version.**
+
+- The package holds `SeaPowerTopo.dll` and a built-in copy of `SeaPowerRigging.dll` (R.A.T.S. Rigging, which the mod needs).
+- `tools\package.ps1` builds against the installed game; `-ManagedDir` gives it a saved copy of the assemblies when the installed game is not the current main version.
+- Run the release checks on the current game version.
 
 1. Bump the version in `src/SeaPowerTopo/Plugin.cs` (`Version`) and `src/SeaPowerTopo/SeaPowerTopo.csproj`
    (`<Version>`), add the entry to [CHANGELOG.md](../CHANGELOG.md).

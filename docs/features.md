@@ -62,11 +62,9 @@ Everything the mod does, in full. The short list is in the [README](../README.md
 
 ## Compatibility
 
-- Declared for Sea Power 0.8.7 up to every 0.9.x (`_info.ini`).
-- Run in the game on 0.9.1 (build 261112) under Keel, in Red Sea Breakout (1.6.2). Other 0.9.x builds were checked offline.
-- One package, two game builds: `SeaPowerTopo.dll` for the 3D globe map, `SeaPowerTopoFlat.dll` for 0.8.7's flat map. Each
-  stays off on the game the other is for, and the log says which one runs. They share the config file and theme files.
-- The loader is R.A.T.S. Keel. [tools/anchorchain-beta-shim](../tools/anchorchain-beta-shim) started Anchor Chain on the
+- Declared for Sea Power 0.9.0 up to every 0.9.x (`_info.ini`).
+- Run in the game on 0.9.1 (build 261112) under Keel, in Red Sea Breakout (1.6.2). Other builds, 0.9.3 included, were checked offline.
+- Needs R.A.T.S. Keel, the mod loader, and R.A.T.S. Rigging, the part the R.A.T.S. mods share (a copy comes with this mod for now). [tools/anchorchain-beta-shim](../tools/anchorchain-beta-shim) started Anchor Chain on the
   globe beta for development and is no longer needed.
 - The game updates often. If an update moves something the mod hooks into, the affected part stops and the log says why.
   The game keeps running.

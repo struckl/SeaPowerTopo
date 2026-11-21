@@ -37,7 +37,7 @@ The title bar buttons, the look list, the legend and the cursor readout are Noes
 window's title bar button row (found like Pop-Out finds it), the look list is a popup under its button, the rest into a grid laid over the map control, handed over by a Harmony
 postfix on `RenderedLayer.OnRender` that is applied only once NoesisGUI runs; the editor's map is found through its view
 model. The few game internals the mod needs (the night state of the map's palette, a new Layers menu entry) are
-reached by reflection (`GameReflection`, from the shared skeleton).
+reached by reflection (`GameReflection`, in R.A.T.S. Rigging).
 
 Depths are the simulation's: the DEM depth times the game's under-water depth factor, doubled once more where the DEM
 is shallower than 48 m (as every terrain lookup of the game does) - so a thin ring of shallower water can sit just

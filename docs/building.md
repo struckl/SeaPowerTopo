@@ -4,8 +4,8 @@ Build notes, the offline preview and the source layout. Short form in the [READM
 
 ## Building
 
-- Needs the .NET SDK 8, Sea Power installed, and the R.A.T.S. Keel repo next to this one: the build compiles
-  `SeaPowerKeel\shared\` into the DLL and takes `AnchorChain.dll` from Keel's copy.
+- Needs the .NET SDK 8, Sea Power installed, and the SeaPowerRigging repo (R.A.T.S. Rigging) next to this one: Rigging is
+  built on demand as a project reference, and its `ref\` folder holds `AnchorChain.dll` for the entry point.
 - `GameDir` can also be set as an environment variable.
 
 ```bash
@@ -13,8 +13,11 @@ dotnet build src/SeaPowerTopo/SeaPowerTopo.csproj -c Release -p:GameDir="C:\Prog
 ```
 
 - The build copies the mod into `<Sea Power>\Sea Power_Data\StreamingAssets\SeaPowerTopo\` (`-p:Deploy=false` skips that).
-- `tools/package.ps1` builds the release package. It adds the flat-map build (`-p:GameBuild=Flat`, `FLATMAP`), compiled
-  against a copy of 0.8.7's `Sea Power_Data\Managed` (`-FlatManagedDir`).
+- One build, for the game's current main version: `SeaPowerTopo.dll`, with the Workshop metadata saying 0.9.0 or newer.
+  The start, the hook registry, the config file, the log and the host object are R.A.T.S. Rigging's (`SeaPowerRigging.dll`):
+  the plugin names it with `[ACDependency]` and the mod keeps one object of it (`Rig.cs`).
+- `tools/package.ps1` builds the release package with a built-in copy of `SeaPowerRigging.dll`, and checks the DLL against
+  the game's assemblies (`-ManagedDir` for a saved copy of them) and against Rigging (`tools/compat-check` in the workspace).
 - Packaging and the Workshop upload: [workshop.md](workshop.md).
 - How the overlay is drawn: [how-it-works.md](how-it-works.md).
 
@@ -27,7 +30,6 @@ dotnet run --project tools/topo-preview -c Release -- --at 61.5,8 --span 2 --siz
 ```
 
 - `--at` is lat,lon of the centre, `--span` the view height in degrees, `--game <dir>` the game folder.
-- `--globe` uses the globe map's narrower pixels (0.9 and later); without it the flat map's (0.8.7).
 - `--theme <id>` takes any id from `src/SeaPowerTopo/Render/Theme.cs`; without it Standard by day, `--dark` Midnight.
 - `--theme-file my.ini`, or `--themes-dir <folder>` with `--theme <id>`, previews theme files; `--check-themes` tests them.
 - `--chart-safety 50`, `--danger 1200` (aircraft highlight), `--interval 100` (fixed contour step), `--nodepth` (sea left to the stock map).
@@ -37,17 +39,15 @@ dotnet run --project tools/topo-preview -c Release -- --at 61.5,8 --span 2 --siz
 
 ```
 src/SeaPowerTopo/
-  Plugin.cs, Hooks.cs        entry point (the Anchor Chain entry, which Keel carries on; ModEntry of the shared skeleton does the game version check,
-                             settings, hooks and host); the late map hook
-  ModInfo.cs                 what the shared skeleton reads (GUID, name, version, log source)
+  Plugin.cs, Rig.cs, Hooks.cs  entry point (the Anchor Chain entry, which Keel carries on); the mod's R.A.T.S. Rigging object
+                             and its start (settings, hooks, host); the late map hook
   Settings.cs                the config entries (Bind), the change counter the overlay redraws on
-  TopoHost.cs                per-frame driver (ModHost): layer entry, keys, selected aircraft / submarine, which overlay
+  TopoHost.cs                per-frame driver (RigHost): layer entry, keys, selected aircraft / submarine, which overlay
                              layers show and draw, pre-drawn areas from the units, title bar buttons/legend/readout, the
                              mission editor's map
   Terrain/HeightReader.cs    reads DEM chunks and the world grid (main thread), height under a point
   Terrain/LowresGrid.cs      the 3' world grid, read from the game's file
   Terrain/DemCache.cs        the DEM chunks the overlay draws from, read on a worker thread
-  Terrain/EditorTerrain.cs   0.8.7 only: the mission editor's terrain folder, read by the mod itself
   Terrain/LayerMap.cs        the game's thermal layer per 0.2 degree tile
   Render/OverlayRenderer.cs  one overlay layer (live or pre-drawn): the map camera's view, mesh in the globe scene (or
                              a picture on the editor's map), redraw pipeline, holes
@@ -67,6 +67,6 @@ tools/topo-preview/          offline preview: compiles the plugin's plain C# Ren
 tools/package.ps1            release build -> dist/SeaPowerTopo/
 tools/shot-director/         dev-only plugin that scripts the Workshop screenshots and in-game tests, and the scripts
                              for the Workshop preview and the post pictures (workshop.md)
-tools/anchorchain-beta-shim/ dev-only BepInEx plugin that starts Anchor Chain on the globe beta
+tools/anchorchain-beta-shim/ dev-only BepInEx plugin that starts Anchor Chain on the globe beta (not needed under Keel)
 workshop/                    Workshop description, preview.jpg, screenshots/
 ```

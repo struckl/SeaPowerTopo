@@ -9,8 +9,8 @@ internal enum ReadoutMode { WithOverlay, Always, Off }
 internal enum HeightUnits { Both, Metres, Feet }
 
 /// <summary>
-/// BepInEx config at <c>BepInEx/config/dev.sewerlabs.seapowertopo.cfg</c> (the file and the General section: ModSettings in
-/// the shared skeleton). Sections are numbered so they sort in the order a player would look for them. Changes made while the game runs apply on the next redraw.
+/// BepInEx config at <c>BepInEx/config/dev.sewerlabs.seapowertopo.cfg</c> (the file and the General section: Rig.Settings in
+/// R.A.T.S. Rigging). Sections are numbered so they sort in the order a player would look for them. Changes made while the game runs apply on the next redraw.
 /// </summary>
 internal static class Settings
 {
@@ -37,7 +37,7 @@ internal static class Settings
     public static ConfigEntry<bool> LegendOpen;
     public static ConfigEntry<HeightUnits> Units;
 
-    /// <summary>Counts every config change but the layer, legend and readout switches (ModSettings, in the shared skeleton).</summary>
+    /// <summary>Counts every config change but the layer, legend and readout switches (ChangeCounter, R.A.T.S. Rigging).</summary>
     public static ChangeCounter Changes;
 
     private static int themeTouches;
@@ -56,7 +56,7 @@ internal static class Settings
         string.Join("; ", Themes.Of(dark).FindAll(t => !t.Custom).ConvertAll(t => $"{t.Id} ({t.Name}: {t.Note})")) +
         $". Theme files in {ThemeLibrary.FolderShown} add their own: use their Id";
 
-    /// <summary>From ModSettings.Open: binds the entries and sets up the change counter.</summary>
+    /// <summary>From Rig.Settings, once it has opened the file: binds the entries and sets up the change counter.</summary>
     public static void Bind(ConfigFile file)
     {
         Visible = file.Bind("2. Overlay", "Visible", true,
@@ -129,6 +129,6 @@ internal static class Settings
             "Height units in the readout and the legend: Both (metres and feet), Metres or Feet.");
 
         // Turning the layer, the legend or the readout on and off is not a reason to redraw the overlay.
-        Changes = ChangeCounter.AllBut(Visible, LegendOpen, Readout);
+        Changes = ChangeCounter.AllBut(file, Visible,LegendOpen, Readout);
     }
 }

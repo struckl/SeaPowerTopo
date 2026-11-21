@@ -20,7 +20,7 @@ internal struct HeightSample
 
 /// <summary>
 /// Reads terrain heights straight out of the game's DEM (<see cref="DemGrid"/>): the 20-degree chunks <see cref="DemCache"/>
-/// has read (on 0.8.7 also the ones the 3D terrain has loaded), and the 3 arc-minute world grid (<see cref="LowresGrid"/>)
+/// has read, and the 3 arc-minute world grid (<see cref="LowresGrid"/>)
 /// for everywhere else. Same data, same sample positions as the stock map draws.
 /// <para>Main thread only, and only within the frame it was created in: Unity may move a texture's CPU copy when
 /// the game uploads it (which happens on the main thread), so pointers are never kept across frames.</para>
@@ -31,10 +31,6 @@ internal sealed unsafe class HeightReader : IDisposable
     private const int DemCols = DemGrid.DemCols, DemRows = DemGrid.DemRows;
     private const int LowCols = DemGrid.LowCols, LowRows = DemGrid.LowRows;
 
-#if FLATMAP
-    // The game's cache handles on the chunks the 3D terrain has loaded, which keep them from being evicted meanwhile.
-    private readonly DEMHandle[] handles = new DEMHandle[ChunksX * ChunksY];
-#endif
     private readonly short*[] chunks = new short*[ChunksX * ChunksY];
     private readonly byte[] state = new byte[ChunksX * ChunksY];   // 0 = not looked up, 1 = loaded, 2 = missing
     private readonly short* low;
@@ -47,7 +43,7 @@ internal sealed unsafe class HeightReader : IDisposable
 
     public bool HasLowres => low != null;
 
-    // Options in 0.8.7; beta 261107 removed them and fixed land at x1 and water at x2 (TerrainUtils.ScaleDEMHeight). By name, so one build runs on both.
+    // Options before beta 261107, which removed them and fixed land at x1 and water at x2 (TerrainUtils.ScaleDEMHeight). Looked up by name: where a build still has them, they count.
     private static readonly System.Reflection.FieldInfo HeightMultiplierField = typeof(Globals).GetField("_heightMultiplier");
     private static readonly System.Reflection.FieldInfo DepthFactorField = typeof(Globals).GetField("_underWaterDepthFactor");
 
@@ -159,22 +155,7 @@ internal sealed unsafe class HeightReader : IDisposable
         string key = Utils.getDEMFileName(cx + 1, cy + 1, withExtension: false);
         try
         {
-#if FLATMAP
-            DEMHandle handle = TerrainLoader.TryGetCached(key);
-            if (handle != null)
-            {
-                NativeArray<byte> data = handle.Chunk._data;
-                if (data.IsCreated && data.Length >= ChunkSize * ChunkSize * 2)
-                {
-                    handles[c] = handle;
-                    chunks[c] = (short*)NativeArrayUnsafeUtility.GetUnsafeReadOnlyPtr(data);
-                    state[c] = 1;
-                    return;
-                }
-                handle.Dispose();
-            }
-#endif
-            // Globe build: never a handle on the game's own chunks. The game keeps 16 of them; a handle held by the mod
+            // Never a handle on the game's own chunks. The game keeps 16 of them; a handle held by the mod
             // keeps the game from preloading the area around the units ("DEM pool exhausted: skipping ... to preload")
             // and clears the "just preloaded" mark that keeps a chunk from being evicted - the 3D terrain was then
             // built without heights (land turned to sea, units floated, ships ran ashore). Own copies instead.
@@ -188,7 +169,7 @@ internal sealed unsafe class HeightReader : IDisposable
         catch (Exception ex)
         {
             // A chunk on its way out of the cache refuses new handles.
-            ModLog.Debug($"DEM chunk {key} not readable: {ex.Message}");
+            Rig.Log.Debug($"DEM chunk {key} not readable: {ex.Message}");
         }
         if (load)
             missing?.Add(key);
@@ -198,10 +179,6 @@ internal sealed unsafe class HeightReader : IDisposable
     {
         for (int c = 0; c < chunks.Length; c++)
         {
-#if FLATMAP
-            handles[c]?.Dispose();
-            handles[c] = null;
-#endif
             chunks[c] = null;
             state[c] = 0;
         }

@@ -120,7 +120,7 @@ internal static class ThemeCheck
 
     private static byte[] Draw(Terrain terrain, Theme theme, (double lat, double lon, double span, float danger) v, float depthFactor)
     {
-        RasterJob job = Program.NewJob(theme, v.lat, v.lon, v.span, 640, 360, globe: false, depth: true,
+        RasterJob job = Program.NewJob(theme, v.lat, v.lon, v.span, 640, 360, depth: true,
                                        Look.DefaultChartSafety, v.danger, float.NaN);
         SourceGrid src = terrain.Fill(job, depthFactor, out _);
         Raster.Resample(src, job, () => false);

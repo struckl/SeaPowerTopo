@@ -14,7 +14,7 @@ using UnityEngine;
 namespace SeaPowerTopo;
 
 /// <summary>
-/// Drives the mod (ModHost, in the shared skeleton, applies the late map hook once NoesisGUI runs): during a mission keeps the Layers-menu entry,
+/// Drives the mod (RigHost, R.A.T.S. Rigging, applies the late map hook once NoesisGUI runs): during a mission keeps the Layers-menu entry,
 /// the toggle key, the overlay, and the title bar buttons, legend and cursor readout of every live map in step. Out of
 /// a mission, the mission editor's map gets the overlay (drawn live, as a picture on its flat map) and the same
 /// buttons.
@@ -24,9 +24,9 @@ namespace SeaPowerTopo;
 /// drawn while playing. Closer in, or while an aircraft's terrain highlight is on, the live layer draws the view on
 /// top, with the pre-drawn layers filling in around it while it catches up with a pan.</para>
 /// </summary>
-internal sealed class TopoHost : ModHost
+internal sealed class TopoHost : RigHost
 {
-    public static new TopoHost Instance => ModHost.Instance as TopoHost;
+    public static TopoHost Instance => Rig.Mod.Host as TopoHost;
 
     private const float MinClearanceMetres = 30f;     // closer to the ground than this counts as landed / on deck
 
@@ -37,7 +37,7 @@ internal sealed class TopoHost : ModHost
     private const double WorldDpp = 0.1;
     private const double MinMissionSpan = 4.0;         // degrees
 
-    private readonly LayerEntry layer = new LayerEntry(600, "SEWERLABS_TOPOGRAPHY", "Topography (heights and depths)", Settings.Visible);
+    private readonly LayerEntry layer = new LayerEntry(Rig.Log, 600, "SEWERLABS_TOPOGRAPHY", "Topography (heights and depths)", Settings.Visible);
     private readonly MapSceneRef map = new MapSceneRef();
     private readonly OverlayRenderer live;
     private readonly List<OverlayRenderer> drawn = new List<OverlayRenderer>();    // pre-drawn, finest first
@@ -74,7 +74,7 @@ internal sealed class TopoHost : ModHost
     {
         if (missionActive)
             TickMission();
-        else if (HookRegistry.IsActive("Map"))
+        else if (Rig.Hooks.IsActive("Map"))
             TickEditor();
     }
 
@@ -162,11 +162,8 @@ internal sealed class TopoHost : ModHost
                 if (found != null)
                 {
                     editorMap.Use(found);
-#if FLATMAP
-                    EditorTerrain.Active = true;
-#endif
                     editorDecoration = MapDecoration.TryAttach(found, Describe);
-                    ModLog.Info("Mission editor map found: Topography drawn there too.");
+                    Rig.Log.Info("Mission editor map found: Topography drawn there too.");
                 }
             }
         }
@@ -227,12 +224,7 @@ internal sealed class TopoHost : ModHost
         editorDecoration?.Detach();
         editorDecoration = null;
         editorMap.Forget();
-#if FLATMAP
-        EditorTerrain.Active = false;
-        DemCache.Clear();
-        LowresGrid.Clear();
-#endif
-        ModLog.Info("Mission editor map closed.");
+        Rig.Log.Info("Mission editor map closed.");
     }
 
     /// <summary>
@@ -304,14 +296,9 @@ internal sealed class TopoHost : ModHost
             return false;
         var lons = new List<double>();
         var lats = new List<double>();
-#if FLATMAP
-        foreach (Taskforce side in new[] { Globals._playerTaskforce, Globals._enemyTaskforce, Globals._alliedTaskforce,
-                                           Globals._neutralTaskforce, Globals._secondEnemyTaskforce })
-#else
         if (!Singleton<TaskforceManager>.InstanceExists())
             return false;
         foreach (Taskforce side in Singleton<TaskforceManager>.Instance._taskForces)
-#endif
         {
             if (side == null)
                 continue;
@@ -345,7 +332,7 @@ internal sealed class TopoHost : ModHost
             var level = new OverlayRenderer(map, $"mission x{1 << (2 * k)}", z);
             level.SetArea(new GeoRect(cx - hw, s, cx + hw, n), dpp, dem: dpp < 1.5 / DemGrid.DemPerDegree);
             drawn.Add(level);
-            ModLog.Info($"Pre-drawn layer {drawn.Count}: {new GeoRect(cx - hw, s, cx + hw, n)}, " +
+            Rig.Log.Info($"Pre-drawn layer {drawn.Count}: {new GeoRect(cx - hw, s, cx + hw, n)}, " +
                         $"{dpp * Raster.MetresPerDegree:0} m per pixel");
             halfW *= 4;
             halfH *= 4;
@@ -355,7 +342,7 @@ internal sealed class TopoHost : ModHost
         var world = new OverlayRenderer(map, "world", z);
         world.SetArea(new GeoRect(-180, -90, 180, 90), WorldDpp, dem: false);
         drawn.Add(world);
-        ModLog.Info($"Pre-drawn layers for {lons.Count} units, plus the world at {WorldDpp * Raster.MetresPerDegree / 1000:0} km per pixel.");
+        Rig.Log.Info($"Pre-drawn layers for {lons.Count} units, plus the world at {WorldDpp * Raster.MetresPerDegree / 1000:0} km per pixel.");
         return true;
     }
 
@@ -408,7 +395,7 @@ internal sealed class TopoHost : ModHost
         }
         catch (Exception ex)
         {
-            ModLog.Error($"Look switch failed: {ex}");
+            Rig.Log.Error($"Look switch failed: {ex}");
         }
     }
 
@@ -416,7 +403,7 @@ internal sealed class TopoHost : ModHost
     internal void ToggleLayer()
     {
         layer.Toggle();
-        ModLog.Info($"Topography {(layer.Visible ? "on" : "off")}.");
+        Rig.Log.Info($"Topography {(layer.Visible ? "on" : "off")}.");
     }
 
     /// <summary>
@@ -427,7 +414,7 @@ internal sealed class TopoHost : ModHost
     {
         bool layerOn = layer.Visible;
         Settings.Readout.Value = ReadoutOn(layerOn) ? ReadoutMode.Off : layerOn ? ReadoutMode.WithOverlay : ReadoutMode.Always;
-        ModLog.Info($"Cursor readout {Settings.Readout.Value}.");
+        Rig.Log.Info($"Cursor readout {Settings.Readout.Value}.");
     }
 
     /// <summary>Makes <paramref name="theme"/> the look of its map theme and says so on every map.</summary>
@@ -440,7 +427,7 @@ internal sealed class TopoHost : ModHost
     private void Announce(Theme theme)
     {
         string text = $"{theme.Name}: {theme.Note}";
-        ModLog.Info($"Look ({(theme.Dark ? "night" : "day")} map): {text}");
+        Rig.Log.Info($"Look ({(theme.Dark ? "night" : "day")} map): {text}");
         Notify(text, 2.5f);
     }
 
@@ -454,7 +441,7 @@ internal sealed class TopoHost : ModHost
     // A theme file was added, changed or removed.
     private void ReloadThemes()
     {
-        ThemeLibrary.Load(ModLog.Info, ModLog.Warn);
+        ThemeLibrary.Load(Rig.Log.Info, Rig.Log.Warn);
         Settings.Touch();
         Notify(ThemeLibrary.Problems == 0
             ? $"Theme files: {ThemeLibrary.Loaded} loaded"
@@ -466,21 +453,21 @@ internal sealed class TopoHost : ModHost
     {
         try
         {
-            Theme saved = ThemeLibrary.Save(CurrentTheme(), ModLog.Info, ModLog.Warn, out string path, out string error);
+            Theme saved = ThemeLibrary.Save(CurrentTheme(), Rig.Log.Info, Rig.Log.Warn, out string path, out string error);
             if (saved == null)
             {
-                ModLog.Error($"Saving the look failed: {error}");
+                Rig.Log.Error($"Saving the look failed: {error}");
                 Notify($"Could not save the look: {error}", 5f);
                 return;
             }
             Settings.Touch();
             (saved.Dark ? Settings.NightLook : Settings.DayLook).Value = saved.Id;
-            ModLog.Info($"Saved the look as {path}");
+            Rig.Log.Info($"Saved the look as {path}");
             Notify($"Saved {Path.GetFileName(path)} in {ThemeLibrary.FolderShown}. Edit it, the map follows when you save.", 7f);
         }
         catch (Exception ex)
         {
-            ModLog.Error($"Saving the look failed: {ex}");
+            Rig.Log.Error($"Saving the look failed: {ex}");
         }
     }
 
@@ -494,7 +481,7 @@ internal sealed class TopoHost : ModHost
         }
         catch (Exception ex)
         {
-            ModLog.Warn($"Could not open the themes folder: {ex.Message}");
+            Rig.Log.Warn($"Could not open the themes folder: {ex.Message}");
             Notify($"The themes folder is {ThemeLibrary.Folder}", 7f);
         }
     }
@@ -547,11 +534,11 @@ internal sealed class TopoHost : ModHost
             if (decoration == null)
             {
                 undecoratable.Add(map);
-                ModLog.Warn("Map template not as expected - no legend or cursor readout on this map.");
+                Rig.Log.Warn("Map template not as expected - no legend or cursor readout on this map.");
                 return;
             }
             maps.Add(decoration);
-            ModLog.Info("Legend and cursor readout attached to the map.");
+            Rig.Log.Info("Legend and cursor readout attached to the map.");
         }
         catch (Exception ex)
         {

@@ -13,10 +13,11 @@
       https://api.nuget.org/v3/index.json;
       https://nuget.bepinex.dev/v3/index.json
     </RestoreAdditionalProjectSources>
+    <RatsWorkspace Condition="'$(RatsWorkspace)' == ''">$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildProjectDirectory), mods.json))</RatsWorkspace>
     <GameDir Condition="'$(GameDir)' == ''">E:\Games\steamapps\common\Sea Power</GameDir>
-    <!-- Anchor Chain's library, to compile the entry point against: the copy Keel ships, so no build needs the Anchor Chain item. AnchorChainDir overrides it. -->
+    <!-- Anchor Chain's library, to compile the entry point against: the copy in the Rigging repo, so no build needs the Anchor Chain item. AnchorChainDir overrides it. -->
     <AnchorChainRef Condition="'$(AnchorChainDir)' != ''">$(AnchorChainDir)\AnchorChain.dll</AnchorChainRef>
-    <AnchorChainRef Condition="'$(AnchorChainRef)' == ''">$(MSBuildThisFileDirectory)..\..\..\SeaPowerKeel\lib\AnchorChain.keel.bin</AnchorChainRef>
+    <AnchorChainRef Condition="'$(AnchorChainRef)' == ''">$(RatsWorkspace)\SeaPowerRigging\ref\AnchorChain.keel.bin</AnchorChainRef>
     <ManagedDir>$(GameDir)\Sea Power_Data\Managed</ManagedDir>
     <ModDeployDir>$(GameDir)\Sea Power_Data\StreamingAssets\ShotDirector</ModDeployDir>
   </PropertyGroup>

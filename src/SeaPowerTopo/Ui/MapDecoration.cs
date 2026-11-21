@@ -293,7 +293,7 @@ internal sealed class MapDecoration
         }
         catch (Exception ex)
         {
-            ModLog.Debug($"Map decoration detach: {ex.Message}");
+            Rig.Log.Debug($"Map decoration detach: {ex.Message}");
         }
     }
 
@@ -484,7 +484,7 @@ internal sealed class MapDecoration
                 dock.Children.Insert(0, bar);
             }
             if (headerSearches == HeaderSearches)
-                ModLog.Info("No title bar on this map: the Topography menu button sits at its top left.");
+                Rig.Log.Info("No title bar on this map: the Topography menu button sits at its top left.");
             return;
         }
         if (VisualTreeHelper.GetParent(bar) is Panel old)
@@ -492,7 +492,7 @@ internal sealed class MapDecoration
         bar.Children.Remove(kebab);
         row.Children.Insert(at, kebab);
         header = row;
-        ModLog.Info("Topography menu button placed in the map's title bar.");
+        Rig.Log.Info("Topography menu button placed in the map's title bar.");
     }
 
     // The panel holding the map window's menu (≡) and its window buttons: in the window round the map, outside the
@@ -711,7 +711,7 @@ internal sealed class MapDecoration
             if (!loggedFailure)
             {
                 loggedFailure = true;
-                ModLog.Error($"Cursor readout failed: {ex}");
+                Rig.Log.Error($"Cursor readout failed: {ex}");
             }
         }
     }
@@ -719,10 +719,6 @@ internal sealed class MapDecoration
     // The map position under a point of the map control; false off the globe (its edge is in view when zoomed out).
     private bool TryGeo(Point p, out GeoPosition at)
     {
-#if FLATMAP
-        at = Map.ViewToGeoPosition(p);                 // the flat map has no edge
-        return true;
-#else
         MapProjection projection = Map.MapProjection;
         ViewTransform transform = Map.ViewTransform;
         if (projection == null || transform == null)
@@ -732,7 +728,6 @@ internal sealed class MapDecoration
         }
         Point m = transform.ViewToMap(p);
         return projection.TryMapToGeoPosition(m.X, m.Y, out at);
-#endif
     }
 
     private void OnMouseLeave(object sender, MouseEventArgs e) => Hide();

@@ -5,9 +5,9 @@ Land heights and sea depths on the tactical map of [Sea Power: Naval Combat in t
 | | |
 | --- | --- |
 | Questions | [R.A.T.S. Discord](https://discord.gg/CzuHd4f8Yf): help, ideas, talk; the first place to ask |
-| Version | `1.7.0` (2026-11-20) |
-| Game | Sea Power 0.9.1 (build 261112) under Keel tested in the game; flat map build (0.8.7) run in the game with 1.5.0; other 0.9.x checked offline |
-| Needs | [R.A.T.S. Keel](https://steamcommunity.com/sharedfiles/filedetails/?id=3835527459), the mod loader |
+| Version | `1.8.0` (unreleased) |
+| Game | Sea Power 0.9.3 (build 261116), the current main version; checked offline |
+| Needs | [R.A.T.S. Keel](https://steamcommunity.com/sharedfiles/filedetails/?id=3835527459), the mod loader, and R.A.T.S. Rigging, the part the R.A.T.S. mods share (a copy comes with this mod for now) |
 | Get it | [Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3826122523) |
 | Settings | the map's title bar menu, or `BepInEx\config\dev.sewerlabs.seapowertopo.cfg` |
 | Bug reports | [R.A.T.S. feedback board](https://hub.sewerlabs.dev/s/topo) |
@@ -25,7 +25,7 @@ Land heights and sea depths on the tactical map of [Sea Power: Naval Combat in t
 - With an aircraft selected, terrain at or above its altitude is hatched red, with the clearance in the readout.
 - With a submarine selected, the thermal layer and shallow water under it are shown.
 - One menu button in the map's title bar: Topography on/off, Look, Legend, Cursor height; also in the mission editor.
-- Works on the 3D globe map at every zoom, over the poles and across the date line; the flat 0.8.7 map has its own build.
+- Works on the 3D globe map at every zoom, over the poles and across the date line.
 - Heights and depths are the ones the simulation uses: the game's own terrain data (DEM), no game files changed.
 - The layer is display-only: the mission's own zones and rules decide what counts in play.
 
@@ -38,7 +38,7 @@ Full detail: [docs/features.md](docs/features.md).
 3. Start the game and open the map in a mission. The layer is on.
 4. Topography on/off: the menu button or F6. Next look: Shift+F6.
 
-Manual install: put `SeaPowerTopo.dll` and `_info.ini` into `<Sea Power>\Sea Power_Data\StreamingAssets\SeaPowerTopo\`. To uninstall, unsubscribe or delete the folder.
+Manual install: put `SeaPowerTopo.dll`, `SeaPowerRigging.dll` and `_info.ini` into `<Sea Power>\Sea Power_Data\StreamingAssets\SeaPowerTopo\`. To uninstall, unsubscribe or delete the folder.
 
 ## Settings
 
@@ -58,8 +58,8 @@ Manual install: put `SeaPowerTopo.dll` and `_info.ini` into `<Sea Power>\Sea Pow
 
 ## Building
 
-- Needs the .NET SDK 8, Sea Power installed and the [SeaPowerKeel](https://github.com/struckl/SeaPowerKeel) repo next to this one.
-- Two game builds from one source tree: `-p:GameBuild=Flat` builds the 0.8.7 flat map DLL.
+- Needs the .NET SDK 8, Sea Power installed and the SeaPowerRigging repo (R.A.T.S. Rigging) next to this one.
+- One build, for the game's current main version.
 
 ```bash
 dotnet build src/SeaPowerTopo/SeaPowerTopo.csproj -c Release -p:GameDir="C:\Program Files (x86)\Steam\steamapps\common\Sea Power"

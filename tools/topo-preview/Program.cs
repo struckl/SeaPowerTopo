@@ -14,7 +14,7 @@ namespace SeaPowerTopo.Preview;
 /// zoomed out, the world grid where no DEM chunk exists), resampled and coloured by the plugin's own Raster code at the
 /// default settings (Look), over a flat stand-in for the stock map.
 /// <code>
-/// dotnet run --project tools/topo-preview -- --at 61.5,8 --span 2 --size 1600x900 [--danger 1200] [--dark] [--globe]
+/// dotnet run --project tools/topo-preview -- --at 61.5,8 --span 2 --size 1600x900 [--danger 1200] [--dark]
 ///     [--interval 100] [--nodepth] [--depth-factor 2] [--out preview.png] [--game "E:\Games\steamapps\common\Sea Power"]
 /// </code>
 /// --theme picks the look (midnight, ecdis-day, genshtab, ... - see Theme.cs; the map theme follows from it, --dark picks
@@ -24,7 +24,7 @@ namespace SeaPowerTopo.Preview;
 /// read back, and a file with only a Base, must draw exactly what the original does.
 /// --at is the centre (lat,lon), --span the view height in degrees, --size the map's pixel size; --nodepth leaves
 /// the sea to the stock map, --depth-factor is the game's under-water depth factor (Options > World, default 2).
-/// --globe draws the narrower pixels of the globe map (0.9 and later); without it the flat map's square ones (0.8.7).
+/// The pixels are as much wider in degrees as the globe map's are (cos of the latitude), as in the game.
 /// --sub 120 draws what a selected submarine at 120 m sees: the thermal layer (with a stand-in for the game's
 /// random layer depths, which need Unity) and water shallower than the submarine.
 /// </summary>
@@ -36,7 +36,7 @@ internal static class Program
         public int Width = 1600, Height = 900;
         public float Danger = float.NaN, Interval = -1, DepthFactor = 2, Keel = float.NaN;
         public float ChartSafety = Look.DefaultChartSafety;
-        public bool Dark, Depth = true, Check, Globe;
+        public bool Dark, Depth = true, Check;
         public string ThemeId, ThemesDir, ThemeFile;
         public string Output = "preview.png", Game = @"E:\Games\steamapps\common\Sea Power";
     }
@@ -64,7 +64,6 @@ internal static class Program
         ["--dark"] = o => o.Dark = true,
         ["--nodepth"] = o => o.Depth = false,
         ["--check-themes"] = o => o.Check = true,
-        ["--globe"] = o => o.Globe = true,
     };
 
     private static int Main(string[] args)
@@ -83,7 +82,7 @@ internal static class Program
             Console.Error.WriteLine($"Unknown theme {o.ThemeId}");
             return 1;
         }
-        RasterJob job = NewJob(theme, o.Lat, o.Lon, o.Span, o.Width, o.Height, o.Globe, o.Depth, o.ChartSafety, o.Danger, o.Keel);
+        RasterJob job = NewJob(theme, o.Lat, o.Lon, o.Span, o.Width, o.Height, o.Depth, o.ChartSafety, o.Danger, o.Keel);
         if (o.Interval >= 0)
             job.Interval = o.Interval;
 
@@ -142,13 +141,13 @@ internal static class Program
 
     /// <summary>
     /// The image the plugin would draw for this view at the default settings: its palettes, opacity, hill shading and
-    /// contour step; on the globe with pixels as much wider in degrees as the plugin makes them.
+    /// contour step, with pixels as much wider in degrees as the plugin makes them on the globe.
     /// </summary>
-    internal static RasterJob NewJob(Theme theme, double lat, double lon, double span, int width, int height, bool globe,
+    internal static RasterJob NewJob(Theme theme, double lat, double lon, double span, int width, int height,
                                      bool depth, float chartSafety, float danger, float keel)
     {
         double dpp = span / height;
-        double dppX = globe ? dpp * new GeoRect(lon - 1, lat - span / 2, lon + 1, lat + span / 2).GlobeLonStretch : dpp;
+        double dppX = dpp * new GeoRect(lon - 1, lat - span / 2, lon + 1, lat + span / 2).GlobeLonStretch;
         return new RasterJob
         {
             Width = width,

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.8.0 - unreleased - needs R.A.T.S. Rigging, one build for the current game
+
+- **New required item: R.A.T.S. Rigging**, the part the R.A.T.S. mods share (start, settings, hooks, mission events). A copy comes with this mod for now, so nothing has to be done; a notice on the main menu offers the Workshop item.
+- Changed: one build for the game's current main version (0.9.x). The 0.8.7 flat-map build, `SeaPowerTopoFlat.dll` and the `.flatmap` plugin id are gone; the Workshop metadata says 0.9.0 or newer.
+- Changed (internal): the shared skeleton is no longer compiled into the DLL; Topo uses R.A.T.S. Rigging's library. Config sections, keys and defaults, the log source, the Harmony id, the layer name and the in-game names are unchanged; the Mod Manager description no longer mentions the 0.8.7 flat map.
+
 ## 1.7.0 - 2026-11-20 - shared skeleton, unticked stays off
 
 - The legend row and the setting text for the submarine layer now say "tint" instead of "stripes" (the map draws a soft teal tint; the look is unchanged)
