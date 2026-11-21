@@ -1,5 +1,4 @@
-1.7.0: land stays where it belongs.
-- Fixed: land vanished or moved in missions (land turned to sea, half a Falklands island gone, units floating, ships on land; board bugs 8 and 10)
-- The mod stays off when it is unticked in the game's Mod Manager
-- The legend and the map always use the same look defaults
-- Inside: Topo runs on the shared R.A.T.S. mod skeleton; every look draws exactly as before
+1.8.0: needs R.A.T.S. Rigging, one build for the current game.
+- Needs the new Workshop item R.A.T.S. Rigging, the part the R.A.T.S. mods share; a copy comes with this mod, so nothing has to be done, and a notice on the main menu offers the item
+- One build for the game's current main version (0.9.x); the 0.8.7 flat-map build is gone
+- Inside: the shared code is the Rigging library; every setting, text and key is unchanged
