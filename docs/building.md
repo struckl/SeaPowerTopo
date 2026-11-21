@@ -37,7 +37,7 @@ dotnet run --project tools/topo-preview -c Release -- --at 61.5,8 --span 2 --siz
 
 ```
 src/SeaPowerTopo/
-  Plugin.cs, Hooks.cs        entry point (the Anchor Chain entry, which Keel runs too; ModEntry of the shared skeleton does the game version check,
+  Plugin.cs, Hooks.cs        entry point (the Anchor Chain entry, which Keel carries on; ModEntry of the shared skeleton does the game version check,
                              settings, hooks and host); the late map hook
   ModInfo.cs                 what the shared skeleton reads (GUID, name, version, log source)
   Settings.cs                the config entries (Bind), the change counter the overlay redraws on

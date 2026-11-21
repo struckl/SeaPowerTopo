@@ -66,9 +66,8 @@ Everything the mod does, in full. The short list is in the [README](../README.md
 - Run in the game on 0.9.1 (build 261112) under Keel, in Red Sea Breakout (1.6.2). Other 0.9.x builds were checked offline.
 - One package, two game builds: `SeaPowerTopo.dll` for the 3D globe map, `SeaPowerTopoFlat.dll` for 0.8.7's flat map. Each
   stays off on the game the other is for, and the log says which one runs. They share the config file and theme files.
-- Both loaders run the same mod. Anchor Chain 1.1.0 does not start on the globe beta
-  ([seapower-modders/AnchorChain#19](https://github.com/seapower-modders/AnchorChain/issues/19)), so there the mod runs under
-  Keel. [tools/anchorchain-beta-shim](../tools/anchorchain-beta-shim) starts Anchor Chain for development.
+- The loader is R.A.T.S. Keel. [tools/anchorchain-beta-shim](../tools/anchorchain-beta-shim) started Anchor Chain on the
+  globe beta for development and is no longer needed.
 - The game updates often. If an update moves something the mod hooks into, the affected part stops and the log says why.
   The game keeps running.
 - Works together with Better TacMap (separate map layer numbers).

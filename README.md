@@ -7,7 +7,7 @@ Land heights and sea depths on the tactical map of [Sea Power: Naval Combat in t
 | Questions | [R.A.T.S. Discord](https://discord.gg/CzuHd4f8Yf): help, ideas, talk; the first place to ask |
 | Version | `1.7.0` (2026-11-20) |
 | Game | Sea Power 0.9.1 (build 261112) under Keel tested in the game; flat map build (0.8.7) run in the game with 1.5.0; other 0.9.x checked offline |
-| Needs | a mod loader: [R.A.T.S. Keel](https://steamcommunity.com/sharedfiles/filedetails/?id=3835527459) or [Anchor Chain](https://steamcommunity.com/sharedfiles/filedetails/?id=3380210757), either one |
+| Needs | [R.A.T.S. Keel](https://steamcommunity.com/sharedfiles/filedetails/?id=3835527459), the mod loader |
 | Get it | [Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3826122523) |
 | Settings | the map's title bar menu, or `BepInEx\config\dev.sewerlabs.seapowertopo.cfg` |
 | Bug reports | [R.A.T.S. feedback board](https://hub.sewerlabs.dev/s/topo) |
@@ -33,7 +33,7 @@ Full detail: [docs/features.md](docs/features.md).
 
 ## Install
 
-1. Install a mod loader, either one: [R.A.T.S. Keel](https://steamcommunity.com/sharedfiles/filedetails/?id=3835527459) (subscribe, switch it on in the Mods menu, copy its one stub file once) or [Anchor Chain](https://steamcommunity.com/sharedfiles/filedetails/?id=3380210757) with its [installation guide](https://seapower-modders.github.io/AnchorChain/install-anchor-chain.html).
+1. Install [R.A.T.S. Keel](https://steamcommunity.com/sharedfiles/filedetails/?id=3835527459), the mod loader (subscribe, switch it on in the Mods menu, copy its one stub file once).
 2. Subscribe to [R.A.T.S. Topographic Map](https://steamcommunity.com/sharedfiles/filedetails/?id=3826122523) on the Workshop.
 3. Start the game and open the map in a mission. The layer is on.
 4. Topography on/off: the menu button or F6. Next look: Shift+F6.
