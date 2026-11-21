@@ -6,7 +6,7 @@ Land heights and sea depths on the tactical map of [Sea Power: Naval Combat in t
 | --- | --- |
 | Questions | [R.A.T.S. Discord](https://discord.gg/CzuHd4f8Yf): help, ideas, talk; the first place to ask |
 | Version | `1.8.0` (unreleased) |
-| Game | Sea Power 0.9.3 (build 261116), the current main version; run in the test VM |
+| Game | Sea Power 0.9.3 (build 261116), the current main version |
 | Needs | [R.A.T.S. Keel](https://steamcommunity.com/sharedfiles/filedetails/?id=3835527459), the mod loader, and [R.A.T.S. Rigging](https://steamcommunity.com/sharedfiles/filedetails/?id=3843688859), the part the R.A.T.S. mods share |
 | Get it | [Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3826122523) |
 | Settings | the map's title bar menu, or `BepInEx\config\dev.sewerlabs.seapowertopo.cfg` |
