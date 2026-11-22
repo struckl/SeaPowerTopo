@@ -1,4 +1,4 @@
-1.8.0: needs R.A.T.S. Rigging, one build for the current game.
-- Needs the new Workshop item R.A.T.S. Rigging, the part the R.A.T.S. mods share; a copy comes with this mod, so nothing has to be done, and a notice on the main menu offers the item
-- One build for the game's current main version (0.9.x); the 0.8.7 flat-map build is gone
-- Inside: the shared code is the Rigging library; every setting, text and key is unchanged
+1.8.1: shorter notice about R.A.T.S. Rigging.
+- The notice on the main menu about the Workshop item R.A.T.S. Rigging is shorter and says what it is: just a code library
+- If you ticked "Don't show this again", it comes once more: the tick holds until the next Rigging update, and this is one
+- Nothing else changed

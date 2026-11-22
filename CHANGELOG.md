@@ -1,6 +1,11 @@
 # Changelog
 
-## 1.8.0 - unreleased - needs R.A.T.S. Rigging, one build for the current game
+## 1.8.1 - 2026-11-22 - shorter R.A.T.S. Rigging notice
+
+- Changed: the built-in copy of R.A.T.S. Rigging is 1.0.1. Its notice about the Workshop item is one sentence and three bullets, and says what Rigging is: just a code library.
+- Nothing else changed: the mod itself is the same as 1.8.0.
+
+## 1.8.0 - 2026-11-21 - needs R.A.T.S. Rigging, one build for the current game
 
 - **New required item: R.A.T.S. Rigging**, the part the R.A.T.S. mods share (start, settings, hooks, mission events). A copy comes with this mod for now, so nothing has to be done; a notice on the main menu offers the Workshop item.
 - Changed: one build for the game's current main version (0.9.x). The 0.8.7 flat-map build, `SeaPowerTopoFlat.dll` and the `.flatmap` plugin id are gone; the Workshop metadata says 0.9.0 or newer.

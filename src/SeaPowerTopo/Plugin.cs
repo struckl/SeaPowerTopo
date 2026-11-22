@@ -16,7 +16,7 @@ public class Plugin : IAnchorChainMod
 {
     public const string Guid = "dev.sewerlabs.seapowertopo";
     public const string Name = "R.A.T.S. Topographic Map";
-    public const string Version = "1.8.0";
+    public const string Version = "1.8.1";
 
     public void TriggerEntryPoint() => Start();
 
