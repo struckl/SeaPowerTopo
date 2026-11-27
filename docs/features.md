@@ -64,7 +64,7 @@ Everything the mod does, in full. The short list is in the [README](../README.md
 
 - Declared for Sea Power 0.9.0 up to every 0.9.x (`_info.ini`).
 - Run in the game on 0.9.1 (build 261112) under Keel, in Red Sea Breakout (1.6.2). Other builds, 0.9.3 included, were checked offline.
-- Needs R.A.T.S. Keel, the mod loader, and R.A.T.S. Rigging, the part the R.A.T.S. mods share (a copy comes with this mod for now). [tools/anchorchain-beta-shim](../tools/anchorchain-beta-shim) started Anchor Chain on the
+- Needs Keel, the mod loader, and R.A.T.S. Rigging, the part the R.A.T.S. mods share (a copy comes with this mod for now). [tools/anchorchain-beta-shim](../tools/anchorchain-beta-shim) started Anchor Chain on the
   globe beta for development and is no longer needed.
 - The game updates often. If an update moves something the mod hooks into, the affected part stops and the log says why.
   The game keeps running.

@@ -7,7 +7,7 @@ using SeaPowerTopo.Render;
 namespace SeaPowerTopo;
 
 /// <summary>
-/// Entry point, run by R.A.T.S. Keel (it calls TriggerEntryPoint of an [ACPlugin] class). The start itself is R.A.T.S. Rigging's:
+/// Entry point, run by Keel (it calls TriggerEntryPoint of an [ACPlugin] class). The start itself is R.A.T.S. Rigging's:
 /// the plugin names it as a dependency, so Keel starts it first and keeps this mod out when it is missing or too old.
 /// </summary>
 [ACPlugin(Guid, Name, Version)]

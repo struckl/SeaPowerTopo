@@ -7,7 +7,7 @@ Land heights and sea depths on the tactical map of [Sea Power: Naval Combat in t
 | Questions | [R.A.T.S. Discord](https://discord.gg/CzuHd4f8Yf): help, ideas, talk; the first place to ask |
 | Version | `1.8.1` |
 | Game | Sea Power 0.9.3 (build 261116), the current main version |
-| Needs | [R.A.T.S. Keel](https://steamcommunity.com/sharedfiles/filedetails/?id=3835527459), the mod loader, and [R.A.T.S. Rigging](https://steamcommunity.com/sharedfiles/filedetails/?id=3843688859), the part the R.A.T.S. mods share |
+| Needs | [Keel](https://steamcommunity.com/sharedfiles/filedetails/?id=3835527459), the mod loader, and [R.A.T.S. Rigging](https://steamcommunity.com/sharedfiles/filedetails/?id=3843688859), the part the R.A.T.S. mods share |
 | Get it | [Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3826122523) |
 | Settings | the map's title bar menu, or `BepInEx\config\dev.sewerlabs.seapowertopo.cfg` |
 | Bug reports | [R.A.T.S. feedback board](https://hub.sewerlabs.dev/s/topo) |
@@ -33,7 +33,7 @@ Full detail: [docs/features.md](docs/features.md).
 
 ## Install
 
-1. Install [R.A.T.S. Keel](https://steamcommunity.com/sharedfiles/filedetails/?id=3835527459), the mod loader (subscribe, switch it on in the Mods menu, copy its one stub file once).
+1. Install [Keel](https://steamcommunity.com/sharedfiles/filedetails/?id=3835527459), the mod loader (subscribe, switch it on in the Mods menu, copy its one stub file once).
 2. Subscribe to [R.A.T.S. Topographic Map](https://steamcommunity.com/sharedfiles/filedetails/?id=3826122523) on the Workshop; Steam offers the required item [R.A.T.S. Rigging](https://steamcommunity.com/sharedfiles/filedetails/?id=3843688859) with it.
 3. Already have Topo? Nothing to do: a copy of Rigging comes with the mod for now, and a notice on the main menu offers the Rigging item.
 4. Start the game and open the map in a mission. The layer is on.
